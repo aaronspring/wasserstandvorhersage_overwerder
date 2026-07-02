@@ -1,0 +1,233 @@
+"""Client fuer die BSH-Wasserstandsvorhersage (OGC API Features / ldproxy).
+
+Der Dienst https://gdi.bsh.de/ldproxy/rest/services/WaterLevelForecast ist
+offen (CC BY 4.0), aber die Collection- und Feldnamen sind nicht stabil
+dokumentiert. Dieser Client entdeckt die Struktur zur Laufzeit:
+
+1. /collections listet die Feature-Collections.
+2. Kandidaten-Collections (Namen mit forecast/vorhersage/kurve/...) werden
+   angelesen; Zeit-, Wert- und Stationsfelder werden heuristisch erkannt.
+3. Features der gewuenschten Station werden (serverseitig gefiltert, sonst
+   seitenweise) geladen und zu einer Zeitreihe zusammengesetzt.
+
+Mit `python forecast.py --explore` laesst sich die API-Struktur ausgeben,
+falls die Heuristik angepasst werden muss (config.py).
+"""
+
+from __future__ import annotations
+
+import re
+
+import pandas as pd
+import requests
+
+from .config import (
+    BSH_BASE,
+    BSH_DATUM_OFFSET_CM,
+    BSH_STATION_PATTERNS,
+    HTTP_TIMEOUT,
+    PLAUSIBLE_CM_PNP,
+    USER_AGENT,
+)
+
+_FORECAST_HINTS = ("forecast", "vorhersage", "curve", "kurve", "prediction",
+                   "timeseries", "zeitreihe", "wlf", "data")
+_TIME_KEY_HINTS = ("time", "date", "zeit", "stamp")
+_VALUE_KEY_HINTS = ("value", "wert", "level", "height", "wasserstand",
+                    "forecast", "vorhersage")
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"\s+", " ", str(s).strip().lower())
+
+
+class BSHClient:
+    def __init__(self, base: str = BSH_BASE):
+        self.base = base.rstrip("/")
+        self.session = requests.Session()
+        self.session.headers["User-Agent"] = USER_AGENT
+
+    def _get_json(self, url: str, **params) -> dict:
+        params.setdefault("f", "json")
+        r = self.session.get(url, params=params, timeout=HTTP_TIMEOUT)
+        r.raise_for_status()
+        return r.json()
+
+    # -- Discovery -----------------------------------------------------------
+
+    def collections(self) -> list[dict]:
+        return self._get_json(f"{self.base}/collections").get("collections", [])
+
+    def _items_url(self, collection_id: str) -> str:
+        return f"{self.base}/collections/{collection_id}/items"
+
+    def sample_features(self, collection_id: str, limit: int = 3) -> list[dict]:
+        data = self._get_json(self._items_url(collection_id), limit=limit)
+        return data.get("features", [])
+
+    def iter_features(self, collection_id: str, max_pages: int = 50, **params):
+        """Alle Features einer Collection, folgt rel=next-Links."""
+        url, first = self._items_url(collection_id), True
+        for _ in range(max_pages):
+            data = self._get_json(url, **(params if first else {"f": "json"}))
+            yield from data.get("features", [])
+            nxt = [l for l in data.get("links", []) if l.get("rel") == "next"]
+            if not nxt:
+                return
+            url, first = nxt[0]["href"], False
+
+    def explore(self) -> None:
+        """API-Struktur ausgeben (Collections + je ein Beispiel-Feature)."""
+        import json
+        for c in self.collections():
+            cid = c.get("id", "?")
+            print(f"\n=== Collection: {cid}  ({c.get('title', '')})")
+            try:
+                feats = self.sample_features(cid, limit=1)
+            except requests.RequestException as e:
+                print(f"    Fehler beim Lesen: {e}")
+                continue
+            for f in feats:
+                print(json.dumps(f.get("properties", {}), indent=2,
+                                 ensure_ascii=False, default=str)[:2000])
+
+    # -- Heuristiken ---------------------------------------------------------
+
+    @staticmethod
+    def _find_key(props: dict, hints: tuple[str, ...],
+                  pred=lambda v: True) -> str | None:
+        for k, v in props.items():
+            if any(h in k.lower() for h in hints) and v is not None and pred(v):
+                return k
+        return None
+
+    @classmethod
+    def _time_key(cls, props: dict) -> str | None:
+        def is_time(v):
+            try:
+                return pd.notna(pd.to_datetime(v, utc=True))
+            except (ValueError, TypeError):
+                return False
+        return cls._find_key(props, _TIME_KEY_HINTS, is_time)
+
+    @classmethod
+    def _value_key(cls, props: dict) -> str | None:
+        is_num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)
+        key = cls._find_key(props, _VALUE_KEY_HINTS, is_num)
+        if key:
+            return key
+        numeric = [k for k, v in props.items()
+                   if isinstance(v, (int, float)) and not isinstance(v, bool)]
+        return numeric[0] if len(numeric) == 1 else None
+
+    @staticmethod
+    def _matches_station(props: dict, patterns: tuple[str, ...]) -> bool:
+        for v in props.values():
+            if isinstance(v, str) and any(p in _norm(v) for p in patterns):
+                return True
+        return False
+
+    def _forecast_collections(self) -> list[str]:
+        cols = self.collections()
+        scored = []
+        for c in cols:
+            text = _norm(c.get("id", "")) + " " + _norm(c.get("title", ""))
+            score = sum(h in text for h in _FORECAST_HINTS)
+            scored.append((score, c.get("id")))
+        scored.sort(reverse=True)
+        return [cid for score, cid in scored if cid] or [c.get("id") for c in cols]
+
+    # -- Vorhersage ----------------------------------------------------------
+
+    def forecast(self, station_key: str) -> pd.Series:
+        """Kurvenvorhersage einer Station als Serie (cm ueber PNP, UTC-Index)."""
+        patterns = BSH_STATION_PATTERNS[station_key]
+        errors: list[str] = []
+        for cid in self._forecast_collections():
+            try:
+                series = self._forecast_from_collection(cid, patterns)
+            except requests.RequestException as e:
+                errors.append(f"{cid}: {e}")
+                continue
+            if series is not None and len(series) >= 8:
+                series.name = station_key
+                return self._to_cm_pnp(series, station_key)
+        raise RuntimeError(
+            f"Keine BSH-Vorhersage fuer '{station_key}' gefunden. "
+            f"Bitte `python forecast.py --explore` ausfuehren und "
+            f"config.py anpassen. Fehler: {errors}"
+        )
+
+    def _forecast_from_collection(self, cid: str,
+                                  patterns: tuple[str, ...]) -> pd.Series | None:
+        samples = self.sample_features(cid, limit=5)
+        if not samples:
+            return None
+        props = samples[0].get("properties", {})
+
+        # Variante A: ein Feature pro Station mit eingebetteter Zeitreihe (Liste)
+        for k, v in props.items():
+            if isinstance(v, list) and v and isinstance(v[0], dict):
+                sub = v[0]
+                if self._time_key(sub) and self._value_key(sub):
+                    feats = self.iter_features(cid)
+                    for f in feats:
+                        p = f.get("properties", {})
+                        if self._matches_station(p, patterns):
+                            return self._parse_embedded(p[k])
+                    return None
+
+        # Variante B: ein Feature pro Zeitschritt
+        tkey, vkey = self._time_key(props), self._value_key(props)
+        if not (tkey and vkey):
+            return None
+        records = []
+        try:  # grosse Seiten anfordern, um Paginierung zu minimieren
+            feats = list(self.iter_features(cid, limit=10000))
+        except requests.RequestException:
+            feats = list(self.iter_features(cid))
+        for f in feats:
+            p = f.get("properties", {})
+            if not self._matches_station(p, patterns):
+                continue
+            try:
+                t = pd.to_datetime(p[tkey], utc=True)
+            except (ValueError, TypeError, KeyError):
+                continue
+            v = p.get(vkey)
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                records.append((t, float(v)))
+        if not records:
+            return None
+        s = pd.Series(dict(records)).sort_index()
+        return s[~s.index.duplicated(keep="last")]
+
+    def _parse_embedded(self, items: list[dict]) -> pd.Series | None:
+        if not items:
+            return None
+        tkey, vkey = self._time_key(items[0]), self._value_key(items[0])
+        if not (tkey and vkey):
+            return None
+        idx = pd.to_datetime([it[tkey] for it in items], utc=True)
+        vals = [float(it[vkey]) for it in items]
+        s = pd.Series(vals, index=idx).sort_index()
+        return s[~s.index.duplicated(keep="last")]
+
+    @staticmethod
+    def _to_cm_pnp(s: pd.Series, station_key: str) -> pd.Series:
+        """Einheiten-Plausibilisierung und Umrechnung nach cm ueber PNP."""
+        med = float(s.median())
+        lo, hi = PLAUSIBLE_CM_PNP
+        if -15.0 < med < 15.0:      # vermutlich Meter (ueber NHN o.ae.)
+            s = s * 100.0
+            med = float(s.median())
+        if -600.0 < med < lo:       # vermutlich cm ueber NHN -> PNP = NHN - 5 m
+            s = s + 500.0
+            med = float(s.median())
+        s = s + BSH_DATUM_OFFSET_CM.get(station_key, 0.0)
+        if not (lo < float(s.median()) < hi):
+            raise RuntimeError(
+                f"BSH-Werte fuer {station_key} unplausibel (Median {med:.1f}). "
+                f"Bezugshorizont pruefen (--explore) und BSH_DATUM_OFFSET_CM setzen."
+            )
+        return s
