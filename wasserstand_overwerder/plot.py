@@ -16,6 +16,21 @@ C_TARGET = "#2a78d6"
 C_UP = "#4a3aa7"  # Zollenspieker
 C_DOWN = "#eb6834"  # St. Pauli
 C_OBS = "#6f6e64"
+C_SURGE = "#9ecbf0"  # helles Blau (abgeleitet von C_TARGET) fuer Sturmflut-Marken
+
+# Historische Sturmflut-Scheitel am Pegel Over (cm ueber PNP), Raenge 1/3/5/10.
+# Quelle und Methodik: docs/TOP_10_STURMFLUTEN.md
+SURGE_DOC = "docs/TOP_10_STURMFLUTEN.md"
+SURGE_DOC_URL = (
+    "https://github.com/aaronspring/wasserstandvorhersage_overwerder/"
+    "blob/main/docs/TOP_10_STURMFLUTEN.md"
+)
+STURMFLUT_SCHEITEL_CM = {
+    1: (1114, "Xaver 2013"),
+    3: (1067, "Tilo 2007"),
+    5: (1060, "Dez. 2023"),
+    10: (1008, "Emma 2008"),
+}
 
 
 def _local(s: pd.Series) -> pd.Series:
@@ -29,6 +44,7 @@ def plot_forecast(
     obs_over: pd.Series | None,
     out_png: str,
     now: pd.Timestamp | None = None,
+    show_surges: bool = True,
 ) -> None:
     fig, ax = plt.subplots(figsize=(11, 5.5), dpi=150)
 
@@ -74,6 +90,41 @@ def plot_forecast(
             fontsize=8,
             color="#6f6e64",
             ha="left",
+        )
+
+    if show_surges:
+        # nach Hoehe sortiert; Labels mit Mindestabstand entzerren (dicht
+        # beieinanderliegende Marken wie #3/#5 wuerden sich sonst ueberlagern).
+        label_gap_cm = 26
+        last_label = None
+        for cm, rank, storm in sorted(
+            (cm, rank, storm) for rank, (cm, storm) in STURMFLUT_SCHEITEL_CM.items()
+        ):
+            line = ax.axhline(cm, color=C_SURGE, lw=0.8, zorder=1)
+            line.set_url(SURGE_DOC_URL)  # klickbar in SVG-Ausgaben
+            label_y = cm if last_label is None else max(cm, last_label + label_gap_cm)
+            last_label = label_y
+            ax.annotate(
+                f"Sturmflut #{rank} ({storm}): {cm} cm",
+                xy=(0.995, label_y),
+                xycoords=("axes fraction", "data"),
+                xytext=(0, 1),
+                textcoords="offset points",
+                fontsize=7,
+                color=C_SURGE,
+                ha="right",
+                va="bottom",
+            )
+        # Quelle klein unten rechts vermerken (Klick-Link in SVG-Ausgaben).
+        ax.annotate(
+            f"Sturmflut-Marken: {SURGE_DOC}",
+            xy=(0.995, 0.02),
+            xycoords="axes fraction",
+            fontsize=6.5,
+            color=C_SURGE,
+            ha="right",
+            va="bottom",
+            url=SURGE_DOC_URL,
         )
 
     ax.set_ylabel("Wasserstand [cm über PNP]  (PNP = NHN − 5,00 m)")
