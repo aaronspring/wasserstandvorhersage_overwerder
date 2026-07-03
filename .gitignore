@@ -18,3 +18,5 @@ dist/
 # Frontend (web/)
 web/node_modules/
 web/dist/
+# vom Export erzeugt (in CI live neu gebaut; lokal via export_web.py --demo)
+web/public/data.json

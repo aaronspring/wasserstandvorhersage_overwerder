@@ -90,6 +90,23 @@ def test_missing_over_and_refs():
     assert pd.to_datetime(payload["forecast_start"]) == now
 
 
+def test_demo_inputs_offline():
+    now = pd.Timestamp("2026-06-03T00:00:00", tz="UTC")
+    up, down, over = webexport.demo_inputs(now, Params().frac)
+    assert over.index[-1] <= now  # Messung nur bis "jetzt"
+    assert up.index[-1] > now and down.index[-1] > now  # Vorhersage in Zukunft
+    payload = webexport.build_payload(
+        target=interpolate(up, down, Params()),
+        over=over,
+        up=up,
+        down=down,
+        reference_lines={"MThw": 746.0, "MTnw": 429.0},
+        gauge_zero_m_nhn=-5.0,
+        now=now,
+    )
+    assert set(payload["series"]) == {"overwerder", "over", "zollenspieker", "st_pauli"}
+
+
 def test_requires_tz_aware_now():
     now = pd.Timestamp("2026-06-03T00:00:00", tz="UTC")
     target, over, up, down = _scenario(now)

@@ -17,18 +17,20 @@ Overwerder (hervorgehoben), Messpegel Over, sowie Zollenspieker und St. Pauli
 (grau, unterschiedlicher Linienstil), dazu senkrechte Marker (jetzt,
 Vorhersagebeginn) und die Tide-Kennwerte MThw/MTnw als waagerechte Linien.
 
-Da GitHub Pages statisch ist, gibt es **kein Live-Backend**: Ein GitHub-Action-
-Workflow (`.github/workflows/deploy.yml`) läuft **alle 6 h**, erzeugt via
-`export_web.py` die Datendatei `web/public/data.json` (BSH + PEGELONLINE), baut
-das Frontend und deployt es nach Pages.
+Da GitHub Pages statisch ist, gibt es **kein Live-Backend**. Die Datendatei
+`web/public/data.json` wird **nicht eingecheckt**, sondern nur erzeugt: In der CI
+(`.github/workflows/deploy.yml`) läuft **alle 6 h** `export_web.py` mit echten
+BSH-/PEGELONLINE-Daten, baut das Frontend und deployt nach Pages. Lokal erzeugt
+`--demo` synthetische Daten ganz ohne Netz.
 
 ```bash
-# Daten lokal erzeugen (braucht Netz):
+# data.json einmal erzeugen (fuer lokalen Dev, kein Netz):
+uv run python export_web.py --demo --out web/public
+# ... oder mit echten Daten (braucht Netz):
 uv run python export_web.py --out web/public
 
-# Frontend lokal starten (nutzt das committete Beispiel-data.json):
-cd web && npm install && npm run dev
-npm run build            # Typecheck + Produktions-Build nach web/dist/
+cd web && npm install && npm run dev   # Dev-Server
+npm run build                          # Typecheck + Produktions-Build nach web/dist/
 ```
 
 Einmalige Einrichtung im Repo: **Settings → Pages → Source = „GitHub Actions"**.

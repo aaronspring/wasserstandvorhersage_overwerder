@@ -29,8 +29,10 @@ tests/test_webexport.py  Struktur-Tests fuer data.json (netzwerkfrei)
 ```
 
 Die Web-App ist statisch: `export_web.py` schreibt `data.json`, das React-Frontend
-lädt nur diese Datei. Der Workflow `.github/workflows/deploy.yml` erzeugt die Daten
-alle 6 h neu, baut `web/` und deployt nach GitHub Pages.
+lädt nur diese Datei. `web/public/data.json` wird **nicht eingecheckt** (`.gitignore`):
+Der Workflow `.github/workflows/deploy.yml` erzeugt sie alle 6 h live neu, baut `web/`
+und deployt nach GitHub Pages. Für lokalen Dev: `export_web.py --demo` (synthetisch,
+kein Netz).
 
 ## Kommandos
 
@@ -41,9 +43,10 @@ uv run ruff check . && uv run ruff format --check .   # Lint + Format
 uv run python calibrate.py --days 30     # braucht Netz (PEGELONLINE)
 uv run python forecast.py --params params.json --out out/   # braucht Netz (BSH)
 uv run python forecast.py --explore      # BSH-API-Struktur dumpen
-uv run python export_web.py --out web/public   # data.json fuers Frontend (braucht Netz)
+uv run python export_web.py --out web/public          # data.json (braucht Netz)
+uv run python export_web.py --demo --out web/public   # data.json synthetisch (kein Netz)
 cd web && npm ci && npm run build        # Frontend bauen (Typecheck + Vite)
-cd web && npm run dev                    # Frontend lokal (nutzt Beispiel-data.json)
+cd web && npm run dev                    # Frontend lokal (data.json vorher erzeugen)
 ```
 
 ## Wichtige Konventionen & Fallstricke

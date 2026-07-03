@@ -7,10 +7,41 @@ Frontend laedt genau diese Struktur und rendert daraus den Chart.
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 # Reihenfolge/Schluessel der Serien im data.json (Frontend erwartet diese Keys).
 SERIES_KEYS = ("overwerder", "over", "zollenspieker", "st_pauli")
+
+
+def demo_inputs(
+    now: pd.Timestamp, frac: float, *, days_past: int = 2, days_future: int = 5
+) -> tuple[pd.Series, pd.Series, pd.Series]:
+    """Synthetische Tidekurven (Zollenspieker, St. Pauli, Over) fuer Offline-Dev.
+
+    Kein Netz noetig: erzeugt eine asymmetrische M2-Tide (mit Obertiden), damit
+    `export_web.py --demo` ohne BSH/PEGELONLINE ein realistisches data.json baut.
+    """
+    m2 = 12.42 * 60.0  # M2-Periode in Minuten
+    t0 = (now - pd.Timedelta(days=days_past)).floor("h")
+    end = now + pd.Timedelta(days=days_future)
+    idx = pd.date_range(t0, end, freq="10min", tz="UTC")
+    minutes = (idx - t0).total_seconds().to_numpy() / 60.0
+
+    def tide(lag: float, mean: float, amp: float) -> pd.Series:
+        phase = 2.0 * np.pi * (minutes - lag) / m2
+        shape = (
+            np.cos(phase)
+            + 0.25 * np.cos(2.0 * phase - 1.0)
+            + 0.10 * np.cos(3.0 * phase + 0.5)
+        )
+        spring = 1.0 + 0.15 * np.sin(2.0 * np.pi * minutes / (14.77 * 24 * 60))
+        return pd.Series(mean + amp * spring * shape, index=idx)
+
+    down = tide(0.0, 510, 180)  # St. Pauli fuehrt
+    up = tide(70.0, 500, 150)  # Zollenspieker laeuft nach
+    over = tide(70.0 * (1.0 - frac), 505, 165)  # Over dazwischen
+    return up, down, over[over.index <= now]  # Messung nur bis "jetzt"
 
 
 def _pairs(s: pd.Series | None, start: pd.Timestamp, step_minutes: int) -> list[list]:

@@ -33,6 +33,11 @@ def main() -> None:
     ap.add_argument(
         "--hours-back", type=int, default=36, help="Stunden Vergangenheit im Chart"
     )
+    ap.add_argument(
+        "--demo",
+        action="store_true",
+        help="synthetische Offline-Daten erzeugen (kein Netz; fuer lokalen Dev)",
+    )
     args = ap.parse_args()
 
     params_path = args.params
@@ -45,29 +50,35 @@ def main() -> None:
         f"Offset={params.offset_cm:+.1f} cm"
     )
 
-    print("Lade BSH-Vorhersagen ...")
-    client = BSHClient()
-    up = client.forecast("zollenspieker")
-    down = client.forecast("st_pauli")
-    print(f"  Zollenspieker: {len(up)} Werte bis {up.index[-1]}")
-    print(f"  St. Pauli:     {len(down)} Werte bis {down.index[-1]}")
+    now = pd.Timestamp.now(tz="UTC")
+    if args.demo:
+        print("Demo-Modus: synthetische Offline-Daten (kein Netz).")
+        up, down, over = webexport.demo_inputs(now, params.frac)
+        refs: dict[str, float] = {"MThw": 746.0, "MTnw": 429.0}
+        gauge_zero: float | None = -5.0
+    else:
+        print("Lade BSH-Vorhersagen ...")
+        client = BSHClient()
+        up = client.forecast("zollenspieker")
+        down = client.forecast("st_pauli")
+        print(f"  Zollenspieker: {len(up)} Werte bis {up.index[-1]}")
+        print(f"  St. Pauli:     {len(down)} Werte bis {down.index[-1]}")
+
+        over = None
+        with contextlib.suppress(Exception):  # Beobachtung ist optional
+            over = pegelonline.observations("over", start="P3D")
+        if over is None:
+            print("Hinweis: Pegel Over (Messung) nicht verfuegbar.")
+
+        refs = {}
+        with contextlib.suppress(Exception):  # Kennwerte optional
+            refs = pegelonline.characteristic_values("over")
+
+        gauge_zero = None
+        with contextlib.suppress(Exception):
+            gauge_zero = pegelonline.gauge_zero_m_nhn("over")  # i. d. R. -5.00
 
     target = model.interpolate(up, down, params)
-
-    over = None
-    with contextlib.suppress(Exception):  # Beobachtung ist optional
-        over = pegelonline.observations("over", start="P3D")
-    if over is None:
-        print("Hinweis: Pegel Over (Messung) nicht verfuegbar.")
-
-    refs: dict[str, float] = {}
-    with contextlib.suppress(Exception):  # Kennwerte optional
-        refs = pegelonline.characteristic_values("over")
-
-    gauge_zero = None
-    with contextlib.suppress(Exception):
-        gauge_zero = pegelonline.gauge_zero_m_nhn("over")  # i. d. R. -5.00
-
     payload = webexport.build_payload(
         target=target,
         over=over,
@@ -75,7 +86,7 @@ def main() -> None:
         down=down,
         reference_lines=refs,
         gauge_zero_m_nhn=gauge_zero,
-        now=pd.Timestamp.now(tz="UTC"),
+        now=now,
         hours_back=args.hours_back,
     )
 
