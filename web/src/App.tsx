@@ -124,6 +124,7 @@ export default function App() {
           Zollenspieker ↔ St. Pauli auf Overwerder, kalibriert am Pegel Over. Keine
           amtliche Sturmflutwarnung.
         </p>
+        <p>Letzter Build: {fmtDateTime(Date.parse(__BUILD_TIME__))} Uhr</p>
       </footer>
     </div>
   );
