@@ -1,0 +1,70 @@
+name: Deploy
+
+# Erzeugt alle 6 h frische Daten (BSH + PEGELONLINE), baut das React-Frontend
+# und deployt es nach GitHub Pages. data.json wird nicht committet, sondern beim
+# Build frisch erzeugt und ins Pages-Artefakt gebacken.
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "wasserstand_overwerder/**"
+      - "export_web.py"
+      - ".github/workflows/deploy.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: "3.13"
+      - name: Sync Python-Abhaengigkeiten
+        run: uv sync
+
+      - name: data.json erzeugen (BSH + PEGELONLINE)
+        run: uv run python export_web.py --out web/public
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Web-Abhaengigkeiten installieren
+        run: npm ci
+        working-directory: web
+      - name: Frontend bauen
+        run: npm run build
+        working-directory: web
+
+      - name: Pages-Artefakt hochladen
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Nach GitHub Pages deployen
+        id: deployment
+        uses: actions/deploy-pages@v4

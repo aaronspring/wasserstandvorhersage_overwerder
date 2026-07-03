@@ -24,6 +24,25 @@ def station_info(key: str) -> dict:
     return r.json()
 
 
+def characteristic_values(key: str) -> dict[str, float]:
+    """Kennwerte (z. B. MHW, MNW) der W-Zeitreihe in cm ueber PNP.
+
+    Rueckgabe: {shortname: wert_cm}, z. B. {"MHW": 744.0, "MNW": 430.0}.
+    Fehlt der Kennwerte-Block, wird ein leeres Dict zurueckgegeben.
+    """
+    info = station_info(key)
+    for ts in info.get("timeseries", []):
+        if ts.get("shortname") != "W":
+            continue
+        out: dict[str, float] = {}
+        for cv in ts.get("characteristicValues") or []:
+            name, value = cv.get("shortname"), cv.get("value")
+            if name and value is not None:
+                out[str(name)] = float(value)
+        return out
+    return {}
+
+
 def gauge_zero_m_nhn(key: str) -> float | None:
     """PNP in m ueber NHN (fuer Tideelbe-Pegel typischerweise -5.00)."""
     info = station_info(key)
