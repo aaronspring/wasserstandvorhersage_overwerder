@@ -36,7 +36,7 @@ export default function App() {
     <div className="app">
       <header className="head">
         <h1>Wasserstandsvorhersage Overwerder</h1>
-        <p className="sub">Bogen 79 · Tideelbe · km 605,3</p>
+        <p className="sub">Tideelbe · km 605,3</p>
         {data && (
           <p className="updated">
             aktualisiert {fmtDateTime(Date.parse(data.generated_at))} Uhr

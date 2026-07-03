@@ -1,8 +1,8 @@
-# Plan: Wasserstandsvorhersage Overwerder Bogen 79 (MWP)
+# Plan: Wasserstandsvorhersage Overwerder (MWP)
 
 ## Ziel
 
-Eine Wasserstandsvorhersage für **Overwerder Bogen 79** (Wochenendhaussiedlung
+Eine Wasserstandsvorhersage für **Overwerder** (Wochenendhaussiedlung
 Overwerder, Vier- und Marschlande, Tideelbe bei Elbe-km ≈ 605), abgeleitet aus den
 **BSH-Wasserstandsvorhersagen** für die Pegel **Zollenspieker** und
 **Hamburg St. Pauli** (Landungsbrücken/Fischmarkt). Minimal Working Product (MWP):
