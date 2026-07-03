@@ -12,6 +12,7 @@ export interface Colors {
   now: string;
   forecast: string;
   ref: string;
+  surge: string;
   tooltipBg: string;
 }
 
@@ -30,6 +31,7 @@ const LIGHT: Colors = {
   now: "#eb6834",
   forecast: "#52514e",
   ref: "#a3a199",
+  surge: "#7fb2e6",
   tooltipBg: "#fffffff2",
 };
 
@@ -45,6 +47,7 @@ const DARK: Colors = {
   now: "#d95926",
   forecast: "#c3c2b7",
   ref: "#77756f",
+  surge: "#5a86b8",
   tooltipBg: "#1f1f1ef2",
 };
 

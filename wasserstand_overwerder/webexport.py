@@ -10,6 +10,20 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from .config import STURMFLUT_DOC_URL, STURMFLUT_SCHEITEL_CM
+
+
+def surge_lines() -> list[dict]:
+    """Top-Sturmfluten (Rang 1/3/5/10) fuers Frontend, nach Hoehe sortiert.
+
+    Aus :data:`config.STURMFLUT_SCHEITEL_CM` (einzige Quelle, auch fuer den
+    matplotlib-Plot). Struktur je Eintrag: ``{"rank", "label", "cm"}``.
+    """
+    return [
+        {"rank": rank, "label": storm, "cm": float(cm)}
+        for rank, (cm, storm) in sorted(STURMFLUT_SCHEITEL_CM.items())
+    ]
+
 
 def demo_inputs(
     now: pd.Timestamp, frac: float, *, days_past: int = 2, days_future: int = 5
@@ -115,5 +129,7 @@ def build_payload(
         ),
         "hours_back": hours_back,
         "reference_lines": refs,
+        "surge_lines": surge_lines(),
+        "surge_doc_url": STURMFLUT_DOC_URL,
         "series": series,
     }

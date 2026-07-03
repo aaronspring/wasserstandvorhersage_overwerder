@@ -9,7 +9,13 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from .config import STURMFLUT_DOC, STURMFLUT_DOC_URL, STURMFLUT_SCHEITEL_CM
+
 TZ = "Europe/Berlin"
+
+# Kurz-Aliase (Doku-Verweis auf die Top-10-Sturmfluten).
+SURGE_DOC = STURMFLUT_DOC
+SURGE_DOC_URL = STURMFLUT_DOC_URL
 
 # Farben: Zielserie blau, Stuetzpegel violett/orange, Beobachtung grau
 C_TARGET = "#2a78d6"
@@ -18,19 +24,7 @@ C_DOWN = "#eb6834"  # St. Pauli
 C_OBS = "#6f6e64"
 C_SURGE = "#9ecbf0"  # helles Blau (abgeleitet von C_TARGET) fuer Sturmflut-Marken
 
-# Historische Sturmflut-Scheitel am Pegel Over (cm ueber PNP), Raenge 1/3/5/10.
-# Quelle und Methodik: docs/TOP_10_STURMFLUTEN.md
-SURGE_DOC = "docs/TOP_10_STURMFLUTEN.md"
-SURGE_DOC_URL = (
-    "https://github.com/aaronspring/wasserstandvorhersage_overwerder/"
-    "blob/main/docs/TOP_10_STURMFLUTEN.md"
-)
-STURMFLUT_SCHEITEL_CM = {
-    1: (1114, "Xaver 2013"),
-    3: (1067, "Tilo 2007"),
-    5: (1060, "Dez. 2023"),
-    10: (1008, "Emma 2008"),
-}
+# Sturmflut-Scheitel (Raenge 1/3/5/10) samt Doku-Verweis stehen in config.py.
 # Sturmflut-Marken nur einblenden, wenn die Vorhersage ihnen nahekommt: eine
 # Marke wird gezeigt, sobald der Datenscheitel bis auf diesen Abstand (cm)
 # heranreicht. So wird der Plot bei Normaltiden nicht durch weit oben liegende
