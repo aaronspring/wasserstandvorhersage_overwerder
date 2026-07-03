@@ -108,8 +108,9 @@ export default function App() {
           </span>
           <p className="leg-hint">
             Legende antippen blendet Linien aus · ins Diagramm tippen zeigt die
-            Werte je Linie · ziehen zoomt hinein · Standardansicht: 12 h zurück
-            und 36 h voraus
+            Werte je Linie · ziehen zoomt hinein · Übersichtsleiste unten
+            verschieben/aufziehen oder „Ganzer Zeitraum" zeigt die volle
+            Vorhersage · Standardansicht: 12 h zurück und 36 h voraus
           </p>
         </div>
       )}
