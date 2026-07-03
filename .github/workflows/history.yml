@@ -1,10 +1,13 @@
 name: Pegel-Archiv -> Hugging Face
 
-# Baut das jaehrlich partitionierte Parquet-Archiv (minuetliche Rohdaten seit
-# 2000, Over + Zollenspieker) neu und spiegelt es in das Hugging-Face-Dataset.
-# Voller Rebuild ist bewusst gewaehlt (idempotent, keine Duplikate/Luecken) und
-# dauert nur wenige Minuten. Monatlich reicht, da sich nur das laufende Jahr
-# aendert; per workflow_dispatch auch manuell ausloesbar.
+# Aktualisiert das jaehrlich partitionierte Parquet-Dataset (minuetliche
+# Rohdaten seit 2000, Over + Zollenspieker) auf Hugging Face.
+#
+# - Monatlich (schedule): INKREMENTELL via update_history.py -- baut nur das
+#   laufende Jahr + 1 Vorjahr neu und ersetzt genau diese Partitionen. Aeltere
+#   Jahre bleiben unberuehrt (guenstig, idempotent, sauber ueber Jahreswechsel).
+# - Manuell (workflow_dispatch, mode=full): einmaliger voller Backfill seit 2000
+#   via build_history.py (spiegelt das komplette Dataset).
 #
 # Setup einmalig: Repository-Secret HF_TOKEN (Write-Token von
 # https://huggingface.co/settings/tokens) hinterlegen.
@@ -13,12 +16,14 @@ on:
     - cron: "0 4 1 * *" # am 1. jedes Monats, 04:00 UTC
   workflow_dispatch:
     inputs:
-      start:
-        description: "Startdatum (YYYY-MM-DD)"
-        default: "2000-01-01"
+      mode:
+        description: "incremental (nur juengste Jahre) oder full (Backfill seit 2000)"
+        type: choice
+        options: [incremental, full]
+        default: incremental
       hf_repo:
         description: "HF-Dataset-Repo (ORG/NAME)"
-        default: "aaronspring/tideelbe-pegel-minute"
+        default: "aaronspring/elbe-pegel-over-zollenspieker-minutely-since-2000"
 
 permissions:
   contents: read
@@ -28,8 +33,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-and-upload:
+  update:
     runs-on: ubuntu-latest
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_REPO: ${{ github.event.inputs.hf_repo || 'aaronspring/elbe-pegel-over-zollenspieker-minutely-since-2000' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -41,13 +49,14 @@ jobs:
       - name: Sync (inkl. hf-Extra)
         run: uv sync --extra hf
 
-      - name: Archiv bauen und zu Hugging Face hochladen
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      - name: Inkrementelles Monatsupdate
+        if: ${{ github.event.inputs.mode != 'full' }}
+        run: uv run python update_history.py --hf-repo "$HF_REPO" --years-back 1
+
+      - name: Voller Backfill (nur manuell, mode=full)
+        if: ${{ github.event.inputs.mode == 'full' }}
         run: |
           uv run python build_history.py \
-            --start "${{ github.event.inputs.start || '2000-01-01' }}" \
-            --end "$(date -u +%Y-%m-%d)" \
+            --start 2000-01-01 --end "$(date -u +%Y-%m-%d)" \
             --stations over zollenspieker \
-            --out out/history \
-            --hf-repo "${{ github.event.inputs.hf_repo || 'aaronspring/tideelbe-pegel-minute' }}"
+            --out out/history --hf-repo "$HF_REPO"

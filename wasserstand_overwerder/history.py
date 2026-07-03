@@ -215,3 +215,62 @@ def read_parquet(out_dir: str | Path) -> pd.DataFrame:
     if "time" in df:
         df["time"] = pd.to_datetime(df["time"], utc=True)
     return df
+
+
+def _to_utc(value: str | pd.Timestamp) -> pd.Timestamp:
+    ts = pd.Timestamp(value)
+    if ts.tzinfo is None:
+        ts = ts.tz_localize(PEGELONLINE_HISTORY_TZ)
+    return ts.tz_convert("UTC")
+
+
+def fetch_station_frames(
+    keys,
+    start: str | pd.Timestamp,
+    end: str | pd.Timestamp,
+    rest_fallback: bool = True,
+    log=print,
+) -> pd.DataFrame:
+    """Mehrere Stationen laden und zu einem tidy-DataFrame zusammenfuehren.
+
+    Zieht je Station das Langzeitarchiv; fuer Pegel ohne Archiv (St. Pauli) und
+    Zeitraeume < 31 Tage wird optional die REST-API als Ersatz genutzt. Leere
+    oder fehlende Stationen werden uebersprungen (nur ``log``-Hinweis).
+    """
+    # Lokal importiert, um einen Modul-Zyklus zu vermeiden.
+    from . import pegelonline
+
+    start_utc, end_utc = _to_utc(start), _to_utc(end)
+    frames: list[pd.DataFrame] = []
+    for key in keys:
+        log(f"[{key}] lade {start} .. {end} ...")
+        try:
+            series = fetch_history(key, start, end)
+            src = "Archiv"
+        except ArchiveNotAvailable:
+            if not rest_fallback:
+                log(f"  ! {key}: kein Langzeitarchiv, uebersprungen")
+                continue
+            log(f"  i {key}: kein Langzeitarchiv -> REST-Fallback (max. 31 Tage)")
+            try:
+                s = pegelonline.observations(
+                    key, start=start_utc.strftime("%Y-%m-%dT%H:%M:%S%z")
+                )
+                series = s[(s.index >= start_utc) & (s.index < end_utc)]
+                series.name = key
+                src = "REST"
+            except Exception as exc:  # noqa: BLE001 - Netzfehler nur berichten
+                log(f"  ! {key}: REST-Fallback fehlgeschlagen: {exc}")
+                continue
+        if series.empty:
+            log(f"  ! {key}: keine Werte im Zeitraum")
+            continue
+        log(
+            f"  {key}: {len(series)} Werte ({src}), {series.index.min()} .. "
+            f"{series.index.max()}"
+        )
+        frames.append(series_to_frame(series, key))
+
+    if not frames:
+        return pd.DataFrame(columns=list(PARQUET_COLUMNS))
+    return pd.concat(frames, ignore_index=True)

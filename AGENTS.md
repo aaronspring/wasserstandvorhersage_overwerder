@@ -17,6 +17,7 @@ wasserstand_overwerder/
   config.py       Elbe-km, Stationsnamen, API-Basis-URLs, Datum-Offsets, Archiv-UUIDs
   pegelonline.py  Beobachtungen (W, cm über PNP) von PEGELONLINE (rollierende 31 Tage)
   history.py      Langzeitarchiv seit 2000 (minuetlich) -> jaehrl. Parquet-Dataset
+  hfhub.py        Upload des Parquet-Datasets zu Hugging Face (optionales Extra "hf")
   bsh.py          BSH-Vorhersagen via OGC API Features (Laufzeit-Discovery)
   model.py        Interpolation (Params, interpolate, calibrate, recent_bias_cm)
   plot.py         matplotlib-Plot
@@ -24,11 +25,13 @@ wasserstand_overwerder/
 calibrate.py      CLI: fittet tau/Gewichte/Offset gegen Pegel Over -> params.json
 forecast.py       CLI: erzeugt out/overwerder_forecast.{csv,png}; --explore
 export_web.py     CLI: erzeugt web/public/data.json (BSH + PEGELONLINE) fuers Frontend
-build_history.py  CLI: baut jaehrl. partitioniertes Parquet-Archiv (out/history/year=YYYY)
+build_history.py  CLI: voller Backfill des jaehrl. Parquet-Archivs (einmalig)
+update_history.py CLI: inkrementelles Monatsupdate (nur juengste year=YYYY -> HF)
 web/              React+Vite+TS Single-Page-App (Recharts), Deploy nach GitHub Pages
 tests/test_model.py      Synthetik-Tests (netzwerkfrei)
 tests/test_webexport.py  Struktur-Tests fuer data.json (netzwerkfrei)
 tests/test_history.py    Parsing/Parquet-Tests fuers Archiv (netzwerkfrei)
+tests/test_hfhub.py      Dataset-Card/Upload-Pattern-Tests (netzwerkfrei)
 ```
 
 Die Web-App ist statisch: `export_web.py` schreibt `data.json`, das React-Frontend
@@ -52,7 +55,8 @@ uv run python build_history.py --start 2000-01-01 --end 2000-01-08 \
     --stations over zollenspieker         # Parquet-Archiv (braucht Netz), kleiner Test
 uv sync --extra hf                        # huggingface_hub fuer den HF-Upload
 HF_TOKEN=... uv run python build_history.py --start 2000-01-01 --end 2026-07-01 \
-    --stations over zollenspieker --hf-repo   # baut + pusht zu Hugging Face
+    --stations over zollenspieker --hf-repo   # einmaliger Backfill -> Hugging Face
+HF_TOKEN=... uv run python update_history.py  # inkrementelles Monatsupdate -> HF
 cd web && npm ci && npm run build        # Frontend bauen (Typecheck + Vite)
 cd web && npm run dev                    # Frontend lokal (data.json vorher erzeugen)
 ```
@@ -92,13 +96,19 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   Gesamtarchiv Over+Zollenspieker); erneute Aufrufe **haengen an**
   (`existing_data_behavior="overwrite_or_ignore"`), also taeglich/monatlich
   erweiterbar. Ueberlappende Zeitraeume koennen Duplikate erzeugen.
-- **Hosting = Hugging Face Dataset:** `hfhub.upload_dataset` /
-  `build_history.py --hf-repo` spiegelt das Archiv nach
-  `aaronspring/tideelbe-pegel-minute` (Default). `huggingface_hub` ist ein
-  **optionales** Extra (`uv sync --extra hf`, Gruppe `hf`), lazy importiert;
-  Auth ueber `HF_TOKEN`. Der Workflow `.github/workflows/history.yml` baut das
-  Archiv monatlich neu (voller Rebuild = idempotent) und pusht mit dem
-  Repo-Secret `HF_TOKEN`. Nicht ins Git-Repo committen (zu gross).
+- **Hosting = Hugging Face Dataset:** Default-Repo
+  `aaronspring/elbe-pegel-over-zollenspieker-minutely-since-2000`.
+  `huggingface_hub` ist ein **optionales** Extra (`uv sync --extra hf`, Gruppe
+  `hf`), lazy importiert; Auth ueber `HF_TOKEN`.
+  - **Einmalig:** `build_history.py --hf-repo` (voller Backfill seit 2000,
+    `replace_years=None` -> spiegelt das ganze Dataset).
+  - **Laufend:** `update_history.py` (inkrementell) baut nur laufendes Jahr +
+    1 Vorjahr neu und ersetzt via `replace_years` **genau diese**
+    `year=YYYY/`-Partitionen; aeltere Jahre bleiben unberuehrt. Idempotent,
+    sauber ueber Jahreswechsel.
+  - Workflow `.github/workflows/history.yml`: monatlich inkrementell (Cron),
+    `workflow_dispatch` mit `mode=full` fuer den Backfill; Repo-Secret
+    `HF_TOKEN`. Nicht ins Git-Repo committen (zu gross).
 - Sprache: Doku/CLI-Ausgaben auf Deutsch, Bezeichner im Code auf Englisch.
 
 ## Tests vor dem Commit

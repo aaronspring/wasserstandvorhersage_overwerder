@@ -12,10 +12,26 @@ import os
 from pathlib import Path
 
 #: Default-Ziel: Dataset-Repo unter https://huggingface.co/aaronspring
-DEFAULT_HF_REPO = "aaronspring/tideelbe-pegel-minute"
+DEFAULT_HF_REPO = "aaronspring/elbe-pegel-over-zollenspieker-minutely-since-2000"
 
 # Dateien, die zusaetzlich zu den year=YYYY/-Partitionen ins Repo gehoeren.
 _DATASET_CARD = "README.md"
+
+
+def _upload_patterns(replace_years: list[int] | None) -> tuple[list[str], list[str]]:
+    """(allow_patterns, delete_patterns) fuer upload_folder bestimmen.
+
+    ``replace_years=None`` -> voller Spiegel: alle ``year=*``-Fragmente ersetzen.
+    Sonst nur die genannten Jahres-Partitionen ersetzen, uebrige unberuehrt
+    lassen (inkrementelles Update). ``delete_patterns`` entfernt die alten
+    Fragmente im selben Commit, sodass keine Duplikate entstehen.
+    """
+    if replace_years is None:
+        return ["year=*/*.parquet", _DATASET_CARD], ["year=*/*.parquet"]
+    years = sorted(set(replace_years))
+    allow = [f"year={y}/*.parquet" for y in years] + [_DATASET_CARD]
+    delete = [f"year={y}/*.parquet" for y in years]
+    return allow, delete
 
 
 def dataset_card(repo_id: str, stations: list[str]) -> str:
@@ -82,11 +98,14 @@ def upload_dataset(
     stations: list[str] | None = None,
     private: bool = False,
     commit_message: str = "Update Pegel-Archiv",
+    replace_years: list[int] | None = None,
 ) -> str:
     """Lokales Parquet-Dataset zu einem HF-Dataset-Repo hochladen.
 
-    Legt das Repo bei Bedarf an, schreibt eine Dataset-Card (README.md) und
-    spiegelt die ``year=YYYY/``-Partitionen. Rueckgabe: URL des Datasets.
+    Legt das Repo bei Bedarf an und schreibt eine Dataset-Card (README.md).
+    ``replace_years=None`` spiegelt das gesamte Dataset (voller Backfill);
+    eine Liste von Jahren ersetzt nur diese ``year=YYYY/``-Partitionen und
+    laesst die uebrigen unangetastet (inkrementelles Update). Rueckgabe: URL.
     """
     from huggingface_hub import HfApi  # optionale Abhaengigkeit
 
@@ -100,11 +119,13 @@ def upload_dataset(
         dataset_card(repo_id, stations or ["over", "zollenspieker"]), encoding="utf-8"
     )
 
+    allow, delete = _upload_patterns(replace_years)
     api.upload_folder(
         repo_id=repo_id,
         repo_type="dataset",
         folder_path=str(local),
-        allow_patterns=["year=*/*.parquet", _DATASET_CARD],
+        allow_patterns=allow,
+        delete_patterns=delete,
         commit_message=commit_message,
     )
     return f"https://huggingface.co/datasets/{repo_id}"

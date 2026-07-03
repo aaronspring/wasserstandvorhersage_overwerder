@@ -12,8 +12,24 @@ def test_default_repo_under_aaronspring():
     assert hfhub.DEFAULT_HF_REPO.startswith("aaronspring/")
 
 
+def test_upload_patterns_full_mirror():
+    allow, delete = hfhub._upload_patterns(None)
+    assert "year=*/*.parquet" in allow and "README.md" in allow
+    assert delete == ["year=*/*.parquet"]
+
+
+def test_upload_patterns_incremental_scopes_years():
+    allow, delete = hfhub._upload_patterns([2025, 2026])
+    # Nur genau die genannten Jahres-Partitionen werden ersetzt.
+    assert allow == ["year=2025/*.parquet", "year=2026/*.parquet", "README.md"]
+    assert delete == ["year=2025/*.parquet", "year=2026/*.parquet"]
+    # nur konkrete Jahre, kein "year=*" -> aeltere Jahre bleiben unberuehrt
+    assert "year=*/*.parquet" not in delete
+
+
 def test_dataset_card_has_frontmatter_and_config():
-    card = hfhub.dataset_card("aaronspring/tideelbe-pegel-minute", ["over", "zollen"])
+    repo = "aaronspring/elbe-pegel-over-zollenspieker-minutely-since-2000"
+    card = hfhub.dataset_card(repo, ["over", "zollen"])
     # YAML-Front-Matter
     assert card.startswith("---\n")
     assert card.count("---\n") >= 2
@@ -22,7 +38,7 @@ def test_dataset_card_has_frontmatter_and_config():
     assert "cc-by-4.0" in card
     # Stationsliste und Repo-Id tauchen im Ladebeispiel auf
     assert "over, zollen" in card
-    assert "hf://datasets/aaronspring/tideelbe-pegel-minute" in card
+    assert f"hf://datasets/{repo}" in card
 
 
 def test_upload_dataset_is_lazy_import():
