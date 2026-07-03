@@ -160,6 +160,10 @@ def fetch_history(
 #: ``year`` UTC-Jahr als Partitionsspalte.
 PARQUET_COLUMNS = ("time", "station", "w_cm_pnp", "year")
 
+#: Standard-Kompression: zstd (rund halb so gross wie snappy bei gleicher
+#: Lesbarkeit; ~110 statt ~250 MB fuers Gesamtarchiv Over+Zollenspieker).
+PARQUET_COMPRESSION = "zstd"
+
 
 def series_to_frame(series: pd.Series, key: str | None = None) -> pd.DataFrame:
     """Serie (UTC-Index, cm ueber PNP) -> tidy DataFrame mit ``year``-Spalte."""
@@ -175,21 +179,27 @@ def series_to_frame(series: pd.Series, key: str | None = None) -> pd.DataFrame:
     )
 
 
-def write_parquet(frame: pd.DataFrame, out_dir: str | Path) -> Path:
+def write_parquet(
+    frame: pd.DataFrame,
+    out_dir: str | Path,
+    compression: str = PARQUET_COMPRESSION,
+) -> Path:
     """Tidy-DataFrame als jaehrlich partitioniertes Parquet-Dataset schreiben.
 
     Partitionierung ueber ``year`` (Verzeichnisse ``year=YYYY/``). Bestehende
     Partitionen bleiben erhalten; jeder Aufruf legt eindeutig benannte Fragmente
     an (``existing_data_behavior="overwrite_or_ignore"``), sodass taeglich oder
-    monatlich angehaengt werden kann.
+    monatlich angehaengt werden kann. Kompression per Default ``zstd``.
     """
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     table = pa.Table.from_pandas(frame[list(PARQUET_COLUMNS)], preserve_index=False)
+    file_options = ds.ParquetFileFormat().make_write_options(compression=compression)
     ds.write_dataset(
         table,
         base_dir=str(out),
         format="parquet",
+        file_options=file_options,
         partitioning=["year"],
         partitioning_flavor="hive",
         existing_data_behavior="overwrite_or_ignore",

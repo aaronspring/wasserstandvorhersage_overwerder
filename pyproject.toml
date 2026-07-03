@@ -15,6 +15,10 @@ dependencies = [
     "pyarrow>=15.0",
 ]
 
+[project.optional-dependencies]
+# Nur fuer den Upload des Parquet-Archivs zu Hugging Face (build_history.py --hf-repo).
+hf = ["huggingface-hub>=0.24"]
+
 [project.urls]
 Repository = "https://github.com/aaronspring/wasserstandvorhersage_overwerder"
 
@@ -22,6 +26,7 @@ Repository = "https://github.com/aaronspring/wasserstandvorhersage_overwerder"
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
+    "huggingface-hub>=0.24",
 ]
 
 [build-system]

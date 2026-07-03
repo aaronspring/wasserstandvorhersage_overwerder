@@ -50,6 +50,9 @@ uv run python export_web.py --out web/public          # data.json (braucht Netz)
 uv run python export_web.py --demo --out web/public   # data.json synthetisch (kein Netz)
 uv run python build_history.py --start 2000-01-01 --end 2000-01-08 \
     --stations over zollenspieker         # Parquet-Archiv (braucht Netz), kleiner Test
+uv sync --extra hf                        # huggingface_hub fuer den HF-Upload
+HF_TOKEN=... uv run python build_history.py --start 2000-01-01 --end 2026-07-01 \
+    --stations over zollenspieker --hf-repo   # baut + pusht zu Hugging Face
 cd web && npm ci && npm run build        # Frontend bauen (Typecheck + Vite)
 cd web && npm run dev                    # Frontend lokal (data.json vorher erzeugen)
 ```
@@ -85,9 +88,17 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   nicht in Winterzeit wie die taeglichen `down.csv`-Dateien — `history.py`
   lokalisiert nach Europe/Berlin (`ambiguous="infer"`) und gibt UTC zurueck.
 - **Parquet-Archiv:** jaehrlich partitioniert (`year=YYYY/`), tidy-long
-  (`time, station, w_cm_pnp, year`); erneute Aufrufe **haengen an**
+  (`time, station, w_cm_pnp, year`), **zstd**-komprimiert (~110 MB fuers
+  Gesamtarchiv Over+Zollenspieker); erneute Aufrufe **haengen an**
   (`existing_data_behavior="overwrite_or_ignore"`), also taeglich/monatlich
   erweiterbar. Ueberlappende Zeitraeume koennen Duplikate erzeugen.
+- **Hosting = Hugging Face Dataset:** `hfhub.upload_dataset` /
+  `build_history.py --hf-repo` spiegelt das Archiv nach
+  `aaronspring/tideelbe-pegel-minute` (Default). `huggingface_hub` ist ein
+  **optionales** Extra (`uv sync --extra hf`, Gruppe `hf`), lazy importiert;
+  Auth ueber `HF_TOKEN`. Der Workflow `.github/workflows/history.yml` baut das
+  Archiv monatlich neu (voller Rebuild = idempotent) und pusht mit dem
+  Repo-Secret `HF_TOKEN`. Nicht ins Git-Repo committen (zu gross).
 - Sprache: Doku/CLI-Ausgaben auf Deutsch, Bezeichner im Code auf Englisch.
 
 ## Tests vor dem Commit

@@ -30,6 +30,7 @@ import pandas as pd
 
 from wasserstand_overwerder import history, pegelonline
 from wasserstand_overwerder.config import PEGELONLINE_STATION_UUIDS
+from wasserstand_overwerder.hfhub import DEFAULT_HF_REPO
 
 ALL_STATIONS = list(PEGELONLINE_STATION_UUIDS)
 
@@ -64,7 +65,19 @@ def main() -> None:
         action="store_false",
         help="Pegel ohne Archiv (St. Pauli) NICHT ueber die REST-API ergaenzen",
     )
+    ap.add_argument(
+        "--hf-repo",
+        nargs="?",
+        const=None,
+        default=argparse.SUPPRESS,
+        metavar="ORG/NAME",
+        help=(
+            "nach dem Schreiben zu Hugging Face hochladen "
+            f"(Default-Repo: {DEFAULT_HF_REPO}); braucht HF_TOKEN"
+        ),
+    )
     args = ap.parse_args()
+    hf_repo = getattr(args, "hf_repo", False)  # False = Flag nicht gesetzt
 
     start = pd.Timestamp(args.start)
     end = pd.Timestamp(args.end)
@@ -114,6 +127,14 @@ def main() -> None:
         f"\n-> {len(df)} Zeilen nach {out}/ geschrieben "
         f"(year-Partitionen: {', '.join(map(str, years))})"
     )
+
+    if hf_repo is not False:  # --hf-repo gesetzt (ggf. ohne Wert -> Default)
+        from wasserstand_overwerder import hfhub
+
+        repo_id = hf_repo or DEFAULT_HF_REPO
+        print(f"Lade nach Hugging Face: {repo_id} ...", flush=True)
+        url = hfhub.upload_dataset(out, repo_id=repo_id, stations=list(args.stations))
+        print(f"-> {url}")
 
 
 if __name__ == "__main__":

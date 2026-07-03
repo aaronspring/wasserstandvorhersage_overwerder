@@ -1,0 +1,53 @@
+name: Pegel-Archiv -> Hugging Face
+
+# Baut das jaehrlich partitionierte Parquet-Archiv (minuetliche Rohdaten seit
+# 2000, Over + Zollenspieker) neu und spiegelt es in das Hugging-Face-Dataset.
+# Voller Rebuild ist bewusst gewaehlt (idempotent, keine Duplikate/Luecken) und
+# dauert nur wenige Minuten. Monatlich reicht, da sich nur das laufende Jahr
+# aendert; per workflow_dispatch auch manuell ausloesbar.
+#
+# Setup einmalig: Repository-Secret HF_TOKEN (Write-Token von
+# https://huggingface.co/settings/tokens) hinterlegen.
+on:
+  schedule:
+    - cron: "0 4 1 * *" # am 1. jedes Monats, 04:00 UTC
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "Startdatum (YYYY-MM-DD)"
+        default: "2000-01-01"
+      hf_repo:
+        description: "HF-Dataset-Repo (ORG/NAME)"
+        default: "aaronspring/tideelbe-pegel-minute"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pegel-archiv
+  cancel-in-progress: false
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: "3.13"
+      - name: Sync (inkl. hf-Extra)
+        run: uv sync --extra hf
+
+      - name: Archiv bauen und zu Hugging Face hochladen
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          uv run python build_history.py \
+            --start "${{ github.event.inputs.start || '2000-01-01' }}" \
+            --end "$(date -u +%Y-%m-%d)" \
+            --stations over zollenspieker \
+            --out out/history \
+            --hf-repo "${{ github.event.inputs.hf_repo || 'aaronspring/tideelbe-pegel-minute' }}"
