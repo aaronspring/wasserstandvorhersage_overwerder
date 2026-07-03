@@ -131,8 +131,8 @@ body {
 }
 
 .leg-toggle {
-  font: inherit;
-  color: var(--secondary);
+  /* nur die UA-Button-Schriftart ersetzen; Groesse/Farbe kommen aus .leg-item */
+  font-family: inherit;
   background: none;
   border: 0;
   padding: 2px 0;

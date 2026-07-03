@@ -79,6 +79,9 @@ function nearestRow(rows: Row[], t: number): Row | undefined {
 
 const HOUR = 3600 * 1000;
 
+// Kleinere Ziehstrecke als das gilt als Tippen (Ablese-Linie), nicht als Zoom.
+const MIN_ZOOM_SPAN = 30 * 60 * 1000;
+
 // Standard-Zeitfenster wie BSH "nächste 2 Tage": etwas Vergangenheit plus der
 // Vorhersageschwerpunkt nach vorne (12 h zurück, 36 h voraus).
 const DEFAULT_BACK = 12 * HOUR;
@@ -238,12 +241,14 @@ export default function Chart({
   };
   const onUp = () => {
     if (selLeft != null && selRight != null) {
-      if (selLeft !== selRight) {
-        // gezogen -> zoomen
-        setZoom([Math.min(selLeft, selRight), Math.max(selLeft, selRight)]);
+      const a = Math.min(selLeft, selRight);
+      const b = Math.max(selLeft, selRight);
+      if (b - a >= MIN_ZOOM_SPAN) {
+        // spuerbar gezogen -> zoomen
+        setZoom([a, b]);
       } else {
-        // getippt (kein Ziehen) -> Ablese-Linie setzen/entfernen
-        setPinned((prev) => (prev === selLeft ? null : selLeft));
+        // getippt (oder minimal verrutscht) -> Ablese-Linie setzen/entfernen
+        setPinned((prev) => (prev === a ? null : a));
       }
     }
     setSelLeft(null);
