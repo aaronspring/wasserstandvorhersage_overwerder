@@ -31,6 +31,11 @@ STURMFLUT_SCHEITEL_CM = {
     5: (1060, "Dez. 2023"),
     10: (1008, "Emma 2008"),
 }
+# Sturmflut-Marken nur einblenden, wenn die Vorhersage ihnen nahekommt: eine
+# Marke wird gezeigt, sobald der Datenscheitel bis auf diesen Abstand (cm)
+# heranreicht. So wird der Plot bei Normaltiden nicht durch weit oben liegende
+# Linien gestaucht (Proximity-Gating).
+SURGE_PROXIMITY_CM = 120.0
 
 
 def _local(s: pd.Series) -> pd.Series:
@@ -92,14 +97,28 @@ def plot_forecast(
             ha="left",
         )
 
-    if show_surges:
+    # Proximity-Gating: nur Marken zeigen, denen der Datenscheitel nahekommt,
+    # damit weit oben liegende Linien den Plot bei Normaltiden nicht stauchen.
+    data_max = max(
+        (
+            float(s.max())
+            for s in (up, down, target, obs_over)
+            if s is not None and len(s)
+        ),
+        default=float("-inf"),
+    )
+    surges = [
+        (cm, rank, storm)
+        for rank, (cm, storm) in STURMFLUT_SCHEITEL_CM.items()
+        if cm <= data_max + SURGE_PROXIMITY_CM
+    ]
+
+    if show_surges and surges:
         # nach Hoehe sortiert; Labels mit Mindestabstand entzerren (dicht
         # beieinanderliegende Marken wie #3/#5 wuerden sich sonst ueberlagern).
         label_gap_cm = 26
         last_label = None
-        for cm, rank, storm in sorted(
-            (cm, rank, storm) for rank, (cm, storm) in STURMFLUT_SCHEITEL_CM.items()
-        ):
+        for cm, rank, storm in sorted(surges):
             line = ax.axhline(cm, color=C_SURGE, lw=0.8, zorder=1)
             line.set_url(SURGE_DOC_URL)  # klickbar in SVG-Ausgaben
             label_y = cm if last_label is None else max(cm, last_label + label_gap_cm)
