@@ -4,6 +4,7 @@ import {
   Line,
   LineChart,
   ReferenceArea,
+  ReferenceDot,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -60,6 +61,20 @@ function toRows(series: Payload["series"]): Row[] {
     }
   }
   return [...map.values()].sort((a, b) => a.t - b.t);
+}
+
+// Zeile am (oder naechsten) Zeitpunkt t – fuer die angeklickten Werte.
+function nearestRow(rows: Row[], t: number): Row | undefined {
+  let best: Row | undefined;
+  let bestD = Infinity;
+  for (const r of rows) {
+    const d = Math.abs(r.t - t);
+    if (d < bestD) {
+      bestD = d;
+      best = r;
+    }
+  }
+  return best;
 }
 
 const HOUR = 3600 * 1000;
@@ -125,6 +140,8 @@ export default function Chart({
   const [zoom, setZoom] = useState<[number, number] | null>(null);
   const [selLeft, setSelLeft] = useState<number | null>(null);
   const [selRight, setSelRight] = useState<number | null>(null);
+  // Angeklickter Zeitpunkt: fixiert eine Ablese-Linie mit Werten je Serie.
+  const [pinned, setPinned] = useState<number | null>(null);
 
   // Alles Abgeleitete in einem Memo, damit es nur bei data/narrow/hidden/zoom
   // neu rechnet (nicht bei jedem Render, z. B. Tooltip-Hover oder Drag).
@@ -220,12 +237,27 @@ export default function Chart({
     if (selLeft != null && t != null) setSelRight(t);
   };
   const onUp = () => {
-    if (selLeft != null && selRight != null && selLeft !== selRight) {
-      setZoom([Math.min(selLeft, selRight), Math.max(selLeft, selRight)]);
+    if (selLeft != null && selRight != null) {
+      if (selLeft !== selRight) {
+        // gezogen -> zoomen
+        setZoom([Math.min(selLeft, selRight), Math.max(selLeft, selRight)]);
+      } else {
+        // getippt (kein Ziehen) -> Ablese-Linie setzen/entfernen
+        setPinned((prev) => (prev === selLeft ? null : selLeft));
+      }
     }
     setSelLeft(null);
     setSelRight(null);
   };
+
+  // Werte je sichtbarer Serie am angeklickten Zeitpunkt (fuer die Ablese-Linie).
+  const pinRow = pinned == null ? undefined : nearestRow(rows, pinned);
+  const pinVals =
+    pinRow == null
+      ? []
+      : visible
+          .map((m) => ({ m, v: pinRow[m.key] }))
+          .filter((e): e is { m: SeriesMeta; v: number } => typeof e.v === "number");
 
   return (
     <div className="chart-wrap">
@@ -233,7 +265,10 @@ export default function Chart({
         <button
           type="button"
           className="zoom-reset"
-          onClick={() => setZoom(null)}
+          onClick={() => {
+            setZoom(null);
+            setPinned(null);
+          }}
         >
           Zoom zurücksetzen
         </button>
@@ -246,7 +281,10 @@ export default function Chart({
           onMouseMove={onMove}
           onMouseUp={onUp}
           onMouseLeave={onUp}
-          onDoubleClick={() => setZoom(null)}
+          onDoubleClick={() => {
+            setZoom(null);
+            setPinned(null);
+          }}
         >
           <CartesianGrid stroke={colors.grid} vertical={false} />
         <XAxis
@@ -350,6 +388,42 @@ export default function Chart({
             strokeOpacity={0.3}
           />
         )}
+
+        {/* Angeklickte Ablese-Linie: senkrechte Fuehrung + Wert je Serie. */}
+        {pinned != null && (
+          <ReferenceLine
+            x={pinned}
+            stroke={colors.axis}
+            strokeWidth={1}
+            ifOverflow="hidden"
+            label={{
+              value: fmtTime(pinned),
+              position: "insideTop",
+              fill: colors.secondary,
+              fontSize: 10,
+            }}
+          />
+        )}
+        {pinned != null &&
+          pinVals.map(({ m, v }) => (
+            <ReferenceDot
+              key={m.key}
+              x={pinned}
+              y={v}
+              r={3.5}
+              fill={m.color(colors)}
+              stroke={colors.tooltipBg}
+              strokeWidth={1.5}
+              ifOverflow="hidden"
+              label={{
+                value: fmtCm(v),
+                position: "right",
+                fill: m.color(colors),
+                fontSize: 11,
+                fontWeight: 600,
+              }}
+            />
+          ))}
 
         <Tooltip
           isAnimationActive={false}
