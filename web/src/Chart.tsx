@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceArea,
+  ReferenceDot,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -61,8 +63,40 @@ function toRows(series: Payload["series"]): Row[] {
   return [...map.values()].sort((a, b) => a.t - b.t);
 }
 
-const HALF_DAY = 12 * 3600 * 1000;
-const DAY = 24 * 3600 * 1000;
+// Zeile am (oder naechsten) Zeitpunkt t – fuer die angeklickten Werte.
+function nearestRow(rows: Row[], t: number): Row | undefined {
+  let best: Row | undefined;
+  let bestD = Infinity;
+  for (const r of rows) {
+    const d = Math.abs(r.t - t);
+    if (d < bestD) {
+      bestD = d;
+      best = r;
+    }
+  }
+  return best;
+}
+
+const HOUR = 3600 * 1000;
+
+// Kleinere Ziehstrecke als das gilt als Tippen (Ablese-Linie), nicht als Zoom.
+const MIN_ZOOM_SPAN = 30 * 60 * 1000;
+
+// Standard-Zeitfenster wie BSH "nächste 2 Tage": etwas Vergangenheit plus der
+// Vorhersageschwerpunkt nach vorne (12 h zurück, 36 h voraus).
+const DEFAULT_BACK = 12 * HOUR;
+const DEFAULT_FWD = 36 * HOUR;
+
+// Kandidaten fuer Tick-Abstaende (h) – beim Reinzoomen werden feinere gewaehlt.
+const TICK_STEPS = [1, 2, 3, 6, 12, 24, 48].map((h) => h * HOUR);
+
+// Tick-Abstand so waehlen, dass ~7 (schmal) bzw. ~14 (breit) Ticks entstehen.
+// Ohne Zoom faellt das auf die alten Defaults (DAY schmal, HALF_DAY breit).
+function pickStep(span: number, narrow: boolean): number {
+  const target = narrow ? 7 : 14;
+  for (const s of TICK_STEPS) if (span / s <= target) return s;
+  return TICK_STEPS[TICK_STEPS.length - 1];
+}
 
 const BERLIN_PARTS = new Intl.DateTimeFormat("en-US", {
   timeZone: "Europe/Berlin",
@@ -97,75 +131,173 @@ function makeTicks(min: number, max: number, step: number): number[] {
 export default function Chart({
   data,
   colors,
+  hidden,
 }: {
   data: Payload;
   colors: Colors;
+  hidden: Set<SeriesKey>;
 }) {
   const narrow = useNarrow();
 
-  // Alles Abgeleitete in einem Memo, damit es nur bei data/narrow neu rechnet
-  // (nicht bei jedem Render, z. B. Tooltip-Hover).
-  const { rows, present, refLines, xDomain, yDomain, ticks, dayFirst } = useMemo(() => {
-    const rows = toRows(data.series);
-    const present = SERIES.filter((m) => data.series[m.key]?.length);
-    const refLines = REF_KEYS.map((k) => ({ k, v: data.reference_lines[k] })).filter(
-      (r) => typeof r.v === "number",
-    );
-    const xs = rows.map((r) => r.t);
-    const xMin = xs[0] ?? 0;
-    const xMax = xs[xs.length - 1] ?? 0;
-    let lo = Infinity;
-    let hi = -Infinity;
-    for (const r of rows)
-      for (const m of present) {
-        const v = r[m.key];
-        if (typeof v === "number") {
-          lo = Math.min(lo, v);
-          hi = Math.max(hi, v);
+  // Zoom-Fenster (X-Bereich) und laufende Auswahl beim Ziehen.
+  const [zoom, setZoom] = useState<[number, number] | null>(null);
+  const [selLeft, setSelLeft] = useState<number | null>(null);
+  const [selRight, setSelRight] = useState<number | null>(null);
+  // Angeklickter Zeitpunkt: fixiert eine Ablese-Linie mit Werten je Serie.
+  const [pinned, setPinned] = useState<number | null>(null);
+
+  // Alles Abgeleitete in einem Memo, damit es nur bei data/narrow/hidden/zoom
+  // neu rechnet (nicht bei jedem Render, z. B. Tooltip-Hover oder Drag).
+  const { rows, visible, refLines, xDomain, yDomain, ticks, dayFirst, zoomed } =
+    useMemo(() => {
+      const rows = toRows(data.series);
+      const present = SERIES.filter((m) => data.series[m.key]?.length);
+      const visible = present.filter((m) => !hidden.has(m.key));
+      const refLines = REF_KEYS.map((k) => ({ k, v: data.reference_lines[k] })).filter(
+        (r) => typeof r.v === "number",
+      );
+      const xs = rows.map((r) => r.t);
+      const xMin = xs[0] ?? 0;
+      const xMax = xs[xs.length - 1] ?? 0;
+      // Standardausschnitt: 12 h zurück + 36 h voraus um "jetzt" (auf die
+      // vorhandenen Daten begrenzt). Zoom übersteuert diesen Ausschnitt.
+      const nowT = Date.parse(data.now);
+      const dfltLo = Math.max(xMin, nowT - DEFAULT_BACK);
+      const dfltHi = Math.min(xMax, nowT + DEFAULT_FWD);
+      const zoomed = zoom !== null;
+      const [x0, x1] = zoom ?? [dfltLo, dfltHi];
+
+      // Y-Skala nur aus sichtbaren Serien im aktuellen X-Fenster ableiten,
+      // damit Aus-/Einblenden und Zoom die Höhenachse mitziehen.
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (const r of rows) {
+        if (r.t < x0 || r.t > x1) continue;
+        for (const m of visible) {
+          const v = r[m.key];
+          if (typeof v === "number") {
+            lo = Math.min(lo, v);
+            hi = Math.max(hi, v);
+          }
         }
       }
-    for (const r of refLines) {
-      lo = Math.min(lo, r.v as number);
-      hi = Math.max(hi, r.v as number);
-    }
-    const pad = 20;
-    const yLo = Math.floor((lo - pad) / 20) * 20;
-    const yHi = Math.ceil((hi + pad) / 20) * 20;
-
-    const tk = makeTicks(xMin, xMax, narrow ? DAY : HALF_DAY);
-    // Datumszeile nur beim ersten Tick eines Tages zeigen (wie BSH).
-    const firsts = new Set<number>();
-    let prevDay = "";
-    for (const t of tk) {
-      const d = fmtDay(t);
-      if (d !== prevDay) {
-        firsts.add(t);
-        prevDay = d;
+      // Referenzlinien nur im Vollbild in die Skala zwingen.
+      if (!zoomed)
+        for (const r of refLines) {
+          lo = Math.min(lo, r.v as number);
+          hi = Math.max(hi, r.v as number);
+        }
+      if (lo === Infinity) {
+        lo = 0;
+        hi = 100;
       }
-    }
-    return {
-      rows,
-      present,
-      refLines,
-      xDomain: [xMin, xMax] as [number, number],
-      yDomain: [yLo, yHi] as [number, number],
-      ticks: tk,
-      dayFirst: firsts,
-    };
-  }, [data, narrow]);
+      const pad = 20;
+      const yLo = Math.floor((lo - pad) / 20) * 20;
+      const yHi = Math.ceil((hi + pad) / 20) * 20;
+
+      const tk = makeTicks(x0, x1, pickStep(x1 - x0, narrow));
+      // Datumszeile nur beim ersten Tick eines Tages zeigen (wie BSH).
+      const firsts = new Set<number>();
+      let prevDay = "";
+      for (const t of tk) {
+        const d = fmtDay(t);
+        if (d !== prevDay) {
+          firsts.add(t);
+          prevDay = d;
+        }
+      }
+      return {
+        rows,
+        visible,
+        refLines,
+        xDomain: [x0, x1] as [number, number],
+        yDomain: [yLo, yHi] as [number, number],
+        ticks: tk,
+        dayFirst: firsts,
+        zoomed,
+      };
+    }, [data, narrow, hidden, zoom]);
 
   const now = Date.parse(data.now);
   const fcStart = Date.parse(data.forecast_start);
 
+  // Drag-to-Zoom: activeLabel ist der t-Wert (ms) am Cursor, am nächsten
+  // Datenpunkt eingerastet (Recharts typisiert ihn als string -> Number()).
+  const labelAt = (e: { activeLabel?: string | number } | null): number | null => {
+    const v = e?.activeLabel;
+    if (v == null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const onDown = (e: { activeLabel?: string | number } | null) => {
+    const t = labelAt(e);
+    if (t == null) return;
+    setSelLeft(t);
+    setSelRight(t);
+  };
+  const onMove = (e: { activeLabel?: string | number } | null) => {
+    const t = labelAt(e);
+    if (selLeft != null && t != null) setSelRight(t);
+  };
+  const onUp = () => {
+    if (selLeft != null && selRight != null) {
+      const a = Math.min(selLeft, selRight);
+      const b = Math.max(selLeft, selRight);
+      if (b - a >= MIN_ZOOM_SPAN) {
+        // spuerbar gezogen -> zoomen
+        setZoom([a, b]);
+      } else {
+        // getippt (oder minimal verrutscht) -> Ablese-Linie setzen/entfernen
+        setPinned((prev) => (prev === a ? null : a));
+      }
+    }
+    setSelLeft(null);
+    setSelRight(null);
+  };
+
+  // Werte je sichtbarer Serie am angeklickten Zeitpunkt (fuer die Ablese-Linie).
+  const pinRow = pinned == null ? undefined : nearestRow(rows, pinned);
+  const pinVals =
+    pinRow == null
+      ? []
+      : visible
+          .map((m) => ({ m, v: pinRow[m.key] }))
+          .filter((e): e is { m: SeriesMeta; v: number } => typeof e.v === "number");
+
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={rows} margin={{ top: 16, right: 16, bottom: 8, left: 4 }}>
-        <CartesianGrid stroke={colors.grid} vertical={false} />
+    <div className="chart-wrap">
+      {zoomed && (
+        <button
+          type="button"
+          className="zoom-reset"
+          onClick={() => {
+            setZoom(null);
+            setPinned(null);
+          }}
+        >
+          Zoom zurücksetzen
+        </button>
+      )}
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart
+          data={rows}
+          margin={{ top: 16, right: 16, bottom: 8, left: 4 }}
+          onMouseDown={onDown}
+          onMouseMove={onMove}
+          onMouseUp={onUp}
+          onMouseLeave={onUp}
+          onDoubleClick={() => {
+            setZoom(null);
+            setPinned(null);
+          }}
+        >
+          <CartesianGrid stroke={colors.grid} vertical={false} />
         <XAxis
           type="number"
           dataKey="t"
           scale="time"
           domain={xDomain}
+          allowDataOverflow
           ticks={ticks}
           tickLine={false}
           axisLine={{ stroke: colors.axis }}
@@ -183,6 +315,7 @@ export default function Chart({
         <YAxis
           type="number"
           domain={yDomain}
+          allowDataOverflow
           width={54}
           tickLine={false}
           axisLine={false}
@@ -201,7 +334,7 @@ export default function Chart({
             y={r.v as number}
             stroke={colors.ref}
             strokeDasharray="2 4"
-            ifOverflow="extendDomain"
+            ifOverflow={zoomed ? "hidden" : "extendDomain"}
             label={{
               value: `${r.k} ${Math.round(r.v as number)}`,
               position: "insideTopLeft",
@@ -234,7 +367,7 @@ export default function Chart({
           }}
         />
 
-        {present.map((m) => (
+        {visible.map((m) => (
           <Line
             key={m.key}
             type="monotone"
@@ -249,6 +382,53 @@ export default function Chart({
             isAnimationActive={false}
           />
         ))}
+
+        {selLeft != null && selRight != null && (
+          <ReferenceArea
+            x1={selLeft}
+            x2={selRight}
+            fill={colors.now}
+            fillOpacity={0.1}
+            stroke={colors.now}
+            strokeOpacity={0.3}
+          />
+        )}
+
+        {/* Angeklickte Ablese-Linie: senkrechte Fuehrung + Wert je Serie. */}
+        {pinned != null && (
+          <ReferenceLine
+            x={pinned}
+            stroke={colors.axis}
+            strokeWidth={1}
+            ifOverflow="hidden"
+            label={{
+              value: fmtTime(pinned),
+              position: "insideTop",
+              fill: colors.secondary,
+              fontSize: 10,
+            }}
+          />
+        )}
+        {pinned != null &&
+          pinVals.map(({ m, v }) => (
+            <ReferenceDot
+              key={m.key}
+              x={pinned}
+              y={v}
+              r={3.5}
+              fill={m.color(colors)}
+              stroke={colors.tooltipBg}
+              strokeWidth={1.5}
+              ifOverflow="hidden"
+              label={{
+                value: fmtCm(v),
+                position: "right",
+                fill: m.color(colors),
+                fontSize: 11,
+                fontWeight: 600,
+              }}
+            />
+          ))}
 
         <Tooltip
           isAnimationActive={false}
@@ -268,8 +448,9 @@ export default function Chart({
             );
           }}
         />
-      </LineChart>
-    </ResponsiveContainer>
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
