@@ -27,13 +27,17 @@ def _curve(n_past: int = 6, n_future: int = 30) -> list[dict]:
     pts = []
     for i in range(n_past):
         ts = f"2026-07-03 {6 + i // 6:02d}:{(i % 6) * 10:02d}:00+02:00"
-        pts.append({"timestamp": ts, "tidal_prediction": "500",
-                    "measurement": "550"})
+        pts.append({"timestamp": ts, "tidal_prediction": "500", "measurement": "550"})
     for i in range(n_future):
         h = 7 + (i // 6)
         ts = f"2026-07-03 {h:02d}:{(i % 6) * 10:02d}:00+02:00"
-        pts.append({"timestamp": ts, "tidal_prediction": "500",
-                    "automated_curve_forecast": "650"})
+        pts.append(
+            {
+                "timestamp": ts,
+                "tidal_prediction": "500",
+                "automated_curve_forecast": "650",
+            }
+        )
     return pts
 
 
@@ -41,33 +45,49 @@ def _high_low() -> list[dict]:
     """Grobe Tidescheitel mit numerischem forecast_value (=999), das die
     alte Heuristik faelschlich gewaehlt haette."""
     return [
-        {"event_timestamp": "2026-07-03 09:18:00+02:00", "event": "NW",
-         "tidal_prediction_value": "349", "forecast_value": 999},
-        {"event_timestamp": "2026-07-03 15:07:00+02:00", "event": "HW",
-         "tidal_prediction_value": "663", "forecast_value": 999},
+        {
+            "event_timestamp": "2026-07-03 09:18:00+02:00",
+            "event": "NW",
+            "tidal_prediction_value": "349",
+            "forecast_value": 999,
+        },
+        {
+            "event_timestamp": "2026-07-03 15:07:00+02:00",
+            "event": "HW",
+            "tidal_prediction_value": "663",
+            "forecast_value": 999,
+        },
     ]
 
 
 def _feature(label: str) -> dict:
-    return {"properties": {
-        "gauge_label": label,
-        "gaugezero_relative_to_nhn": -498.0,
-        "chartdatum_relative_to_gaugezero": 287.0,
-        "mean_high_water": 641.0,
-        "operator_gauge_id": "9510060",
-        "forecast_timestamp": "2026-07-03 07:19:22+02:00",
-        "high_water_low_water": _high_low(),
-        "curve": _curve(),
-    }}
+    return {
+        "properties": {
+            "gauge_label": label,
+            "gaugezero_relative_to_nhn": -498.0,
+            "chartdatum_relative_to_gaugezero": 287.0,
+            "mean_high_water": 641.0,
+            "operator_gauge_id": "9510060",
+            "forecast_timestamp": "2026-07-03 07:19:22+02:00",
+            "high_water_low_water": _high_low(),
+            "curve": _curve(),
+        }
+    }
 
 
-_COLLECTIONS = {"collections": [
-    {"id": "waterlevelforecastdata", "title": "Water level forecast data"}]}
-_ITEMS = {"features": [
-    _feature("Cuxhaven, Steubenhoeft, Elbe"),      # Decoy
-    _feature("Hamburg, Zollenspieker, Elbe"),
-    _feature("Hamburg, St. Pauli, Elbe"),
-], "links": []}
+_COLLECTIONS = {
+    "collections": [
+        {"id": "waterlevelforecastdata", "title": "Water level forecast data"}
+    ]
+}
+_ITEMS = {
+    "features": [
+        _feature("Cuxhaven, Steubenhoeft, Elbe"),  # Decoy
+        _feature("Hamburg, Zollenspieker, Elbe"),
+        _feature("Hamburg, St. Pauli, Elbe"),
+    ],
+    "links": [],
+}
 
 
 def _mock_client() -> BSHClient:
@@ -88,11 +108,11 @@ def test_forecast_uses_dense_curve_not_extremes():
     c = _mock_client()
     s = c.forecast("zollenspieker")
     assert s.name == "zollenspieker"
-    assert len(s) == 36, len(s)                 # 6 + 30 Kurvenpunkte, nicht 2
-    assert set(s.values) == {550.0, 650.0}      # measurement + forecast
-    assert 999.0 not in set(s.values)           # nicht die Tidescheitel
-    assert 500.0 not in set(s.values)           # tidal_prediction nur Fallback
-    assert s.index.tz is not None               # tz-aware UTC
+    assert len(s) == 36, len(s)  # 6 + 30 Kurvenpunkte, nicht 2
+    assert set(s.values) == {550.0, 650.0}  # measurement + forecast
+    assert 999.0 not in set(s.values)  # nicht die Tidescheitel
+    assert 500.0 not in set(s.values)  # tidal_prediction nur Fallback
+    assert s.index.tz is not None  # tz-aware UTC
     assert str(s.index.tz) == "UTC"
     assert s.index.is_monotonic_increasing
 

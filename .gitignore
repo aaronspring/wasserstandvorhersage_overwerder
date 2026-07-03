@@ -1,4 +1,16 @@
 out/
 params.json
+
+# Python
 __pycache__/
 *.pyc
+*.egg-info/
+build/
+dist/
+
+# uv / virtualenvs
+.venv/
+
+# tooling caches
+.ruff_cache/
+.pytest_cache/

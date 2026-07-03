@@ -1,10 +1,10 @@
 #!/bin/bash
 # SessionStart-Hook: installiert die Python-Abhaengigkeiten (pandas/numpy/
-# matplotlib/requests) aus requirements.txt, damit Tests und die CLIs
+# matplotlib/requests) aus pyproject.toml, damit Tests und die CLIs
 # (calibrate.py/forecast.py) in Claude-Code-Web-Sessions sofort laufen.
 #
 # Voraussetzung: pypi.org und files.pythonhosted.org muessen in der
-# Netzwerk-Egress-Policy der Umgebung freigegeben sein (sonst 403 von pip).
+# Netzwerk-Egress-Policy der Umgebung freigegeben sein (sonst 403 beim Install).
 set -euo pipefail
 
 # Nur in der Remote-/Web-Umgebung ausfuehren; lokale Sessions unveraendert.
@@ -15,7 +15,11 @@ fi
 cd "${CLAUDE_PROJECT_DIR:-.}"
 
 echo "[session-start] Installiere Python-Abhaengigkeiten ..."
-python -m pip install --disable-pip-version-check -q -r requirements.txt
+if command -v uv >/dev/null 2>&1; then
+  uv pip install --system -q -e .
+else
+  python -m pip install --disable-pip-version-check -q -e .
+fi
 
 echo "[session-start] Fertig. Installierte Kernpakete:"
 python -c "import pandas, numpy, matplotlib, requests; \

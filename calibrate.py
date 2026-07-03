@@ -15,8 +15,9 @@ from wasserstand_overwerder import model, pegelonline
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--days", type=int, default=30,
-                    help="Kalibrierzeitraum in Tagen (max. 31)")
+    ap.add_argument(
+        "--days", type=int, default=30, help="Kalibrierzeitraum in Tagen (max. 31)"
+    )
     ap.add_argument("--out", default="params.json", help="Ausgabedatei")
     args = ap.parse_args()
 
@@ -32,11 +33,15 @@ def main() -> None:
 
     print(f"\nKalibrierung -> {args.out}")
     print(f"  tau (St. Pauli -> Zollenspieker): {params.tau_minutes:.0f} min")
-    print(f"  Gewichte: a_up={params.a_up:.3f}  a_down={params.a_down:.3f}  "
-          f"Offset={params.offset_cm:+.1f} cm")
-    print("  Guete gegen Pegel Over: "
-          f"RMSE={metrics['rmse_cm']:.1f} cm  MAE={metrics['mae_cm']:.1f} cm  "
-          f"r={metrics['corr']:.4f}  (n={metrics['n']})")
+    print(
+        f"  Gewichte: a_up={params.a_up:.3f}  a_down={params.a_down:.3f}  "
+        f"Offset={params.offset_cm:+.1f} cm"
+    )
+    print(
+        "  Guete gegen Pegel Over: "
+        f"RMSE={metrics['rmse_cm']:.1f} cm  MAE={metrics['mae_cm']:.1f} cm  "
+        f"r={metrics['corr']:.4f}  (n={metrics['n']})"
+    )
 
 
 if __name__ == "__main__":

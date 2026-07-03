@@ -10,23 +10,29 @@ Plan und Methodik: [PLAN_MWP.md](PLAN_MWP.md)
 
 ## Schnellstart
 
+Das Projekt nutzt [uv](https://docs.astral.sh/uv/) für Abhängigkeiten und
+Umgebung (`pyproject.toml` + `uv.lock`).
+
 ```bash
-pip install -r requirements.txt
+uv sync                       # Abhängigkeiten installieren (+ .venv anlegen)
 
 # Parameter (Tide-Laufzeit, Gewichte, Offset) an Pegel Over kalibrieren:
-python calibrate.py --days 30 --out params.json
+uv run python calibrate.py --days 30 --out params.json
 
 # Vorhersage erzeugen (CSV + Plot in out/):
-python forecast.py --params params.json --out out/ --bias-correct
+uv run python forecast.py --params params.json --out out/ --bias-correct
 ```
 
+Ohne `uv` funktioniert auch `pip install -e .` und dann `python forecast.py`.
 Ohne `params.json` rechnet `forecast.py` mit entfernungsgewichteten Defaults.
-Falls sich die BSH-API-Struktur ändert: `python forecast.py --explore`.
+Falls sich die BSH-API-Struktur ändert: `uv run python forecast.py --explore`.
 
-## Tests
+## Tests & Lint
 
 ```bash
-python tests/test_model.py
+uv run pytest                 # Tests (kein Netz nötig)
+uv run ruff check .           # Lint
+uv run ruff format .          # Formatierung
 ```
 
 ## Datenquellen

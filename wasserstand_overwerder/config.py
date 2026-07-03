@@ -3,7 +3,7 @@
 # Elbe-Kilometrierung (km waechst stromab)
 ELBE_KM = {
     "zollenspieker": 598.3,
-    "over": 605.3,        # Messpegel direkt gegenueber Overwerder
+    "over": 605.3,  # Messpegel direkt gegenueber Overwerder
     "overwerder": 605.3,  # Zielort: Overwerder Bogen 79
     "bunthaus": 609.8,
     "st_pauli": 623.1,

@@ -27,8 +27,8 @@ class Params:
     km_target: float = ELBE_KM["overwerder"]
     km_up: float = ELBE_KM["zollenspieker"]
     km_down: float = ELBE_KM["st_pauli"]
-    tau_minutes: float = 60.0        # Laufzeit St. Pauli -> Zollenspieker
-    a_up: float | None = None        # None -> entfernungsgewichtet
+    tau_minutes: float = 60.0  # Laufzeit St. Pauli -> Zollenspieker
+    a_up: float | None = None  # None -> entfernungsgewichtet
     a_down: float | None = None
     offset_cm: float = 0.0
 
@@ -47,7 +47,7 @@ class Params:
             json.dump(asdict(self), fh, indent=2)
 
     @classmethod
-    def load(cls, path: str) -> "Params":
+    def load(cls, path: str) -> Params:
         with open(path) as fh:
             return cls(**json.load(fh))
 
@@ -79,9 +79,13 @@ def interpolate(up: pd.Series, down: pd.Series, params: Params) -> pd.Series:
     return est
 
 
-def calibrate(up: pd.Series, down: pd.Series, target: pd.Series,
-              base: Params | None = None,
-              tau_grid: np.ndarray | None = None) -> tuple[Params, dict]:
+def calibrate(
+    up: pd.Series,
+    down: pd.Series,
+    target: pd.Series,
+    base: Params | None = None,
+    tau_grid: np.ndarray | None = None,
+) -> tuple[Params, dict]:
     """Fit (tau, a_up, a_down, c) per Gittersuche + linearer Regression.
 
     target: Beobachtungen am Pegel Over (cm ueber PNP).
@@ -93,13 +97,21 @@ def calibrate(up: pd.Series, down: pd.Series, target: pd.Series,
     target_g = _on_grid(target)
     best: tuple[float, Params, dict] | None = None
     for tau in tau_grid:
-        p = Params(**{**asdict(base), "tau_minutes": float(tau),
-                      "a_up": None, "a_down": None, "offset_cm": 0.0})
+        p = Params(
+            **{
+                **asdict(base),
+                "tau_minutes": float(tau),
+                "a_up": None,
+                "a_down": None,
+                "offset_cm": 0.0,
+            }
+        )
         f = p.frac
         up_g = _on_grid(up, shift_minutes=-tau * f)
         down_g = _on_grid(down, shift_minutes=+tau * (1.0 - f))
-        df = pd.concat({"up": up_g, "down": down_g, "obs": target_g},
-                       axis=1, join="inner").dropna()
+        df = pd.concat(
+            {"up": up_g, "down": down_g, "obs": target_g}, axis=1, join="inner"
+        ).dropna()
         if len(df) < 100:
             continue
         A = np.column_stack([df["up"], df["down"], np.ones(len(df))])
@@ -107,9 +119,14 @@ def calibrate(up: pd.Series, down: pd.Series, target: pd.Series,
         resid = df["obs"].to_numpy() - A @ coef
         rmse = float(np.sqrt(np.mean(resid**2)))
         if best is None or rmse < best[0]:
-            fitted = Params(**{**asdict(p), "a_up": float(coef[0]),
-                               "a_down": float(coef[1]),
-                               "offset_cm": float(coef[2])})
+            fitted = Params(
+                **{
+                    **asdict(p),
+                    "a_up": float(coef[0]),
+                    "a_down": float(coef[1]),
+                    "offset_cm": float(coef[2]),
+                }
+            )
             metrics = {
                 "rmse_cm": rmse,
                 "mae_cm": float(np.mean(np.abs(resid))),
@@ -124,11 +141,15 @@ def calibrate(up: pd.Series, down: pd.Series, target: pd.Series,
     return best[1], best[2]
 
 
-def recent_bias_cm(prediction: pd.Series, observation: pd.Series,
-                   hours: float = 6.0) -> float:
+def recent_bias_cm(
+    prediction: pd.Series, observation: pd.Series, hours: float = 6.0
+) -> float:
     """Mittleres Residuum (Modell - Beobachtung) der letzten Stunden."""
-    df = pd.concat({"pred": _on_grid(prediction), "obs": _on_grid(observation)},
-                   axis=1, join="inner").dropna()
+    df = pd.concat(
+        {"pred": _on_grid(prediction), "obs": _on_grid(observation)},
+        axis=1,
+        join="inner",
+    ).dropna()
     if df.empty:
         return 0.0
     cutoff = df.index.max() - pd.Timedelta(hours=hours)

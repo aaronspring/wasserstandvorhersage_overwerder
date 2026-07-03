@@ -9,8 +9,9 @@ from .config import HTTP_TIMEOUT, PEGELONLINE_BASE, PEGELONLINE_STATIONS, USER_A
 
 
 def _get(url: str, **params) -> requests.Response:
-    r = requests.get(url, params=params, timeout=HTTP_TIMEOUT,
-                     headers={"User-Agent": USER_AGENT})
+    r = requests.get(
+        url, params=params, timeout=HTTP_TIMEOUT, headers={"User-Agent": USER_AGENT}
+    )
     r.raise_for_status()
     return r
 
@@ -19,7 +20,8 @@ def station_info(key: str) -> dict:
     """Stations-Metadaten inkl. gaugeZero (PNP in m ue. NHN)."""
     name = PEGELONLINE_STATIONS[key]
     url = f"{PEGELONLINE_BASE}/stations/{quote(name)}.json"
-    return _get(url, includeTimeseries="true", includeCharacteristicValues="true").json()
+    r = _get(url, includeTimeseries="true", includeCharacteristicValues="true")
+    return r.json()
 
 
 def gauge_zero_m_nhn(key: str) -> float | None:

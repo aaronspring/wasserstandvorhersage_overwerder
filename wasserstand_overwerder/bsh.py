@@ -34,11 +34,27 @@ from .config import (
     USER_AGENT,
 )
 
-_FORECAST_HINTS = ("forecast", "vorhersage", "curve", "kurve", "prediction",
-                   "timeseries", "zeitreihe", "wlf", "data")
+_FORECAST_HINTS = (
+    "forecast",
+    "vorhersage",
+    "curve",
+    "kurve",
+    "prediction",
+    "timeseries",
+    "zeitreihe",
+    "wlf",
+    "data",
+)
 _TIME_KEY_HINTS = ("time", "date", "zeit", "stamp")
-_VALUE_KEY_HINTS = ("value", "wert", "level", "height", "wasserstand",
-                    "forecast", "vorhersage")
+_VALUE_KEY_HINTS = (
+    "value",
+    "wert",
+    "level",
+    "height",
+    "wasserstand",
+    "forecast",
+    "vorhersage",
+)
 
 
 def _norm(s: str) -> str:
@@ -75,7 +91,7 @@ class BSHClient:
         for _ in range(max_pages):
             data = self._get_json(url, **(params if first else {"f": "json"}))
             yield from data.get("features", [])
-            nxt = [l for l in data.get("links", []) if l.get("rel") == "next"]
+            nxt = [ln for ln in data.get("links", []) if ln.get("rel") == "next"]
             if not nxt:
                 return
             url, first = nxt[0]["href"], False
@@ -83,6 +99,7 @@ class BSHClient:
     def explore(self) -> None:
         """API-Struktur ausgeben (Collections + je ein Beispiel-Feature)."""
         import json
+
         for c in self.collections():
             cid = c.get("id", "?")
             print(f"\n=== Collection: {cid}  ({c.get('title', '')})")
@@ -92,8 +109,14 @@ class BSHClient:
                 print(f"    Fehler beim Lesen: {e}")
                 continue
             for f in feats:
-                print(json.dumps(f.get("properties", {}), indent=2,
-                                 ensure_ascii=False, default=str)[:2000])
+                print(
+                    json.dumps(
+                        f.get("properties", {}),
+                        indent=2,
+                        ensure_ascii=False,
+                        default=str,
+                    )[:2000]
+                )
 
     # -- Heuristiken ---------------------------------------------------------
 
@@ -115,8 +138,9 @@ class BSHClient:
         return None
 
     @staticmethod
-    def _find_key(props: dict, hints: tuple[str, ...],
-                  pred=lambda v: True) -> str | None:
+    def _find_key(
+        props: dict, hints: tuple[str, ...], pred=lambda v: True
+    ) -> str | None:
         for k, v in props.items():
             if any(h in k.lower() for h in hints) and v is not None and pred(v):
                 return k
@@ -171,8 +195,9 @@ class BSHClient:
 
     @classmethod
     def _value_key(cls, props: dict) -> str | None:
-        key = cls._find_key(props, _VALUE_KEY_HINTS,
-                            lambda v: cls._as_float(v) is not None)
+        key = cls._find_key(
+            props, _VALUE_KEY_HINTS, lambda v: cls._as_float(v) is not None
+        )
         if key:
             return key
         numeric = [k for k, v in props.items() if cls._as_float(v) is not None]
@@ -216,8 +241,9 @@ class BSHClient:
             f"config.py anpassen. Fehler: {errors}"
         )
 
-    def _forecast_from_collection(self, cid: str,
-                                  patterns: tuple[str, ...]) -> pd.Series | None:
+    def _forecast_from_collection(
+        self, cid: str, patterns: tuple[str, ...]
+    ) -> pd.Series | None:
         samples = self.sample_features(cid, limit=5)
         if not samples:
             return None
@@ -227,13 +253,22 @@ class BSHClient:
         # Enthaelt ein Feature mehrere Listen (BSH: dichte `curve` UND grobe
         # `high_water_low_water`), die dichte Kurve bevorzugen: erst
         # Namenshinweis (curve/kurve/series), dann groesste Liste.
-        list_keys = [k for k, v in props.items()
-                     if isinstance(v, list) and v and isinstance(v[0], dict)
-                     and self._time_key_across(v)]
+        list_keys = [
+            k
+            for k, v in props.items()
+            if isinstance(v, list)
+            and v
+            and isinstance(v[0], dict)
+            and self._time_key_across(v)
+        ]
         if list_keys:
-            key = max(list_keys, key=lambda k: (
-                any(h in k.lower() for h in ("curve", "kurve", "series")),
-                len(props[k])))
+            key = max(
+                list_keys,
+                key=lambda k: (
+                    any(h in k.lower() for h in ("curve", "kurve", "series")),
+                    len(props[k]),
+                ),
+            )
             try:  # grosse Seite anfordern (Features sind schwer)
                 feats = list(self.iter_features(cid, limit=10000))
             except requests.RequestException:
@@ -285,16 +320,26 @@ class BSHClient:
         tkey = self._time_key_across(items)
         if tkey is None:
             return None
-        cand = {k for it in items for k, v in it.items()
-                if k != tkey and self._as_float(v) is not None}
+        cand = {
+            k
+            for it in items
+            for k, v in it.items()
+            if k != tkey and self._as_float(v) is not None
+        }
         if not cand:
             return None
         order = sorted(cand, key=lambda k: (self._value_rank(k), k))
         idx, vals = [], []
         for it in items:
             t = it.get(tkey)
-            val = next((self._as_float(it[k]) for k in order
-                        if self._as_float(it.get(k)) is not None), None)
+            val = next(
+                (
+                    self._as_float(it[k])
+                    for k in order
+                    if self._as_float(it.get(k)) is not None
+                ),
+                None,
+            )
             if t is None or val is None:
                 continue
             idx.append(t)
@@ -309,10 +354,10 @@ class BSHClient:
         """Einheiten-Plausibilisierung und Umrechnung nach cm ueber PNP."""
         med = float(s.median())
         lo, hi = PLAUSIBLE_CM_PNP
-        if -15.0 < med < 15.0:      # vermutlich Meter (ueber NHN o.ae.)
+        if -15.0 < med < 15.0:  # vermutlich Meter (ueber NHN o.ae.)
             s = s * 100.0
             med = float(s.median())
-        if -600.0 < med < lo:       # vermutlich cm ueber NHN -> PNP = NHN - 5 m
+        if -600.0 < med < lo:  # vermutlich cm ueber NHN -> PNP = NHN - 5 m
             s = s + 500.0
             med = float(s.median())
         s = s + BSH_DATUM_OFFSET_CM.get(station_key, 0.0)

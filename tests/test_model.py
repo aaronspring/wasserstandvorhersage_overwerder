@@ -16,8 +16,14 @@ from wasserstand_overwerder.model import Params, calibrate, interpolate, recent_
 M2_MIN = 12.42 * 60.0  # M2-Periode in Minuten
 
 
-def synthetic_tide(t0: pd.Timestamp, days: float, lag_minutes: float,
-                   mean_cm: float, amp_cm: float, freq: str = "5min") -> pd.Series:
+def synthetic_tide(
+    t0: pd.Timestamp,
+    days: float,
+    lag_minutes: float,
+    mean_cm: float,
+    amp_cm: float,
+    freq: str = "5min",
+) -> pd.Series:
     """Asymmetrische Tidekurve (M2 + Obertiden M4/M6), um `lag` verschoben.
 
     Die Obertiden sind wichtig: bei einer reinen Sinuskurve waere die
@@ -27,8 +33,11 @@ def synthetic_tide(t0: pd.Timestamp, days: float, lag_minutes: float,
     minutes = (idx - t0).total_seconds() / 60.0
     phase = 2.0 * np.pi * (minutes - lag_minutes) / M2_MIN
     spring_neap = 1.0 + 0.15 * np.sin(2.0 * np.pi * minutes / (14.77 * 24 * 60))
-    shape = (np.cos(phase) + 0.25 * np.cos(2.0 * phase - 1.0)
-             + 0.10 * np.cos(3.0 * phase + 0.5))
+    shape = (
+        np.cos(phase)
+        + 0.25 * np.cos(2.0 * phase - 1.0)
+        + 0.10 * np.cos(3.0 * phase + 0.5)
+    )
     return pd.Series(mean_cm + amp_cm * spring_neap * shape, index=idx)
 
 
@@ -38,9 +47,9 @@ def build_scenario():
     p = Params()  # Elbe-km-Defaults: f ~ 0.282
     tau_true = 70.0
     f = p.frac
-    down = synthetic_tide(t0, 12, 0.0, 510, 180)                    # St. Pauli
-    target = synthetic_tide(t0, 12, tau_true * (1 - f), 505, 165)   # Overwerder
-    up = synthetic_tide(t0, 12, tau_true, 500, 150)                 # Zollenspieker
+    down = synthetic_tide(t0, 12, 0.0, 510, 180)  # St. Pauli
+    target = synthetic_tide(t0, 12, tau_true * (1 - f), 505, 165)  # Overwerder
+    up = synthetic_tide(t0, 12, tau_true, 500, 150)  # Zollenspieker
     return up, down, target, tau_true
 
 
@@ -73,6 +82,7 @@ def test_default_params_reasonable():
 
 def test_params_roundtrip(tmp_path=None):
     import tempfile
+
     p = Params(tau_minutes=72.0, a_up=0.7, a_down=0.3, offset_cm=-2.5)
     with tempfile.TemporaryDirectory() as d:
         path = os.path.join(d, "params.json")

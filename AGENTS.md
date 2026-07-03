@@ -27,11 +27,12 @@ tests/test_model.py  Synthetik-Tests (netzwerkfrei)
 ## Kommandos
 
 ```bash
-pip install -r requirements.txt
-python tests/test_model.py            # Tests (kein Netz noetig, < 1 min)
-python calibrate.py --days 30         # braucht Netz (PEGELONLINE)
-python forecast.py --params params.json --out out/   # braucht Netz (BSH)
-python forecast.py --explore          # BSH-API-Struktur dumpen
+uv sync                                  # Abhaengigkeiten (pyproject.toml/uv.lock)
+uv run pytest                            # Tests (kein Netz noetig, < 1 min)
+uv run ruff check . && uv run ruff format --check .   # Lint + Format
+uv run python calibrate.py --days 30     # braucht Netz (PEGELONLINE)
+uv run python forecast.py --params params.json --out out/   # braucht Netz (BSH)
+uv run python forecast.py --explore      # BSH-API-Struktur dumpen
 ```
 
 ## Wichtige Konventionen & Fallstricke
@@ -57,5 +58,5 @@ python forecast.py --explore          # BSH-API-Struktur dumpen
 
 ## Tests vor dem Commit
 
-`python tests/test_model.py` muss durchlaufen. Für reine Logikänderungen keine
-Netzabhängigkeit einführen.
+`uv run pytest` muss durchlaufen (ebenso `uv run ruff check .`). Für reine
+Logikänderungen keine Netzabhängigkeit einführen.

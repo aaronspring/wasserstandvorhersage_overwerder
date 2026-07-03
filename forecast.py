@@ -10,6 +10,7 @@ Optional wird der aktuelle Modellfehler am Messpegel Over abgezogen.
 """
 
 import argparse
+import contextlib
 import os
 
 import pandas as pd
@@ -21,13 +22,22 @@ from wasserstand_overwerder.plot import plot_forecast
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--params", default=None,
-                    help="params.json aus calibrate.py (sonst: Entfernungs-Defaults)")
+    ap.add_argument(
+        "--params",
+        default=None,
+        help="params.json aus calibrate.py (sonst: Entfernungs-Defaults)",
+    )
     ap.add_argument("--out", default="out", help="Ausgabeverzeichnis")
-    ap.add_argument("--bias-correct", action="store_true",
-                    help="mittleres Residuum der letzten 6 h am Pegel Over abziehen")
-    ap.add_argument("--explore", action="store_true",
-                    help="nur BSH-API-Struktur ausgeben und beenden")
+    ap.add_argument(
+        "--bias-correct",
+        action="store_true",
+        help="mittleres Residuum der letzten 6 h am Pegel Over abziehen",
+    )
+    ap.add_argument(
+        "--explore",
+        action="store_true",
+        help="nur BSH-API-Struktur ausgeben und beenden",
+    )
     args = ap.parse_args()
 
     client = BSHClient()
@@ -36,9 +46,11 @@ def main() -> None:
         return
 
     params = model.Params.load(args.params) if args.params else model.Params()
-    print(f"Modell: tau={params.tau_minutes:.0f} min, Gewichte="
-          f"{tuple(round(w, 3) for w in params.weights())}, "
-          f"Offset={params.offset_cm:+.1f} cm")
+    print(
+        f"Modell: tau={params.tau_minutes:.0f} min, Gewichte="
+        f"{tuple(round(w, 3) for w in params.weights())}, "
+        f"Offset={params.offset_cm:+.1f} cm"
+    )
 
     print("Lade BSH-Vorhersagen ...")
     up = client.forecast("zollenspieker")
@@ -60,32 +72,34 @@ def main() -> None:
         target = target - bias
 
     gauge_zero = None
-    try:
+    with contextlib.suppress(Exception):
         gauge_zero = pegelonline.gauge_zero_m_nhn("over")  # i. d. R. -5.00
-    except Exception:
-        pass
 
     os.makedirs(args.out, exist_ok=True)
     csv_path = os.path.join(args.out, "overwerder_forecast.csv")
-    df = pd.DataFrame({
-        "time_utc": target.index,
-        "time_local": target.index.tz_convert("Europe/Berlin"),
-        "wasserstand_cm_pnp": target.round(1).values,
-    })
+    df = pd.DataFrame(
+        {
+            "time_utc": target.index,
+            "time_local": target.index.tz_convert("Europe/Berlin"),
+            "wasserstand_cm_pnp": target.round(1).values,
+        }
+    )
     if gauge_zero is not None:
-        df["wasserstand_m_nhn"] = (df["wasserstand_cm_pnp"] / 100.0
-                                   + gauge_zero).round(2)
+        df["wasserstand_m_nhn"] = (df["wasserstand_cm_pnp"] / 100.0 + gauge_zero).round(
+            2
+        )
     df.to_csv(csv_path, index=False)
 
     png_path = os.path.join(args.out, "overwerder_forecast.png")
-    plot_forecast(target, up, down, obs_over, png_path,
-                  now=pd.Timestamp.now(tz="UTC"))
+    plot_forecast(target, up, down, obs_over, png_path, now=pd.Timestamp.now(tz="UTC"))
 
     nxt = target[target.index >= pd.Timestamp.now(tz="UTC")]
     if len(nxt):
         peak_t, peak_v = nxt.idxmax(), float(nxt.max())
-        print(f"Naechster Scheitel Overwerder: {peak_v:.0f} cm ueber PNP "
-              f"um {peak_t.tz_convert('Europe/Berlin'):%d.%m. %H:%M} Uhr")
+        print(
+            f"Naechster Scheitel Overwerder: {peak_v:.0f} cm ueber PNP "
+            f"um {peak_t.tz_convert('Europe/Berlin'):%d.%m. %H:%M} Uhr"
+        )
     print(f"Geschrieben: {csv_path}\n             {png_path}")
 
 
