@@ -19,10 +19,18 @@ wasserstand_overwerder/
   bsh.py          BSH-Vorhersagen via OGC API Features (Laufzeit-Discovery)
   model.py        Interpolation (Params, interpolate, calibrate, recent_bias_cm)
   plot.py         matplotlib-Plot
+  webexport.py    baut data.json fuer die Web-App (netzfrei, build_payload)
 calibrate.py      CLI: fittet tau/Gewichte/Offset gegen Pegel Over -> params.json
 forecast.py       CLI: erzeugt out/overwerder_forecast.{csv,png}; --explore
-tests/test_model.py  Synthetik-Tests (netzwerkfrei)
+export_web.py     CLI: erzeugt web/public/data.json (BSH + PEGELONLINE) fuers Frontend
+web/              React+Vite+TS Single-Page-App (Recharts), Deploy nach GitHub Pages
+tests/test_model.py      Synthetik-Tests (netzwerkfrei)
+tests/test_webexport.py  Struktur-Tests fuer data.json (netzwerkfrei)
 ```
+
+Die Web-App ist statisch: `export_web.py` schreibt `data.json`, das React-Frontend
+lädt nur diese Datei. Der Workflow `.github/workflows/deploy.yml` erzeugt die Daten
+alle 6 h neu, baut `web/` und deployt nach GitHub Pages.
 
 ## Kommandos
 
@@ -33,6 +41,9 @@ uv run ruff check . && uv run ruff format --check .   # Lint + Format
 uv run python calibrate.py --days 30     # braucht Netz (PEGELONLINE)
 uv run python forecast.py --params params.json --out out/   # braucht Netz (BSH)
 uv run python forecast.py --explore      # BSH-API-Struktur dumpen
+uv run python export_web.py --out web/public   # data.json fuers Frontend (braucht Netz)
+cd web && npm ci && npm run build        # Frontend bauen (Typecheck + Vite)
+cd web && npm run dev                    # Frontend lokal (nutzt Beispiel-data.json)
 ```
 
 ## Wichtige Konventionen & Fallstricke

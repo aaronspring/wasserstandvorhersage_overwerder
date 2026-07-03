@@ -14,3 +14,7 @@ dist/
 # tooling caches
 .ruff_cache/
 .pytest_cache/
+
+# Frontend (web/)
+web/node_modules/
+web/dist/

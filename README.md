@@ -8,7 +8,34 @@ der direkt gegenüber liegt.
 
 Plan und Methodik: [PLAN_MWP.md](PLAN_MWP.md)
 
-## Schnellstart
+**Web-App:** <https://aaronspring.github.io/wasserstandvorhersage_overwerder>
+
+## Web-App (React-Frontend)
+
+Eine schlanke Single-Page-App (`web/`) zeigt die letzten 36 h und die Vorhersage:
+Overwerder (hervorgehoben), Messpegel Over, sowie Zollenspieker und St. Pauli
+(grau, unterschiedlicher Linienstil), dazu senkrechte Marker (jetzt,
+Vorhersagebeginn) und die Tide-Kennwerte MThw/MTnw als waagerechte Linien.
+
+Da GitHub Pages statisch ist, gibt es **kein Live-Backend**: Ein GitHub-Action-
+Workflow (`.github/workflows/deploy.yml`) läuft **alle 6 h**, erzeugt via
+`export_web.py` die Datendatei `web/public/data.json` (BSH + PEGELONLINE), baut
+das Frontend und deployt es nach Pages.
+
+```bash
+# Daten lokal erzeugen (braucht Netz):
+uv run python export_web.py --out web/public
+
+# Frontend lokal starten (nutzt das committete Beispiel-data.json):
+cd web && npm install && npm run dev
+npm run build            # Typecheck + Produktions-Build nach web/dist/
+```
+
+Einmalige Einrichtung im Repo: **Settings → Pages → Source = „GitHub Actions"**.
+Der `base`-Pfad im Frontend (`web/vite.config.ts`) ist der Repo-Name
+`/wasserstandvorhersage_overwerder/`.
+
+## Schnellstart (CLI)
 
 Das Projekt nutzt [uv](https://docs.astral.sh/uv/) für Abhängigkeiten und
 Umgebung (`pyproject.toml` + `uv.lock`).
