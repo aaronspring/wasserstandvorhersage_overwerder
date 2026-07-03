@@ -17,6 +17,28 @@ PEGELONLINE_STATIONS = {
     "over": "OVER",
 }
 
+# PEGELONLINE-Langzeitarchiv ("Download langfristiger Wasserstaende (Rohdaten)
+# ab dem 1.1.2000"): minuetliche, ungeprueft Rohdaten seit 2000-01-01 als
+# ZIP mit CSV (timestamp;value). Zeitstempel in gesetzlicher Zeit (MEZ/MESZ),
+# Werte in cm ueber PNP. Nur fuer WSV-Pegel verfuegbar; HPA-Pegel wie
+# HAMBURG ST. PAULI sind NICHT im Archiv (nur rollierende 31 Tage per REST).
+PEGELONLINE_WEB_BASE = "https://www.pegelonline.wsv.de/gast"
+PEGELONLINE_HISTORY_PARAMETER = "WASSERSTAND ROHDATEN"
+PEGELONLINE_HISTORY_START = "2000-01-01"  # frueheste im Archiv verfuegbare Daten
+# Stations-UUIDs (identisch mit REST-API-v2-"uuid") fuer das Langzeitarchiv.
+PEGELONLINE_STATION_UUIDS = {
+    "zollenspieker": "3de8ea26-ab29-4e46-adad-06198ba2e0b7",
+    "over": "b02ce5c0-64e9-4d24-90b9-269a28a1e9f9",
+    "st_pauli": "d488c5cc-4de9-4631-8ce1-0db0e700b546",
+}
+# Zeitzone der gesetzlichen Zeit in den Archiv-CSV (MEZ/MESZ mit Sommerzeit).
+PEGELONLINE_HISTORY_TZ = "Europe/Berlin"
+# Pegel mit Langzeitarchiv (WSV). HPA-Pegel wie st_pauli haben keins und
+# liefern nur die rollierenden 31 Tage der REST-API.
+PEGELONLINE_ARCHIVE_STATIONS = ("zollenspieker", "over")
+# Hugging-Face-Dataset, in dem das Parquet-Archiv gehostet wird.
+PEGELONLINE_HF_REPO = "aaronspring/elbe-pegel-over-zollenspieker-minutely-since-2000"
+
 # BSH WaterLevelForecast (OGC API Features, CC BY 4.0)
 BSH_BASE = "https://gdi.bsh.de/ldproxy/rest/services/WaterLevelForecast"
 # Namensmuster, um die Stationen in den BSH-Features wiederzufinden
