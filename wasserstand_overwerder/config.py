@@ -59,5 +59,20 @@ BSH_DATUM_OFFSET_CM = {
 # (PNP = NHN - 5,00 m): grob 100..1100 cm. Dient der Einheiten-Pruefung.
 PLAUSIBLE_CM_PNP = (50.0, 1300.0)
 
+# Historische Sturmflut-Scheitel am Pegel Over (cm ueber PNP), Raenge 1/3/5/10.
+# Einzige Quelle fuer Plot (plot.py) und Web-Export (webexport.py); die volle
+# Tabelle samt Methodik steht in docs/TOP_10_STURMFLUTEN.md.
+STURMFLUT_DOC = "docs/TOP_10_STURMFLUTEN.md"
+STURMFLUT_DOC_URL = (
+    "https://github.com/aaronspring/wasserstandvorhersage_overwerder/"
+    "blob/main/docs/TOP_10_STURMFLUTEN.md"
+)
+STURMFLUT_SCHEITEL_CM = {
+    1: (1114, "Xaver 2013"),
+    3: (1067, "Tilo 2007"),
+    5: (1060, "Dez. 2023"),
+    10: (1008, "Emma 2008"),
+}
+
 HTTP_TIMEOUT = 30  # Sekunden
 USER_AGENT = "wasserstandvorhersage-overwerder/0.1 (github.com/aaronspring)"

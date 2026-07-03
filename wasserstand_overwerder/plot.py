@@ -9,13 +9,27 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from .config import STURMFLUT_DOC, STURMFLUT_DOC_URL, STURMFLUT_SCHEITEL_CM
+
 TZ = "Europe/Berlin"
+
+# Kurz-Aliase (Doku-Verweis auf die Top-10-Sturmfluten).
+SURGE_DOC = STURMFLUT_DOC
+SURGE_DOC_URL = STURMFLUT_DOC_URL
 
 # Farben: Zielserie blau, Stuetzpegel violett/orange, Beobachtung grau
 C_TARGET = "#2a78d6"
 C_UP = "#4a3aa7"  # Zollenspieker
 C_DOWN = "#eb6834"  # St. Pauli
 C_OBS = "#6f6e64"
+C_SURGE = "#9ecbf0"  # helles Blau (abgeleitet von C_TARGET) fuer Sturmflut-Marken
+
+# Sturmflut-Scheitel (Raenge 1/3/5/10) samt Doku-Verweis stehen in config.py.
+# Sturmflut-Marken nur einblenden, wenn die Vorhersage ihnen nahekommt: eine
+# Marke wird gezeigt, sobald der Datenscheitel bis auf diesen Abstand (cm)
+# heranreicht. So wird der Plot bei Normaltiden nicht durch weit oben liegende
+# Linien gestaucht (Proximity-Gating).
+SURGE_PROXIMITY_CM = 120.0
 
 
 def _local(s: pd.Series) -> pd.Series:
@@ -29,6 +43,7 @@ def plot_forecast(
     obs_over: pd.Series | None,
     out_png: str,
     now: pd.Timestamp | None = None,
+    show_surges: bool = True,
 ) -> None:
     fig, ax = plt.subplots(figsize=(11, 5.5), dpi=150)
 
@@ -74,6 +89,55 @@ def plot_forecast(
             fontsize=8,
             color="#6f6e64",
             ha="left",
+        )
+
+    # Proximity-Gating: nur Marken zeigen, denen der Datenscheitel nahekommt,
+    # damit weit oben liegende Linien den Plot bei Normaltiden nicht stauchen.
+    data_max = max(
+        (
+            float(s.max())
+            for s in (up, down, target, obs_over)
+            if s is not None and len(s)
+        ),
+        default=float("-inf"),
+    )
+    surges = [
+        (cm, rank, storm)
+        for rank, (cm, storm) in STURMFLUT_SCHEITEL_CM.items()
+        if cm <= data_max + SURGE_PROXIMITY_CM
+    ]
+
+    if show_surges and surges:
+        # nach Hoehe sortiert; Labels mit Mindestabstand entzerren (dicht
+        # beieinanderliegende Marken wie #3/#5 wuerden sich sonst ueberlagern).
+        label_gap_cm = 26
+        last_label = None
+        for cm, rank, storm in sorted(surges):
+            line = ax.axhline(cm, color=C_SURGE, lw=0.8, zorder=1)
+            line.set_url(SURGE_DOC_URL)  # klickbar in SVG-Ausgaben
+            label_y = cm if last_label is None else max(cm, last_label + label_gap_cm)
+            last_label = label_y
+            ax.annotate(
+                f"Sturmflut #{rank} ({storm}): {cm} cm",
+                xy=(0.995, label_y),
+                xycoords=("axes fraction", "data"),
+                xytext=(0, 1),
+                textcoords="offset points",
+                fontsize=7,
+                color=C_SURGE,
+                ha="right",
+                va="bottom",
+            )
+        # Quelle klein unten rechts vermerken (Klick-Link in SVG-Ausgaben).
+        ax.annotate(
+            f"Sturmflut-Marken: {SURGE_DOC}",
+            xy=(0.995, 0.02),
+            xycoords="axes fraction",
+            fontsize=6.5,
+            color=C_SURGE,
+            ha="right",
+            va="bottom",
+            url=SURGE_DOC_URL,
         )
 
     ax.set_ylabel("Wasserstand [cm über PNP]  (PNP = NHN − 5,00 m)")

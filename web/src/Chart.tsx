@@ -133,10 +133,12 @@ export default function Chart({
   data,
   colors,
   hidden,
+  showSurges = false,
 }: {
   data: Payload;
   colors: Colors;
   hidden: Set<SeriesKey>;
+  showSurges?: boolean;
 }) {
   const narrow = useNarrow();
 
@@ -153,6 +155,7 @@ export default function Chart({
     rows,
     visible,
     refLines,
+    surgeLines,
     xDomain,
     yDomain,
     ticks,
@@ -169,6 +172,8 @@ export default function Chart({
       const refLines = REF_KEYS.map((k) => ({ k, v: data.reference_lines[k] })).filter(
         (r) => typeof r.v === "number",
       );
+      // Top-10-Sturmflut-Marken (nur wenn per Button eingeblendet).
+      const surgeLines = showSurges ? (data.surge_lines ?? []) : [];
       const xs = rows.map((r) => r.t);
       const xMin = xs[0] ?? 0;
       const xMax = xs[xs.length - 1] ?? 0;
@@ -194,12 +199,18 @@ export default function Chart({
           }
         }
       }
-      // Referenzlinien nur im Vollbild in die Skala zwingen.
-      if (!zoomed)
+      // Referenzlinien (und eingeblendete Sturmflut-Marken) nur im Vollbild in
+      // die Skala zwingen, damit die Achse sie umfasst.
+      if (!zoomed) {
         for (const r of refLines) {
           lo = Math.min(lo, r.v as number);
           hi = Math.max(hi, r.v as number);
         }
+        for (const s of surgeLines) {
+          lo = Math.min(lo, s.cm);
+          hi = Math.max(hi, s.cm);
+        }
+      }
       if (lo === Infinity) {
         lo = 0;
         hi = 100;
@@ -242,6 +253,7 @@ export default function Chart({
         rows,
         visible,
         refLines,
+        surgeLines,
         xDomain: [x0, x1] as [number, number],
         yDomain: [yLo, yHi] as [number, number],
         ticks: tk,
@@ -252,7 +264,7 @@ export default function Chart({
         brushEnd: be,
         atFull,
       };
-    }, [data, narrow, hidden, zoom]);
+    }, [data, narrow, hidden, zoom, showSurges]);
 
   const now = Date.parse(data.now);
   const fcStart = Date.parse(data.forecast_start);
@@ -398,6 +410,24 @@ export default function Chart({
               value: `${r.k} ${Math.round(r.v as number)}`,
               position: "insideTopLeft",
               fill: colors.muted,
+              fontSize: 10,
+            }}
+          />
+        ))}
+
+        {surgeLines.map((s, i) => (
+          <ReferenceLine
+            key={`surge-${s.rank}`}
+            y={s.cm}
+            stroke={colors.surge}
+            strokeWidth={1}
+            ifOverflow={zoomed ? "hidden" : "extendDomain"}
+            label={{
+              value: `#${s.rank} ${s.label} ${Math.round(s.cm)}`,
+              // dicht beieinanderliegende Marken abwechselnd links/rechts, damit
+              // sich die Beschriftungen nicht ueberlagern.
+              position: i % 2 === 0 ? "insideBottomRight" : "insideBottomLeft",
+              fill: colors.surge,
               fontSize: 10,
             }}
           />

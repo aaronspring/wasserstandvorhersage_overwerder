@@ -70,6 +70,25 @@ def test_payload_structure_and_trim():
     assert ow_last > now
 
 
+def test_surge_lines_from_config():
+    from wasserstand_overwerder import config
+
+    now = pd.Timestamp("2026-06-03T00:00:00", tz="UTC")
+    target, over, up, down = _scenario(now)
+    payload = webexport.build_payload(
+        target=target, over=over, up=up, down=down, now=now
+    )
+    surges = payload["surge_lines"]
+    # Ein Eintrag je Rang aus config, nach Hoehe absteigend sortiert.
+    assert len(surges) == len(config.STURMFLUT_SCHEITEL_CM)
+    cms = [s["cm"] for s in surges]
+    assert cms == sorted(cms, reverse=True)
+    for s in surges:
+        assert set(s) == {"rank", "label", "cm"}
+        assert config.STURMFLUT_SCHEITEL_CM[s["rank"]] == (int(s["cm"]), s["label"])
+    assert payload["surge_doc_url"] == config.STURMFLUT_DOC_URL
+
+
 def test_missing_over_and_refs():
     now = pd.Timestamp("2026-06-03T00:00:00", tz="UTC")
     target, _, up, down = _scenario(now)

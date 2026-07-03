@@ -13,6 +13,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   // Über die Legende aus-/eingeblendete Serien.
   const [hidden, setHidden] = useState<Set<SeriesKey>>(() => new Set());
+  // Top-10-Sturmflut-Marken (per Button einblendbar; Default aus, da sie weit
+  // ueber Normaltiden liegen und die Skala sonst stauchen).
+  const [showSurges, setShowSurges] = useState(false);
 
   const toggle = (k: SeriesKey) =>
     setHidden((prev) => {
@@ -53,7 +56,12 @@ export default function App() {
         {!error && !data && <div className="status">Lade Daten …</div>}
         {data && (
           <div className="chart-box">
-            <Chart data={data} colors={colors} hidden={hidden} />
+            <Chart
+              data={data}
+              colors={colors}
+              hidden={hidden}
+              showSurges={showSurges}
+            />
           </div>
         )}
       </main>
@@ -106,8 +114,41 @@ export default function App() {
             </svg>
             Vorhersagebeginn
           </span>
+          {data.surge_lines?.length ? (
+            <button
+              type="button"
+              className={`leg-item leg-toggle${showSurges ? "" : " off"}`}
+              onClick={() => setShowSurges((v) => !v)}
+              aria-pressed={showSurges}
+              title="Historische Top-10-Sturmfluten als Referenzlinien"
+            >
+              <svg width="26" height="10" aria-hidden="true">
+                <line
+                  x1="1"
+                  y1="5"
+                  x2="25"
+                  y2="5"
+                  stroke={colors.surge}
+                  strokeWidth="2"
+                />
+              </svg>
+              Top-10 Sturmfluten
+            </button>
+          ) : null}
+          {data.surge_doc_url && (
+            <a
+              className="leg-item leg-link"
+              href={data.surge_doc_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Methodik und vollständige Top-10-Tabelle"
+            >
+              Top-10 ↗
+            </a>
+          )}
           <p className="leg-hint">
-            Legende antippen blendet Linien aus · ins Diagramm tippen zeigt die
+            Legende antippen blendet Linien aus · „Top-10 Sturmfluten" zeigt die
+            historischen Scheitel · ins Diagramm tippen zeigt die
             Werte je Linie · ziehen zoomt hinein · Übersichtsleiste unten
             verschieben/aufziehen oder „Ganzer Zeitraum" zeigt die volle
             Vorhersage · Standardansicht: 12 h zurück und 36 h voraus
