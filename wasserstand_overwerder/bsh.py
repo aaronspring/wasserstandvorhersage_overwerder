@@ -7,6 +7,10 @@ dokumentiert. Dieser Client entdeckt die Struktur zur Laufzeit:
 1. /collections listet die Feature-Collections.
 2. Kandidaten-Collections (Namen mit forecast/vorhersage/kurve/...) werden
    angelesen; Zeit-, Wert- und Stationsfelder werden heuristisch erkannt.
+   Enthaelt ein Feature mehrere eingebettete Zeitreihen (BSH: dichte `curve`
+   und grobe `high_water_low_water`), wird die dichteste Kurve bevorzugt;
+   pro Zeitschritt gewinnt das Vorhersagefeld (automated_curve_forecast) vor
+   Messung vor astronomischer Vorausberechnung. Werte duerfen Strings sein.
 3. Features der gewuenschten Station werden (serverseitig gefiltert, sonst
    seitenweise) geladen und zu einer Zeitreihe zusammengesetzt.
 
@@ -94,6 +98,23 @@ class BSHClient:
     # -- Heuristiken ---------------------------------------------------------
 
     @staticmethod
+    def _as_float(v) -> float | None:
+        """int/float oder numerischer String -> float, sonst None.
+
+        Die BSH-Kurve liefert Werte als Strings ("478"); Bool ist kein Wert.
+        """
+        if isinstance(v, bool):
+            return None
+        if isinstance(v, (int, float)):
+            return float(v)
+        if isinstance(v, str):
+            try:
+                return float(v.strip().replace(",", "."))
+            except ValueError:
+                return None
+        return None
+
+    @staticmethod
     def _find_key(props: dict, hints: tuple[str, ...],
                   pred=lambda v: True) -> str | None:
         for k, v in props.items():
@@ -101,23 +122,60 @@ class BSHClient:
                 return k
         return None
 
+    @staticmethod
+    def _is_time(v) -> bool:
+        try:
+            return bool(pd.notna(pd.to_datetime(v, utc=True)))
+        except (ValueError, TypeError):
+            return False
+
     @classmethod
     def _time_key(cls, props: dict) -> str | None:
-        def is_time(v):
-            try:
-                return pd.notna(pd.to_datetime(v, utc=True))
-            except (ValueError, TypeError):
-                return False
-        return cls._find_key(props, _TIME_KEY_HINTS, is_time)
+        return cls._find_key(props, _TIME_KEY_HINTS, cls._is_time)
+
+    @classmethod
+    def _time_key_across(cls, items: list[dict]) -> str | None:
+        """Zeitfeld ueber eine Liste von Eintraegen (Feld kann fehlen).
+
+        Waehlt das am haeufigsten parsebare Feld mit Zeit-Namenshinweis,
+        sonst das erste ueberhaupt als Zeit parsebare Feld.
+        """
+        counts: dict[str, int] = {}
+        for it in items:
+            for k, v in it.items():
+                if any(h in k.lower() for h in _TIME_KEY_HINTS) and cls._is_time(v):
+                    counts[k] = counts.get(k, 0) + 1
+        if counts:
+            return max(counts, key=counts.get)
+        for k, v in items[0].items():
+            if cls._is_time(v):
+                return k
+        return None
+
+    @staticmethod
+    def _value_rank(key: str) -> int:
+        """Praeferenz fuer Wertfelder: Vorhersage > Messung > sonstige Numerik.
+
+        In der BSH-Kurve: automated_curve_forecast (Rang 0, Zukunft) vor
+        measurement (Rang 2, Vergangenheit) vor tidal_prediction (Rang 3,
+        astronomisch).
+        """
+        k = key.lower()
+        if any(h in k for h in ("forecast", "vorhersage")):
+            return 0
+        if any(h in k for h in _VALUE_KEY_HINTS):
+            return 1
+        if any(h in k for h in ("measure", "mess", "observ", "beob")):
+            return 2
+        return 3
 
     @classmethod
     def _value_key(cls, props: dict) -> str | None:
-        is_num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)
-        key = cls._find_key(props, _VALUE_KEY_HINTS, is_num)
+        key = cls._find_key(props, _VALUE_KEY_HINTS,
+                            lambda v: cls._as_float(v) is not None)
         if key:
             return key
-        numeric = [k for k, v in props.items()
-                   if isinstance(v, (int, float)) and not isinstance(v, bool)]
+        numeric = [k for k, v in props.items() if cls._as_float(v) is not None]
         return numeric[0] if len(numeric) == 1 else None
 
     @staticmethod
@@ -165,17 +223,28 @@ class BSHClient:
             return None
         props = samples[0].get("properties", {})
 
-        # Variante A: ein Feature pro Station mit eingebetteter Zeitreihe (Liste)
-        for k, v in props.items():
-            if isinstance(v, list) and v and isinstance(v[0], dict):
-                sub = v[0]
-                if self._time_key(sub) and self._value_key(sub):
-                    feats = self.iter_features(cid)
-                    for f in feats:
-                        p = f.get("properties", {})
-                        if self._matches_station(p, patterns):
-                            return self._parse_embedded(p[k])
-                    return None
+        # Variante A: ein Feature pro Station mit eingebetteter Zeitreihe (Liste).
+        # Enthaelt ein Feature mehrere Listen (BSH: dichte `curve` UND grobe
+        # `high_water_low_water`), die dichte Kurve bevorzugen: erst
+        # Namenshinweis (curve/kurve/series), dann groesste Liste.
+        list_keys = [k for k, v in props.items()
+                     if isinstance(v, list) and v and isinstance(v[0], dict)
+                     and self._time_key_across(v)]
+        if list_keys:
+            key = max(list_keys, key=lambda k: (
+                any(h in k.lower() for h in ("curve", "kurve", "series")),
+                len(props[k])))
+            try:  # grosse Seite anfordern (Features sind schwer)
+                feats = list(self.iter_features(cid, limit=10000))
+            except requests.RequestException:
+                feats = list(self.iter_features(cid))
+            for f in feats:
+                p = f.get("properties", {})
+                if self._matches_station(p, patterns):
+                    series = self._parse_embedded(p.get(key, []))
+                    if series is not None:
+                        return series
+            return None
 
         # Variante B: ein Feature pro Zeitschritt
         tkey, vkey = self._time_key(props), self._value_key(props)
@@ -194,23 +263,45 @@ class BSHClient:
                 t = pd.to_datetime(p[tkey], utc=True)
             except (ValueError, TypeError, KeyError):
                 continue
-            v = p.get(vkey)
-            if isinstance(v, (int, float)) and not isinstance(v, bool):
-                records.append((t, float(v)))
+            v = self._as_float(p.get(vkey))
+            if v is not None:
+                records.append((t, v))
         if not records:
             return None
         s = pd.Series(dict(records)).sort_index()
         return s[~s.index.duplicated(keep="last")]
 
     def _parse_embedded(self, items: list[dict]) -> pd.Series | None:
+        """Eingebettete Zeitreihe (Liste von Dicts) -> Serie.
+
+        Das Zeit- und das Wertfeld koennen je Eintrag unterschiedlich belegt
+        sein (BSH-Kurve: Vergangenheit hat `measurement`, Zukunft
+        `automated_curve_forecast`). Pro Eintrag wird das hoechstrangige
+        vorhandene Wertfeld gewaehlt (_value_rank) und aus String/Zahl
+        gelesen.
+        """
         if not items:
             return None
-        tkey, vkey = self._time_key(items[0]), self._value_key(items[0])
-        if not (tkey and vkey):
+        tkey = self._time_key_across(items)
+        if tkey is None:
             return None
-        idx = pd.to_datetime([it[tkey] for it in items], utc=True)
-        vals = [float(it[vkey]) for it in items]
-        s = pd.Series(vals, index=idx).sort_index()
+        cand = {k for it in items for k, v in it.items()
+                if k != tkey and self._as_float(v) is not None}
+        if not cand:
+            return None
+        order = sorted(cand, key=lambda k: (self._value_rank(k), k))
+        idx, vals = [], []
+        for it in items:
+            t = it.get(tkey)
+            val = next((self._as_float(it[k]) for k in order
+                        if self._as_float(it.get(k)) is not None), None)
+            if t is None or val is None:
+                continue
+            idx.append(t)
+            vals.append(val)
+        if len(vals) < 2:
+            return None
+        s = pd.Series(vals, index=pd.to_datetime(idx, utc=True)).sort_index()
         return s[~s.index.duplicated(keep="last")]
 
     @staticmethod
