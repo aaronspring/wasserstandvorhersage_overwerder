@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  Brush,
   CartesianGrid,
   Line,
   LineChart,
@@ -148,8 +149,20 @@ export default function Chart({
 
   // Alles Abgeleitete in einem Memo, damit es nur bei data/narrow/hidden/zoom
   // neu rechnet (nicht bei jedem Render, z. B. Tooltip-Hover oder Drag).
-  const { rows, visible, refLines, xDomain, yDomain, ticks, dayFirst, zoomed } =
-    useMemo(() => {
+  const {
+    rows,
+    visible,
+    refLines,
+    xDomain,
+    yDomain,
+    ticks,
+    dayFirst,
+    zoomed,
+    xFull,
+    brushStart,
+    brushEnd,
+    atFull,
+  } = useMemo(() => {
       const rows = toRows(data.series);
       const present = SERIES.filter((m) => data.series[m.key]?.length);
       const visible = present.filter((m) => !hidden.has(m.key));
@@ -206,6 +219,25 @@ export default function Chart({
           prevDay = d;
         }
       }
+      // Brush-Griffe auf die Datenzeilen abbilden, die das aktuelle X-Fenster
+      // begrenzen. Die Übersichtsleiste zeigt den GESAMTEN Zeitraum; die Griffe
+      // markieren darin den sichtbaren Ausschnitt (Standard oder Zoom).
+      let bs = 0;
+      let be = rows.length - 1;
+      for (let i = 0; i < rows.length; i++)
+        if (rows[i].t >= x0) {
+          bs = i;
+          break;
+        }
+      for (let i = rows.length - 1; i >= 0; i--)
+        if (rows[i].t <= x1) {
+          be = i;
+          break;
+        }
+      if (be < bs) be = bs;
+      // "Ganzer Zeitraum" ist erreicht, wenn das Fenster die Daten voll abdeckt.
+      const atFull = x0 <= xMin + 1 && x1 >= xMax - 1;
+
       return {
         rows,
         visible,
@@ -215,6 +247,10 @@ export default function Chart({
         ticks: tk,
         dayFirst: firsts,
         zoomed,
+        xFull: [xMin, xMax] as [number, number],
+        brushStart: bs,
+        brushEnd: be,
+        atFull,
       };
     }, [data, narrow, hidden, zoom]);
 
@@ -255,6 +291,17 @@ export default function Chart({
     setSelRight(null);
   };
 
+  // Übersichtsleiste (Brush) verschieben/aufziehen: Griff-Indizes -> X-Fenster.
+  // So lässt sich der sichtbare Ausschnitt über den ganzen Vorhersagezeitraum
+  // schieben und beliebig verbreitern (nicht nur hineinzoomen).
+  const onBrush = (r: { startIndex?: number; endIndex?: number }) => {
+    if (r.startIndex == null || r.endIndex == null) return;
+    const a = rows[r.startIndex]?.t;
+    const b = rows[r.endIndex]?.t;
+    if (a == null || b == null || b <= a) return;
+    setZoom([a, b]);
+  };
+
   // Werte je sichtbarer Serie am angeklickten Zeitpunkt (fuer die Ablese-Linie).
   const pinRow = pinned == null ? undefined : nearestRow(rows, pinned);
   const pinVals =
@@ -266,18 +313,30 @@ export default function Chart({
 
   return (
     <div className="chart-wrap">
-      {zoomed && (
-        <button
-          type="button"
-          className="zoom-reset"
-          onClick={() => {
-            setZoom(null);
-            setPinned(null);
-          }}
-        >
-          Zoom zurücksetzen
-        </button>
-      )}
+      <div className="chart-controls">
+        {!atFull && (
+          <button
+            type="button"
+            className="chart-btn"
+            onClick={() => setZoom(xFull)}
+            title="Gesamten verfügbaren Vorhersagezeitraum anzeigen"
+          >
+            Ganzer Zeitraum
+          </button>
+        )}
+        {zoomed && (
+          <button
+            type="button"
+            className="chart-btn"
+            onClick={() => {
+              setZoom(null);
+              setPinned(null);
+            }}
+          >
+            Zoom zurücksetzen
+          </button>
+        )}
+      </div>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={rows}
@@ -447,6 +506,21 @@ export default function Chart({
               />
             );
           }}
+        />
+
+        {/* Übersichtsleiste über den GESAMTEN Zeitraum: Fenster verschieben und
+            verbreitern, um weiter in die Zukunft reichende Vorhersagen zu sehen. */}
+        <Brush
+          dataKey="t"
+          height={26}
+          travellerWidth={8}
+          gap={5}
+          stroke={colors.axis}
+          fill={colors.tooltipBg}
+          startIndex={brushStart}
+          endIndex={brushEnd}
+          onChange={onBrush}
+          tickFormatter={(t: number) => fmtDateShort(t)}
         />
         </LineChart>
       </ResponsiveContainer>
