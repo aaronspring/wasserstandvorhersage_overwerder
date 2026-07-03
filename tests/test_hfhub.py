@@ -39,6 +39,8 @@ def test_dataset_card_has_frontmatter_and_config():
     # Stationsliste und Repo-Id tauchen im Ladebeispiel auf
     assert "over, zollen" in card
     assert f"hf://datasets/{repo}" in card
+    # Link zurueck zum GitHub-Repo (prominent)
+    assert hfhub.GITHUB_REPO_URL in card
 
 
 def test_upload_dataset_is_lazy_import():
