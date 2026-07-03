@@ -64,14 +64,25 @@ function toRows(series: Payload["series"]): Row[] {
 const HALF_DAY = 12 * 3600 * 1000;
 const DAY = 24 * 3600 * 1000;
 
+const BERLIN_PARTS = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Europe/Berlin",
+  hourCycle: "h23",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
+
 // Offset (ms) der gesetzlichen Zeit (Europe/Berlin) gegenueber UTC zu `ms`.
+// Ueber formatToParts (spec-sicher), nicht ueber String-Parsing von Date().
 function berlinOffsetMs(ms: number): number {
-  const d = new Date(ms);
-  const asUTC = new Date(d.toLocaleString("en-US", { timeZone: "UTC" }));
-  const asBerlin = new Date(
-    d.toLocaleString("en-US", { timeZone: "Europe/Berlin" }),
-  );
-  return asBerlin.getTime() - asUTC.getTime();
+  const p: Record<string, number> = {};
+  for (const part of BERLIN_PARTS.formatToParts(ms))
+    if (part.type !== "literal") p[part.type] = Number(part.value);
+  const wall = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+  return wall - ms;
 }
 
 // Ticks an lokalen Mitternachts-/Mittagsgrenzen (Offset ueber Fenster ~konstant).
@@ -91,14 +102,15 @@ export default function Chart({
   colors: Colors;
 }) {
   const narrow = useNarrow();
-  const rows = useMemo(() => toRows(data.series), [data]);
-  const present = SERIES.filter((m) => data.series[m.key]?.length);
 
-  const refLines = REF_KEYS.map((k) => ({ k, v: data.reference_lines[k] })).filter(
-    (r) => typeof r.v === "number",
-  );
-
-  const { xDomain, yDomain, ticks, dayFirst } = useMemo(() => {
+  // Alles Abgeleitete in einem Memo, damit es nur bei data/narrow neu rechnet
+  // (nicht bei jedem Render, z. B. Tooltip-Hover).
+  const { rows, present, refLines, xDomain, yDomain, ticks, dayFirst } = useMemo(() => {
+    const rows = toRows(data.series);
+    const present = SERIES.filter((m) => data.series[m.key]?.length);
+    const refLines = REF_KEYS.map((k) => ({ k, v: data.reference_lines[k] })).filter(
+      (r) => typeof r.v === "number",
+    );
     const xs = rows.map((r) => r.t);
     const xMin = xs[0] ?? 0;
     const xMax = xs[xs.length - 1] ?? 0;
@@ -132,12 +144,15 @@ export default function Chart({
       }
     }
     return {
+      rows,
+      present,
+      refLines,
       xDomain: [xMin, xMax] as [number, number],
       yDomain: [yLo, yHi] as [number, number],
       ticks: tk,
       dayFirst: firsts,
     };
-  }, [rows, present, refLines, narrow]);
+  }, [data, narrow]);
 
   const now = Date.parse(data.now);
   const fcStart = Date.parse(data.forecast_start);

@@ -10,9 +10,6 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-# Reihenfolge/Schluessel der Serien im data.json (Frontend erwartet diese Keys).
-SERIES_KEYS = ("overwerder", "over", "zollenspieker", "st_pauli")
-
 
 def demo_inputs(
     now: pd.Timestamp, frac: float, *, days_past: int = 2, days_future: int = 5

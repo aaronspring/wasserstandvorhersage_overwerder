@@ -48,30 +48,22 @@ const DARK: Colors = {
   tooltipBg: "#1f1f1ef2",
 };
 
-export function useNarrow(): boolean {
-  const query = "(max-width: 560px)";
-  const [narrow, setNarrow] = useState(
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(
     () => window.matchMedia?.(query).matches ?? false,
   );
   useEffect(() => {
     const mq = window.matchMedia(query);
-    const onChange = (e: MediaQueryListEvent) => setNarrow(e.matches);
+    const onChange = (e: MediaQueryListEvent) => setMatches(e.matches);
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
-  }, []);
-  return narrow;
+  }, [query]);
+  return matches;
 }
 
+export const useNarrow = () => useMediaQuery("(max-width: 560px)");
+
 export function useTheme(): { mode: "light" | "dark"; colors: Colors } {
-  const query = "(prefers-color-scheme: dark)";
-  const [dark, setDark] = useState(
-    () => window.matchMedia?.(query).matches ?? false,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia(query);
-    const onChange = (e: MediaQueryListEvent) => setDark(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
+  const dark = useMediaQuery("(prefers-color-scheme: dark)");
   return { mode: dark ? "dark" : "light", colors: dark ? DARK : LIGHT };
 }
