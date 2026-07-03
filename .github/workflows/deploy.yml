@@ -1,11 +1,13 @@
 name: Deploy
 
-# Erzeugt alle 6 h frische Daten (BSH + PEGELONLINE), baut das React-Frontend
+# Erzeugt stuendlich frische Daten (BSH + PEGELONLINE), baut das React-Frontend
 # und deployt es nach GitHub Pages. data.json wird nicht committet, sondern beim
-# Build frisch erzeugt und ins Pages-Artefakt gebacken.
+# Build frisch erzeugt und ins Pages-Artefakt gebacken. Stuendlich ist der
+# Sweet Spot: neue BSH-Kurven landen zeitnah, die Over-Messung bleibt frisch;
+# oefter lohnt kaum, da BSH nur wenige Male pro Tag neu rechnet.
 on:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
