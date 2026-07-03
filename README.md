@@ -10,6 +10,8 @@ Plan und Methodik: [PLAN_MWP.md](PLAN_MWP.md)
 
 **Web-App:** <https://aaronspring.github.io/wasserstandvorhersage_overwerder>
 
+![Screenshot der Web-App: Wasserstandsvorhersage Overwerder mit Tidekurven von Overwerder, Over, Zollenspieker und St. Pauli](docs/screenshot.png)
+
 ## Web-App (React-Frontend)
 
 Eine schlanke Single-Page-App (`web/`) zeigt die letzten 36 h und die Vorhersage:
