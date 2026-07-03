@@ -6,22 +6,26 @@ direkt gegenüber Overwerder) aus dem Langzeitarchiv. Einheiten: cm über PNP
 
 ## Ergebnis
 
-| #  | Scheitel (Europe/Berlin) | cm ü. PNP | m NHN  | Sturm             |
-|----|--------------------------|-----------|--------|-------------------|
-| 1  | 2013-12-06 06:31         | 1114      | +6,14  | Xaver             |
-| 2  | 2022-02-19 05:41         | 1110      | +6,10  | Zeynep/Antonia    |
-| 3  | 2007-11-09 15:51         | 1067      | +5,67  | Tilo              |
-| 4  | 2017-10-29 09:38         | 1064      | +5,64  | Herwart           |
-| 5  | 2023-12-22 11:05         | 1060      | +5,60  | Dezember 2023     |
-| 6  | 2002-01-29 04:01         | 1050      | +5,50  | Januar 2002       |
-| 7  | 2000-01-30 09:54         | 1033      | +5,33  | Januar 2000       |
-| 8  | 2015-01-11 07:25         | 1030      | +5,30  | Felix/Elon        |
-| 9  | 2022-01-30 00:49         | 1021      | +5,21  | Nadia             |
-| 10 | 2008-03-01 19:50         | 1008      | +5,08  | Emma              |
+| #  | Scheitel (Europe/Berlin) | cm ü. PNP | m NHN  | Sturm |
+|----|--------------------------|-----------|--------|-------|
+| 1  | 2013-12-06 06:31         | 1114      | +6,14  | [Xaver](https://de.wikipedia.org/wiki/Orkan_Xaver) |
+| 2  | 2022-02-19 05:41         | 1110      | +6,10  | [Zeynep](https://de.wikipedia.org/wiki/Orkan_Zeynep)/Antonia |
+| 3  | 2007-11-09 15:51         | 1067      | +5,67  | [Tilo](https://de.wikipedia.org/wiki/Orkan_Tilo) |
+| 4  | 2017-10-29 09:38         | 1064      | +5,64  | [Herwart](https://de.wikipedia.org/wiki/Sturmtief_Herwart) |
+| 5  | 2023-12-22 11:05         | 1060      | +5,60  | Dezember 2023 (Zoltan/Pia) |
+| 6  | 2002-01-29 04:01         | 1050      | +5,50  | Januar 2002 |
+| 7  | 2000-01-30 09:54         | 1033      | +5,33  | Januar 2000 |
+| 8  | 2015-01-11 07:25         | 1030      | +5,30  | Felix/Elon |
+| 9  | 2022-01-30 00:49         | 1021      | +5,21  | [Nadia](https://de.wikipedia.org/wiki/Sturmtief_Nadia) |
+| 10 | 2008-03-01 19:50         | 1008      | +5,08  | [Emma](https://de.wikipedia.org/wiki/Orkan_Emma) |
 
 Die beiden Rekord-Sturmfluten **Xaver** (Dezember 2013) und **Zeynep/Antonia**
 (Februar 2022) liegen mit rund 11,1 m über PNP klar an der Spitze — das deckt
 sich mit den dokumentierten Rekordwasserständen der Tideelbe.
+
+Sturmnamen sind, wo ein Artikel existiert, mit der deutschen Wikipedia verlinkt.
+Für die Ereignisse ohne eigenständigen Artikel (Dezember 2023 / Zoltan-Pia,
+Januar 2002, Januar 2000, Elon/Felix Januar 2015) ist nur das Datum angegeben.
 
 ## Datengrundlage
 
