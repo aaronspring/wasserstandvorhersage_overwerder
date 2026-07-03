@@ -11,8 +11,10 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from .config import PEGELONLINE_HF_REPO
+
 #: Default-Ziel: Dataset-Repo unter https://huggingface.co/aaronspring
-DEFAULT_HF_REPO = "aaronspring/elbe-pegel-over-zollenspieker-minutely-since-2000"
+DEFAULT_HF_REPO = PEGELONLINE_HF_REPO
 
 # Dateien, die zusaetzlich zu den year=YYYY/-Partitionen ins Repo gehoeren.
 _DATASET_CARD = "README.md"
@@ -21,17 +23,17 @@ _DATASET_CARD = "README.md"
 def _upload_patterns(replace_years: list[int] | None) -> tuple[list[str], list[str]]:
     """(allow_patterns, delete_patterns) fuer upload_folder bestimmen.
 
-    ``replace_years=None`` -> voller Spiegel: alle ``year=*``-Fragmente ersetzen.
-    Sonst nur die genannten Jahres-Partitionen ersetzen, uebrige unberuehrt
-    lassen (inkrementelles Update). ``delete_patterns`` entfernt die alten
-    Fragmente im selben Commit, sodass keine Duplikate entstehen.
+    ``replace_years=None`` -> voller Spiegel (Glob ``year=*``). Sonst nur die
+    genannten Jahres-Partitionen ersetzen, uebrige unberuehrt lassen
+    (inkrementelles Update). ``delete_patterns`` entfernt die alten Fragmente im
+    selben Commit, sodass keine Duplikate entstehen.
     """
-    if replace_years is None:
-        return ["year=*/*.parquet", _DATASET_CARD], ["year=*/*.parquet"]
-    years = sorted(set(replace_years))
-    allow = [f"year={y}/*.parquet" for y in years] + [_DATASET_CARD]
-    delete = [f"year={y}/*.parquet" for y in years]
-    return allow, delete
+    globs = (
+        ["year=*/*.parquet"]
+        if replace_years is None
+        else [f"year={y}/*.parquet" for y in sorted(set(replace_years))]
+    )
+    return globs + [_DATASET_CARD], globs
 
 
 def dataset_card(repo_id: str, stations: list[str]) -> str:

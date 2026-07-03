@@ -46,18 +46,16 @@ class ArchiveNotAvailable(RuntimeError):
     """Fuer diese Station gibt es kein Langzeitarchiv (z. B. HPA-Pegel)."""
 
 
-def _to_berlin_iso(value: str | pd.Timestamp) -> str:
-    """Zeitangabe nach Europe/Berlin in ISO-8601 mit Offset (z. B. +01:00).
-
-    Nackte Zeitstempel/Datumsstrings werden als gesetzliche Zeit interpretiert;
-    tz-aware Angaben werden nach Europe/Berlin konvertiert.
-    """
+def _aware(value: str | pd.Timestamp) -> pd.Timestamp:
+    """Als tz-aware Timestamp; nackte Werte gelten als gesetzliche Zeit (MEZ/MESZ)."""
     ts = pd.Timestamp(value)
-    if ts.tzinfo is None:
-        ts = ts.tz_localize(PEGELONLINE_HISTORY_TZ)
-    else:
-        ts = ts.tz_convert(PEGELONLINE_HISTORY_TZ)
-    return ts.strftime("%Y-%m-%dT%H:%M:%S%z")
+    return ts.tz_localize(PEGELONLINE_HISTORY_TZ) if ts.tzinfo is None else ts
+
+
+def _to_berlin_iso(value: str | pd.Timestamp) -> str:
+    """Zeitangabe nach Europe/Berlin in ISO-8601 mit Offset (z. B. +01:00)."""
+    berlin = _aware(value).tz_convert(PEGELONLINE_HISTORY_TZ)
+    return berlin.strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
 def _session(session: requests.Session | None) -> requests.Session:
@@ -168,12 +166,12 @@ PARQUET_COMPRESSION = "zstd"
 def series_to_frame(series: pd.Series, key: str | None = None) -> pd.DataFrame:
     """Serie (UTC-Index, cm ueber PNP) -> tidy DataFrame mit ``year``-Spalte."""
     station = key or series.name
-    idx = pd.DatetimeIndex(series.index)
+    idx = series.index  # bereits ein tz-aware DatetimeIndex (UTC)
     return pd.DataFrame(
         {
             "time": idx,
             "station": pd.array([station] * len(series), dtype="string"),
-            "w_cm_pnp": pd.to_numeric(series.to_numpy(), errors="coerce"),
+            "w_cm_pnp": series.to_numpy(),  # in _parse_csv_bytes bereits numerisch
             "year": idx.year.astype("int32"),
         }
     )
@@ -218,10 +216,7 @@ def read_parquet(out_dir: str | Path) -> pd.DataFrame:
 
 
 def _to_utc(value: str | pd.Timestamp) -> pd.Timestamp:
-    ts = pd.Timestamp(value)
-    if ts.tzinfo is None:
-        ts = ts.tz_localize(PEGELONLINE_HISTORY_TZ)
-    return ts.tz_convert("UTC")
+    return _aware(value).tz_convert("UTC")
 
 
 def fetch_station_frames(
@@ -241,11 +236,12 @@ def fetch_station_frames(
     from . import pegelonline
 
     start_utc, end_utc = _to_utc(start), _to_utc(end)
+    session = _session(None)  # eine Session -> Verbindungs-Reuse ueber Stationen
     frames: list[pd.DataFrame] = []
     for key in keys:
         log(f"[{key}] lade {start} .. {end} ...")
         try:
-            series = fetch_history(key, start, end)
+            series = fetch_history(key, start, end, session=session)
             src = "Archiv"
         except ArchiveNotAvailable:
             if not rest_fallback:

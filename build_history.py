@@ -59,16 +59,15 @@ def main() -> None:
     ap.add_argument(
         "--hf-repo",
         nargs="?",
-        const=None,
-        default=argparse.SUPPRESS,
+        const=DEFAULT_HF_REPO,
+        default=None,
         metavar="ORG/NAME",
         help=(
-            "nach dem Schreiben zu Hugging Face SPIEGELN (voller Ersatz) "
-            f"(Default-Repo: {DEFAULT_HF_REPO}); braucht HF_TOKEN"
+            "nach dem Schreiben zu Hugging Face SPIEGELN (voller Ersatz); "
+            f"ohne Wert -> {DEFAULT_HF_REPO}; braucht HF_TOKEN"
         ),
     )
     args = ap.parse_args()
-    hf_repo = getattr(args, "hf_repo", False)  # False = Flag nicht gesetzt
 
     df = history.fetch_station_frames(
         args.stations, args.start, args.end, rest_fallback=args.rest_fallback
@@ -83,15 +82,14 @@ def main() -> None:
         f"(year-Partitionen: {', '.join(map(str, years))})"
     )
 
-    if hf_repo is not False:  # --hf-repo gesetzt (ggf. ohne Wert -> Default)
+    if args.hf_repo:  # nicht gesetzt -> None; ohne Wert -> DEFAULT_HF_REPO
         from wasserstand_overwerder import hfhub
 
-        repo_id = hf_repo or DEFAULT_HF_REPO
-        print(f"Spiegle nach Hugging Face: {repo_id} ...", flush=True)
+        print(f"Spiegle nach Hugging Face: {args.hf_repo} ...", flush=True)
         # replace_years=None -> voller Spiegel (alte Fragmente werden ersetzt)
         url = hfhub.upload_dataset(
             out,
-            repo_id=repo_id,
+            repo_id=args.hf_repo,
             stations=list(args.stations),
             commit_message=f"Voller Backfill {years[0]}..{years[-1]}",
         )

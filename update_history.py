@@ -21,9 +21,12 @@ import datetime as dt
 import pandas as pd
 
 from wasserstand_overwerder import hfhub, history
-from wasserstand_overwerder.config import PEGELONLINE_STATION_UUIDS
+from wasserstand_overwerder.config import (
+    PEGELONLINE_ARCHIVE_STATIONS,
+    PEGELONLINE_STATION_UUIDS,
+)
 
-DEFAULT_STATIONS = ["over", "zollenspieker"]  # nur Pegel mit Langzeitarchiv
+DEFAULT_STATIONS = list(PEGELONLINE_ARCHIVE_STATIONS)  # nur Pegel mit Langzeitarchiv
 
 
 def main() -> None:

@@ -33,6 +33,11 @@ PEGELONLINE_STATION_UUIDS = {
 }
 # Zeitzone der gesetzlichen Zeit in den Archiv-CSV (MEZ/MESZ mit Sommerzeit).
 PEGELONLINE_HISTORY_TZ = "Europe/Berlin"
+# Pegel mit Langzeitarchiv (WSV). HPA-Pegel wie st_pauli haben keins und
+# liefern nur die rollierenden 31 Tage der REST-API.
+PEGELONLINE_ARCHIVE_STATIONS = ("zollenspieker", "over")
+# Hugging-Face-Dataset, in dem das Parquet-Archiv gehostet wird.
+PEGELONLINE_HF_REPO = "aaronspring/elbe-pegel-over-zollenspieker-minutely-since-2000"
 
 # BSH WaterLevelForecast (OGC API Features, CC BY 4.0)
 BSH_BASE = "https://gdi.bsh.de/ldproxy/rest/services/WaterLevelForecast"
