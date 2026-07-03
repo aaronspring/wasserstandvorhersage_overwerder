@@ -77,7 +77,7 @@ def plot_forecast(
         )
 
     ax.set_ylabel("Wasserstand [cm über PNP]  (PNP = NHN − 5,00 m)")
-    ax.set_title("Wasserstandsvorhersage Overwerder Bogen 79 (Tideelbe)")
+    ax.set_title("Wasserstandsvorhersage Overwerder (Tideelbe)")
     ax.grid(True, color="#e6e4da", lw=0.6)
     ax.set_axisbelow(True)
     for spine in ("top", "right"):

@@ -4,7 +4,7 @@ Anleitung für KI-Agenten (und Menschen), die in diesem Repo arbeiten.
 
 ## Was dieses Repo tut
 
-Wasserstandsvorhersage für **Overwerder Bogen 79** (Tideelbe, Elbe-km ≈ 605,3):
+Wasserstandsvorhersage für **Overwerder** (Tideelbe, Elbe-km ≈ 605,3):
 BSH-Kurvenvorhersagen der Pegel **Zollenspieker** (km 598,3, stromauf) und
 **Hamburg St. Pauli / Fischmarkt** (km 623,1, stromab) werden zeitversetzt und
 gewichtet auf den Zielort interpoliert. Kalibriert wird am Messpegel **Over**

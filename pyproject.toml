@@ -1,7 +1,7 @@
 [project]
 name = "wasserstand-overwerder"
 version = "0.1.0"
-description = "Wasserstandsvorhersage fuer Overwerder Bogen 79 (Tideelbe) aus BSH-Vorhersagen"
+description = "Wasserstandsvorhersage fuer Overwerder (Tideelbe) aus BSH-Vorhersagen"
 readme = "README.md"
 requires-python = ">=3.13"
 license = { text = "MIT" }

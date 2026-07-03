@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Wasserstandsvorhersage fuer Overwerder Bogen 79 (Tideelbe, Elbe-km ~605,3).
+"""Wasserstandsvorhersage fuer Overwerder (Tideelbe, Elbe-km ~605,3).
 
 Holt die BSH-Kurvenvorhersagen fuer Zollenspieker und Hamburg St. Pauli
 (Fischmarkt) und interpoliert sie zeitversetzt-gewichtet auf Overwerder.
