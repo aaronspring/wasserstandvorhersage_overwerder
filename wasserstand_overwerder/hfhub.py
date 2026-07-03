@@ -19,6 +19,9 @@ DEFAULT_HF_REPO = PEGELONLINE_HF_REPO
 # Dateien, die zusaetzlich zu den year=YYYY/-Partitionen ins Repo gehoeren.
 _DATASET_CARD = "README.md"
 
+#: GitHub-Repo, das die Pipeline (Download/Build/Upload) enthaelt.
+GITHUB_REPO_URL = "https://github.com/aaronspring/wasserstandvorhersage_overwerder"
+
 
 def _upload_patterns(replace_years: list[int] | None) -> tuple[list[str], list[str]]:
     """(allow_patterns, delete_patterns) fuer upload_folder bestimmen.
@@ -57,6 +60,8 @@ configs:
 
 # Tideelbe-Pegel Overwerder (minuetliche Wasserstaende)
 
+**Quellcode & Pipeline:** [{GITHUB_REPO_URL}]({GITHUB_REPO_URL})
+
 Minuetliche Rohdaten des Wasserstands **W in cm ueber PNP** fuer die
 Tideelbe-Pegel **{station_list}**, seit 2000-01-01.
 
@@ -88,8 +93,12 @@ df = pd.read_parquet("hf://datasets/{repo_id}/year=2015")
 df = pd.read_parquet("hf://datasets/{repo_id}")
 ```
 
-Erzeugt mit
-[`build_history.py`](https://github.com/aaronspring/wasserstandvorhersage_overwerder).
+## Aktualisierung
+
+Erzeugt und aktualisiert von der Pipeline im GitHub-Repo
+[aaronspring/wasserstandvorhersage_overwerder]({GITHUB_REPO_URL})
+(`build_history.py` fuer den vollen Backfill, `update_history.py` fuer das
+monatliche inkrementelle Update).
 """
 
 

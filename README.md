@@ -1,5 +1,8 @@
 # Wasserstandsvorhersage Overwerder
 
+[![Deploy](https://github.com/aaronspring/wasserstandvorhersage_overwerder/actions/workflows/deploy.yml/badge.svg)](https://github.com/aaronspring/wasserstandvorhersage_overwerder/actions/workflows/deploy.yml)
+[![Pegel-Archiv → Hugging Face](https://github.com/aaronspring/wasserstandvorhersage_overwerder/actions/workflows/history.yml/badge.svg)](https://github.com/aaronspring/wasserstandvorhersage_overwerder/actions/workflows/history.yml)
+
 Vorhersage des Elbe-Wasserstands für **Overwerder** (Wochenendhaus­siedlung
 Overwerder, Tideelbe bei Elbe-km ≈ 605,3) aus den **BSH-Wasserstandsvorhersagen**
 der Pegel **Zollenspieker** (km 598,3) und **Hamburg St. Pauli / Fischmarkt**
