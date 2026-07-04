@@ -70,6 +70,13 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
 - **Einheiten:** intern immer **cm über PNP** (PNP der Tideelbe-Pegel =
   NHN − 5,00 m); Zeitindizes immer **tz-aware UTC**, Ausgabe zusätzlich in
   Europe/Berlin. Neue Datenquellen zuerst nach cm über PNP normieren.
+- **Sturmflut-Schwellen sind St.-Pauli-bezogen:** BSH-Klassen und die Marke
+  "Wasser auf dem Gelaende" (St. Pauli NN+3,0 m) gelten am Pegel St. Pauli, nicht
+  an Over. `sturmflut.align_to_stpauli` uebersetzt sie ueber Datums-Anker
+  (`config.ST_PAULI_ANKER_NN_M` + MThw-Paar) linear auf Over (cm ueber PNP). Neue
+  Schwellen nicht direkt an Over-MThw haengen. Methodik/Grafiken:
+  `docs/STURMFLUT_EDA.md`; Web-Chart zeigt die Gelaende-Linie
+  (`WASSER_AUF_GELAENDE_OVER_CM`).
 - **Tide-Richtung:** die Tidewelle läuft stromauf; Elbe-km wächst stromab.
   St. Pauli führt zeitlich, Zollenspieker läuft nach. Vorzeichen der
   Zeitverschiebungen in `model.interpolate` nicht "vereinfachen".

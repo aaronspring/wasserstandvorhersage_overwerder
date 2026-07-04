@@ -28,6 +28,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from . import config
+
 # BSH-Nordsee-Schwellen als Aufschlag auf das MThw (cm).
 STURMFLUT_CM = 150.0  # ab hier "Sturmflut"
 SCHWERE_CM = 250.0  # ab hier "schwere Sturmflut"
@@ -179,3 +181,112 @@ def _norm_cdf(z: float) -> float:
     from math import erf, sqrt
 
     return 0.5 * (1.0 + erf(z / sqrt(2.0)))
+
+
+# --- Ausrichtung Over <-> St. Pauli -----------------------------------------
+# Die amtlichen BSH-Stufen und die Marke "Wasser auf dem Gelaende" gelten am
+# Pegel St. Pauli. Over liegt bei Normaltide ~37 cm ueber St. Pauli (staerkere
+# Tideverstaerkung stromauf), bei Sturmflut-Scheiteln naehern sich beide an. Der
+# Zusammenhang wird linear aus Datums-Ankern (bekannte Sturmfluten, bei denen der
+# St.-Pauli-Scheitel amtlich bekannt und der Over-Scheitel gemessen ist) plus dem
+# MThw-Paar geschaetzt und auf die Definitionsschwellen angewandt.
+
+#: Reihenfolge der Ueberflutungsstufen von niedrig nach hoch.
+STUFEN = ("Wasser auf Gelände", *KLASSEN)
+
+
+def stpauli_pnp_cm(nn_m: float) -> float:
+    """St.-Pauli-Hoehe von m ueber NN in cm ueber PNP (PNP = NN - 5,00 m)."""
+    return (nn_m - config.ST_PAULI_PNP_NN_M) * 100.0
+
+
+def align_to_stpauli(
+    highs: pd.Series,
+    anchors: dict[str, float] | None = None,
+    tz: str = "Europe/Berlin",
+) -> dict[str, float]:
+    """Linearer Zusammenhang ``Over_cm_pnp = slope * StPauli_cm_pnp + intercept``.
+
+    Stuetzstellen: das MThw-Paar (St.-Pauli-MThw <-> Over-MThw) plus je ein
+    Datums-Anker aus ``anchors`` (Default ``config.ST_PAULI_ANKER_NN_M``): fuer
+    jedes Datum wird der hoechste Over-Thw dieses Tages dem amtlichen
+    St.-Pauli-Scheitel gegenuebergestellt. Rueckgabe wie :func:`linear_trend`.
+    """
+    anchors = anchors if anchors is not None else config.ST_PAULI_ANKER_NN_M
+    xs = [stpauli_pnp_cm(config.ST_PAULI_MThw_NN_M)]
+    ys = [mean_high_water(highs)]
+    local = highs.index.tz_convert(tz)
+    for date, nn_m in anchors.items():
+        day = pd.Timestamp(date, tz=tz)
+        same_day = highs[(local >= day) & (local < day + pd.Timedelta("1D"))]
+        if same_day.empty:
+            continue
+        xs.append(stpauli_pnp_cm(nn_m))
+        ys.append(float(same_day.max()))
+    return linear_trend(np.asarray(xs), np.asarray(ys))
+
+
+def over_thresholds(fit: dict[str, float]) -> dict[str, float]:
+    """St.-Pauli-Definitionsschwellen in cm ueber PNP am Pegel Over uebersetzen.
+
+    Liefert je Stufe (``Wasser auf Gelände`` + BSH-Klassen) die untere
+    Over-Schwelle in cm ueber PNP, gemaess der Ausrichtung ``fit``.
+    """
+    slope, intercept = fit["slope"], fit["intercept"]
+
+    def to_over(nn_m: float) -> float:
+        return slope * stpauli_pnp_cm(nn_m) + intercept
+
+    thresholds = {"Wasser auf Gelände": to_over(config.WASSER_AUF_GELAENDE_NN_M)}
+    for klasse, delta in config.BSH_STUFEN_UEBER_MThw_M.items():
+        thresholds[klasse] = to_over(config.ST_PAULI_MThw_NN_M + delta)
+    return thresholds
+
+
+def classify_level(value_cm: float, thresholds: dict[str, float]) -> str | None:
+    """Hoechste Stufe aus ``thresholds``, deren Schwelle ``value_cm`` erreicht."""
+    hit = None
+    for stufe in STUFEN:
+        if stufe in thresholds and value_cm >= thresholds[stufe]:
+            hit = stufe
+    return hit
+
+
+def flood_tides(
+    highs: pd.Series, thresholds: dict[str, float], tz: str = "Europe/Berlin"
+) -> pd.DataFrame:
+    """Alle Thw ab "Wasser auf dem Gelaende" mit St.-Pauli-Stufe (aligned).
+
+    Rueckgabe wie :func:`surge_tides`, aber ``stufe`` traegt die
+    St.-Pauli-ausgerichtete Klasse (inkl. ``"Wasser auf Gelände"``).
+    """
+    floor = thresholds["Wasser auf Gelände"]
+    peaks = highs[highs >= floor]
+    local = peaks.index.tz_convert(tz)
+    df = pd.DataFrame(
+        {
+            "peak_cm": peaks.to_numpy(),
+            "stufe": [classify_level(v, thresholds) for v in peaks.to_numpy()],
+            "local": local,
+            "year": local.year.to_numpy(),
+            "month": local.month.to_numpy(),
+        },
+        index=peaks.index,
+    )
+    df["season"] = _season(df["month"].to_numpy(), df["year"].to_numpy())
+    return df
+
+
+def cluster_events(times, gap: str = "36h") -> int:
+    """Zahl eigenstaendiger Ereignisse: Scheitel < ``gap`` auseinander = ein Sturm."""
+    ordered = sorted(pd.DatetimeIndex(times))
+    if not ordered:
+        return 0
+    limit = pd.Timedelta(gap)
+    count = 1
+    last = ordered[0]
+    for t in ordered[1:]:
+        if t - last > limit:
+            count += 1
+        last = t
+    return count

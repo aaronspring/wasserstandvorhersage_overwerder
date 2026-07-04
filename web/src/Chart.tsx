@@ -177,6 +177,7 @@ export default function Chart({
     rows,
     visible,
     refLines,
+    gelaende,
     surgeLines,
     xDomain,
     yDomain,
@@ -199,6 +200,10 @@ export default function Chart({
       );
       // Top-10-Sturmflut-Marken (nur wenn per Button eingeblendet).
       const surgeLines = showSurges ? (data.surge_lines ?? []) : [];
+      // "Wasser auf dem Gelaende"-Marke (St. Pauli NN+3,0 m -> Over cm PNP);
+      // dauerhaft eingeblendet, da praktische Ueberflutungsschwelle.
+      const gelaende =
+        typeof data.gelaende_cm === "number" ? data.gelaende_cm : null;
       const xs = rows.map((r) => r.t);
       const xMin = xs[0] ?? 0;
       const xMax = xs[xs.length - 1] ?? 0;
@@ -234,6 +239,10 @@ export default function Chart({
         for (const s of surgeLines) {
           lo = Math.min(lo, s.cm);
           hi = Math.max(hi, s.cm);
+        }
+        if (gelaende !== null) {
+          lo = Math.min(lo, gelaende);
+          hi = Math.max(hi, gelaende);
         }
       }
       if (lo === Infinity) {
@@ -290,6 +299,7 @@ export default function Chart({
         rows,
         visible,
         refLines,
+        gelaende,
         surgeLines,
         xDomain: [x0, x1] as [number, number],
         yDomain: [yLo, yHi] as [number, number],
@@ -473,6 +483,22 @@ export default function Chart({
             }}
           />
         ))}
+
+        {gelaende !== null && (
+          <ReferenceLine
+            y={gelaende}
+            stroke={colors.gelaende}
+            strokeWidth={1.5}
+            strokeDasharray="6 3"
+            ifOverflow={zoomed ? "hidden" : "extendDomain"}
+            label={{
+              value: `Wasser auf Gelände ${Math.round(gelaende)}`,
+              position: "insideTopRight",
+              fill: colors.gelaende,
+              fontSize: 10,
+            }}
+          />
+        )}
 
         {surgeLines.map((s, i) => (
           <ReferenceLine

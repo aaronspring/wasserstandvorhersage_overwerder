@@ -82,6 +82,7 @@ def build_payload(
     up: pd.Series,
     down: pd.Series,
     reference_lines: dict[str, float] | None = None,
+    gelaende_cm: float | None = None,
     gauge_zero_m_nhn: float | None = None,
     now: pd.Timestamp,
     hours_back: int = 36,
@@ -129,6 +130,9 @@ def build_payload(
         ),
         "hours_back": hours_back,
         "reference_lines": refs,
+        "gelaende_cm": (
+            round(float(gelaende_cm), 1) if gelaende_cm is not None else None
+        ),
         "surge_lines": surge_lines(),
         "surge_doc_url": STURMFLUT_DOC_URL,
         "series": series,

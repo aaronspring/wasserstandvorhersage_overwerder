@@ -114,6 +114,25 @@ export default function App() {
             </svg>
             Vorhersagebeginn
           </span>
+          {typeof data.gelaende_cm === "number" ? (
+            <span
+              className="leg-item"
+              title="Ab St. Pauli NN+3,0 m steht Wasser auf dem Overwerder-Gelände (auf Pegel Over übersetzt)"
+            >
+              <svg width="26" height="10" aria-hidden="true">
+                <line
+                  x1="1"
+                  y1="5"
+                  x2="25"
+                  y2="5"
+                  stroke={colors.gelaende}
+                  strokeWidth="1.5"
+                  strokeDasharray="6 3"
+                />
+              </svg>
+              Wasser auf Gelände
+            </span>
+          ) : null}
           {data.surge_lines?.length ? (
             <button
               type="button"

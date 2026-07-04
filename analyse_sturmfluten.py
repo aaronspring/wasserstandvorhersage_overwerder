@@ -3,12 +3,20 @@
 
 Laedt die minuetliche Rohreihe des Pegels Over aus dem Hugging-Face-Dataset
 (``aaronspring/elbe-pegel-over-zollenspieker-minutely-since-2000``), erkennt die
-Tidehochwasser, klassifiziert Sturmfluten nach der BSH-Nordsee-Definition
-(Aufschlag ueber MThw) und beantwortet drei Fragen:
+Tidehochwasser und klassifiziert Sturmfluten nach der **BSH-Nordsee-Definition**.
+
+Die amtlichen Schwellen (BSH-Stufen, Marke "Wasser auf dem Gelaende") beziehen
+sich auf den Pegel **St. Pauli**. Da St. Pauli nicht im Langzeitarchiv liegt,
+werden die Schwellen ueber Datums-Anker (bekannte Sturmfluten mit amtlichem
+St.-Pauli-Scheitel + MThw-Paar) linear auf den Pegel Over uebersetzt
+(``sturmflut.align_to_stpauli``).
+
+Beantwortet vier Fragen:
 
 * **Saisonalitaet:** In welchem Monat sind Sturmfluten am wahrscheinlichsten?
 * **Haeufigkeit:** Wie viele Sturmfluten pro Sturmflut-Saison (Jul-Jun)?
 * **Trend:** Werden Sturmfluten ueber die Jahre haeufiger oder staerker?
+* **Gelaende:** Wie oft steht Wasser auf dem Overwerder-Gelaende?
 
 Ausgabe: Kennzahlen auf stdout und Figuren nach ``--out`` (Default ``docs/``).
 Braucht Netz (Hugging Face); mit ``--data PFAD`` laesst sich eine lokale
@@ -33,14 +41,20 @@ import pandas as pd
 from wasserstand_overwerder import sturmflut
 from wasserstand_overwerder.config import PEGELONLINE_HF_REPO, PLAUSIBLE_CM_PNP
 
-# Hausfarben (analog plot.py): Zielserie blau, Warnstufen orange/rot.
+# Hausfarben (analog plot.py): Gelaende hellblau, Warnstufen orange/rot.
 C_BASE = "#2a78d6"
+C_GELAENDE = "#7fb9e6"  # Wasser auf dem Gelaende
 C_STURM = "#e8a33d"  # Sturmflut
 C_SCHWER = "#eb6834"  # schwere Sturmflut
 C_SEHR = "#b0272c"  # sehr schwere Sturmflut
 C_MThw = "#4a3aa7"
 C_GRID = "#e6e4da"
-KLASSE_FARBE = dict(zip(sturmflut.KLASSEN, (C_STURM, C_SCHWER, C_SEHR), strict=True))
+STUFE_FARBE = {
+    "Wasser auf Gelände": C_GELAENDE,
+    "Sturmflut": C_STURM,
+    "schwere Sturmflut": C_SCHWER,
+    "sehr schwere Sturmflut": C_SEHR,
+}
 MONATE = [
     "Jan",
     "Feb",
@@ -80,49 +94,81 @@ def load_over(data: str | None) -> pd.Series:
     return s[(s >= lo) & (s <= hi)]
 
 
-def _full_seasons(surges: pd.DataFrame) -> list[int]:
+def _full_seasons(flood: pd.DataFrame) -> list[int]:
     """Vollstaendig abgedeckte Sturmflut-Saisons (letzte Saison ggf. angebrochen)."""
-    last_local = surges["local"].max()
-    last_full = last_local.year - 1 if last_local.month < 7 else last_local.year
-    # Reihe beginnt 2000-01 -> erste volle Saison ist 2000 (Jul 2000-Jun 2001).
+    last = flood["local"].max()
+    last_full = last.year - 1 if last.month < 7 else last.year
     return list(range(2000, last_full))
 
 
-def print_stats(surges: pd.DataFrame, highs: pd.Series, mthw: float) -> dict:
+def print_stats(flood, surges, highs, mthw, thr, fit, out_seasons) -> dict:
     """Kennzahlen auf stdout und als dict fuer die Figuren zurueckgeben."""
-    seasons = _full_seasons(surges)
-    print("=" * 66)
-    print("STURMFLUTEN AM PEGEL OVER (Tideelbe, km 605,3)")
-    print("=" * 66)
+    seasons = out_seasons
+    print("=" * 68)
+    print("STURMFLUTEN & GELÄNDE-ÜBERFLUTUNG AM PEGEL OVER (Overwerder)")
+    print("=" * 68)
     print(
-        f"Zeitraum Rohdaten : {highs.index.min():%Y-%m-%d} .. "
+        f"Zeitraum          : {highs.index.min():%Y-%m-%d} .. "
         f"{highs.index.max():%Y-%m-%d}"
     )
     print(f"Tidehochwasser    : {len(highs)} erkannt (~2/Tag)")
-    print(f"MThw (2000-2026)  : {mthw:.0f} cm ü. PNP = {mthw / 100 - 5:.2f} m NHN")
-    print("BSH-Nordsee-Schwellen (Aufschlag über MThw):")
-    print(f"  Sturmflut       ≥ {mthw + sturmflut.STURMFLUT_CM:.0f} cm (MThw+1,5 m)")
-    print(f"  schwere         ≥ {mthw + sturmflut.SCHWERE_CM:.0f} cm (MThw+2,5 m)")
-    print(f"  sehr schwere    ≥ {mthw + sturmflut.SEHR_SCHWERE_CM:.0f} cm (MThw+3,5 m)")
-    print("-" * 66)
+    print(f"MThw Over         : {mthw:.0f} cm ü. PNP = {mthw / 100 - 5:.2f} m NHN")
+    print(
+        f"Ausrichtung Over↔St. Pauli: Over = {fit['slope']:.3f}·StP "
+        f"{fit['intercept']:+.0f}  (R²={fit['r'] ** 2:.3f}, n={int(fit['n'])})"
+    )
+    print("Amtliche St.-Pauli-Schwellen → Over cm ü. PNP:")
+    print(f"  Wasser auf Gelände (NN+3,0 m) : Over ≥ {thr['Wasser auf Gelände']:.0f}")
+    print(f"  Sturmflut (MThw+1,5 m)        : Over ≥ {thr['Sturmflut']:.0f}")
+    print(f"  schwere (MThw+2,5 m)          : Over ≥ {thr['schwere Sturmflut']:.0f}")
+    print(
+        f"  sehr schwere (MThw+3,5 m)     : Over ≥ {thr['sehr schwere Sturmflut']:.0f}"
+    )
+    print("-" * 68)
 
-    print("\nKlassenverteilung (Sturmflut-Tiden gesamt):")
-    vc = surges["klasse"].value_counts().reindex(sturmflut.KLASSEN, fill_value=0)
+    span_yr = (highs.index.max() - highs.index.min()).days / 365.25
+    g_tides = len(flood)
+    g_events = int(flood["event"].nunique())
+    only_g = int((flood["stufe"] == "Wasser auf Gelände").sum())
+    med_over = float((flood["peak_cm"] - thr["Wasser auf Gelände"]).median())
+    ev_year = flood.groupby("year")["event"].nunique()
+    ev_year = ev_year.reindex(range(2000, highs.index.max().year + 1), fill_value=0)
+    ev_month = (
+        flood.groupby("month")["event"].nunique().reindex(range(1, 13), fill_value=0)
+    )
+    win_ev = int(ev_month.reindex([10, 11, 12, 1, 2, 3]).sum())
+    print(
+        f"\nWASSER AUF DEM GELÄNDE (Over ≥ {thr['Wasser auf Gelände']:.0f} cm, "
+        "St. Pauli NN+3,0 m):"
+    )
+    print(
+        f"  {g_tides} Thw in {g_events} Ereignissen ⇒ ≈ {g_events / span_yr:.0f} "
+        f"Ereignisse/Jahr ({g_tides / span_yr:.0f} Tiden/Jahr)"
+    )
+    print(
+        f"  davon {only_g} Tiden nur knapp über der Marke (< Sturmflut), "
+        f"Median nur {med_over:.0f} cm darüber"
+    )
+    print(
+        f"  {win_ev}/{int(ev_month.sum())} Ereignisse im Winterhalbjahr (Okt–Mär); "
+        "im Sommer (Mai–Aug) fast nie"
+    )
+    print("  Ereignisse/Jahr je Monat (Mittel):")
+    for m in (12, 1, 2, 11, 10, 3):
+        print(f"    {MONATE[m - 1]}: {ev_month[m] / span_yr:.1f}")
+
+    print("\nSTURMFLUTEN (Klassenverteilung, aligned):")
+    vc = surges["stufe"].value_counts().reindex(sturmflut.KLASSEN, fill_value=0)
     for k in sturmflut.KLASSEN:
-        print(f"  {k:22s}: {vc[k]:4d}")
-    print(f"  {'gesamt':22s}: {len(surges):4d}")
+        print(f"  {k:24s}: {vc[k]:4d}")
+    print(f"  {'gesamt':24s}: {len(surges):4d}")
 
     print("\nSAISONALITÄT — Sturmflut-Tiden je Monat:")
     mc = surges.groupby("month").size().reindex(range(1, 13), fill_value=0)
-    peak_m = int(mc.idxmax())
     for m in range(1, 13):
-        bar = "█" * mc[m]
-        print(f"  {MONATE[m - 1]}: {mc[m]:3d} {bar}")
-    print(
-        f"  -> Maximum im {MONATE[peak_m - 1]}; Okt-Mär: "
-        f"{mc.reindex([10, 11, 12, 1, 2, 3]).sum()}/{len(surges)} "
-        f"({100 * mc.reindex([10, 11, 12, 1, 2, 3]).sum() / len(surges):.0f} %)"
-    )
+        print(f"  {MONATE[m - 1]}: {mc[m]:3d} {'█' * mc[m]}")
+    win = mc.reindex([10, 11, 12, 1, 2, 3]).sum()
+    print(f"  -> Okt-Mär: {win}/{len(surges)} ({100 * win / len(surges):.0f} %)")
 
     print("\nHÄUFIGKEIT — Sturmflut-Tiden je Saison (Jul-Jun):")
     sc = surges.groupby("season").size().reindex(seasons, fill_value=0)
@@ -133,15 +179,8 @@ def print_stats(surges: pd.DataFrame, highs: pd.Series, mthw: float) -> dict:
     tr = sturmflut.linear_trend(np.asarray(seasons), sc.to_numpy())
     sig = "signifikant" if tr["p"] < 0.05 else "NICHT signifikant"
     print(
-        f"  Trend {tr['slope'] * 10:+.2f}/Dekade  (r={tr['r']:.2f}, "
+        f"  Trend {tr['slope'] * 10:+.2f}/Dekade (r={tr['r']:.2f}, "
         f"p={tr['p']:.2f}) -> {sig}"
-    )
-    half = len(seasons) // 2
-    a = sc.iloc[:half].mean()
-    b = sc.iloc[half:].mean()
-    print(
-        f"  1. Hälfte {seasons[0]}-{seasons[half - 1]}: {a:.1f}/Saison  |  "
-        f"2. Hälfte {seasons[half]}-{seasons[-1]}: {b:.1f}/Saison"
     )
 
     print("\nINTENSITÄT — Trend des Saison-Höchstscheitels:")
@@ -149,13 +188,14 @@ def print_stats(surges: pd.DataFrame, highs: pd.Series, mthw: float) -> dict:
     tri = sturmflut.linear_trend(amax.index.to_numpy(), amax.to_numpy())
     sig_i = "signifikant" if tri["p"] < 0.05 else "NICHT signifikant"
     print(
-        f"  {tri['slope'] * 10:+.1f} cm/Dekade  (r={tri['r']:.2f}, "
+        f"  {tri['slope'] * 10:+.1f} cm/Dekade (r={tri['r']:.2f}, "
         f"p={tri['p']:.2f}) -> {sig_i}"
     )
-    sev = surges[surges["klasse"] != sturmflut.KLASSEN[0]]
+    half = len(seasons) // 2
+    sev = surges[surges["stufe"] != sturmflut.KLASSEN[0]]
     sev_c = sev.groupby("season").size().reindex(seasons, fill_value=0)
     print(
-        f"  schwere+ Sturmfluten: 1. Hälfte {sev_c.iloc[:half].sum()}  |  "
+        f"  schwere+ Sturmfluten: 1. Hälfte {sev_c.iloc[:half].sum()} | "
         f"2. Hälfte {sev_c.iloc[half:].sum()}"
     )
 
@@ -165,18 +205,22 @@ def print_stats(surges: pd.DataFrame, highs: pd.Series, mthw: float) -> dict:
     trm = sturmflut.linear_trend(ym.index.to_numpy(), ym.to_numpy())
     sig_m = "signifikant" if trm["p"] < 0.05 else "NICHT signifikant"
     print(
-        f"  {trm['slope'] * 10:+.1f} cm/Dekade  (r={trm['r']:.2f}, "
+        f"  {trm['slope'] * 10:+.1f} cm/Dekade (r={trm['r']:.2f}, "
         f"p={trm['p']:.3f}) -> {sig_m}"
     )
-    print("=" * 66)
+    print("=" * 68)
+
     return {
         "seasons": seasons,
         "season_counts": sc,
         "month_counts": surges.pivot_table(
-            index="month", columns="klasse", aggfunc="size", fill_value=0
+            index="month", columns="stufe", aggfunc="size", fill_value=0
         ).reindex(index=range(1, 13), columns=sturmflut.KLASSEN, fill_value=0),
         "annual_max": amax,
         "annual_mthw": ym,
+        "gelaende_events_year": ev_year,
+        "gelaende_events_month": ev_month / span_yr,
+        "gelaende_events_per_yr": g_events / span_yr,
         "trend_freq": tr,
         "trend_int": tri,
         "trend_mthw": trm,
@@ -190,7 +234,7 @@ def _style(ax) -> None:
         ax.spines[sp].set_visible(False)
 
 
-def make_figures(surges, highs, mthw, stats, out: Path) -> list[Path]:
+def make_figures(surges, flood, highs, thr, stats, out: Path) -> list[Path]:
     out.mkdir(parents=True, exist_ok=True)
     paths: list[Path] = []
 
@@ -203,7 +247,7 @@ def make_figures(surges, highs, mthw, stats, out: Path) -> list[Path]:
             range(1, 13),
             mc[k].to_numpy(),
             bottom=bottom,
-            color=KLASSE_FARBE[k],
+            color=STUFE_FARBE[k],
             label=k,
             width=0.8,
         )
@@ -253,26 +297,28 @@ def make_figures(surges, highs, mthw, stats, out: Path) -> list[Path]:
     plt.close(fig)
     paths.append(p)
 
-    # 3) Intensitaet: jede Sturmflut-Tide + Schwellen + Saison-Max
+    # 3) Intensitaet: jede Sturmflut-Tide + Schwellen + Rekorde
     fig, ax = plt.subplots(figsize=(9, 4.8), dpi=150)
     yrs = surges["local"].dt.year + (surges["local"].dt.dayofyear / 365.25)
     for k in sturmflut.KLASSEN:
-        m = surges["klasse"] == k
+        m = surges["stufe"] == k
         ax.scatter(
             yrs[m],
             surges["peak_cm"][m],
             s=22,
-            color=KLASSE_FARBE[k],
+            color=STUFE_FARBE[k],
             label=k,
             zorder=3,
             edgecolor="white",
             lw=0.3,
         )
-    for lvl, txt in (
-        (mthw + sturmflut.STURMFLUT_CM, "Sturmflut (MThw+1,5 m)"),
-        (mthw + sturmflut.SCHWERE_CM, "schwere (+2,5 m)"),
-        (mthw + sturmflut.SEHR_SCHWERE_CM, "sehr schwere (+3,5 m)"),
-    ):
+    lines = [
+        (thr["Wasser auf Gelände"], "Wasser auf Gelände (St. Pauli NN+3,0 m)"),
+        (thr["Sturmflut"], "Sturmflut (MThw+1,5 m)"),
+        (thr["schwere Sturmflut"], "schwere (+2,5 m)"),
+        (thr["sehr schwere Sturmflut"], "sehr schwere (+3,5 m)"),
+    ]
+    for lvl, txt in lines:
         ax.axhline(lvl, color="#8a8878", lw=0.7, ls="--")
         ax.annotate(
             txt,
@@ -282,8 +328,6 @@ def make_figures(surges, highs, mthw, stats, out: Path) -> list[Path]:
             color="#6f6e64",
             va="bottom",
         )
-    # bekannte Rekorde annotieren (Label unter den Punkt, um die Legende oben
-    # nicht zu ueberlagern)
     for label, yr, cm in (
         ("Xaver 2013", 2013.93, 1114),
         ("Zeynep 2022", 2022.13, 1110),
@@ -336,6 +380,46 @@ def make_figures(surges, highs, mthw, stats, out: Path) -> list[Path]:
     fig.savefig(p)
     plt.close(fig)
     paths.append(p)
+
+    # 5) Wasser auf dem Gelaende: Haeufigkeit je Jahr (links) + Saisonalitaet (rechts)
+    fig, (axa, axb) = plt.subplots(
+        1, 2, figsize=(10.5, 4.2), dpi=150, gridspec_kw={"width_ratios": [1.7, 1]}
+    )
+    ey = stats["gelaende_events_year"]
+    mean_ev = stats["gelaende_events_per_yr"]
+    axa.bar(ey.index, ey.to_numpy(), color=C_GELAENDE, width=0.8)
+    axa.axhline(
+        mean_ev,
+        color="#6f6e64",
+        lw=1,
+        ls=":",
+        label=f"Mittel {mean_ev:.0f} Ereignisse/Jahr",
+    )
+    axa.set_ylabel("Überflutungs-Ereignisse je Jahr")
+    axa.set_xlabel("Jahr")
+    axa.legend(frameon=False, fontsize=8, loc="upper left")
+    _style(axa)
+
+    em = stats["gelaende_events_month"]
+    axb.bar(range(1, 13), em.to_numpy(), color=C_GELAENDE, width=0.8)
+    axb.set_xticks(range(1, 13))
+    axb.set_xticklabels([m[0] for m in MONATE])
+    axb.set_ylabel("Ereignisse/Jahr je Monat")
+    axb.set_xlabel("Monat")
+    _style(axb)
+
+    fig.suptitle(
+        "Wie oft steht Wasser auf dem Overwerder-Gelände? "
+        f"(Over ≥ {thr['Wasser auf Gelände']:.0f} cm ü. PNP = St. Pauli "
+        f"NN+3,0 m)\n≈ {mean_ev:.0f} Ereignisse/Jahr, fast nur Okt–Mär "
+        "— meist knapp über der Marke, kein Sturmflut-Niveau",
+        fontsize=10.5,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    p = out / "sturmflut_gelaende.png"
+    fig.savefig(p)
+    plt.close(fig)
+    paths.append(p)
     return paths
 
 
@@ -357,11 +441,18 @@ def main() -> None:
     print(f"  {len(s)} Minutenwerte", flush=True)
     highs = sturmflut.tidal_highs(s)
     mthw = sturmflut.mean_high_water(highs)
-    surges = sturmflut.surge_tides(highs, mthw)
-    stats = print_stats(surges, highs, mthw)
+    fit = sturmflut.align_to_stpauli(highs)
+    thr = sturmflut.over_thresholds(fit)
+    flood = sturmflut.flood_tides(highs, thr).sort_index()
+    # Ereignis-Cluster: Scheitel < 36 h auseinander = ein Ueberflutungsereignis.
+    gap = flood.index.to_series().diff() > pd.Timedelta("36h")
+    flood["event"] = gap.cumsum()
+    surges = flood[flood["stufe"] != "Wasser auf Gelände"].copy()
+    seasons = _full_seasons(flood)
+    stats = print_stats(flood, surges, highs, mthw, thr, fit, seasons)
 
     if not args.no_figures:
-        paths = make_figures(surges, highs, mthw, stats, Path(args.out))
+        paths = make_figures(surges, flood, highs, thr, stats, Path(args.out))
         print("\nFiguren:")
         for p in paths:
             print(f"  {p}")
