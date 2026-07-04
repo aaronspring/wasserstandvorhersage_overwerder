@@ -16,7 +16,9 @@ export interface Payload {
   gauge_zero_m_nhn: number | null;
   hours_back: number;
   reference_lines: Record<string, number>;
+  gelaende_cm?: number | null;
   surge_lines?: SurgeLine[];
   surge_doc_url?: string;
+  eda_doc_url?: string;
   series: Partial<Record<SeriesKey, Point[]>>;
 }

@@ -20,15 +20,18 @@ wasserstand_overwerder/
   hfhub.py        Upload des Parquet-Datasets zu Hugging Face (optionales Extra "hf")
   bsh.py          BSH-Vorhersagen via OGC API Features (Laufzeit-Discovery)
   model.py        Interpolation (Params, interpolate, calibrate, recent_bias_cm)
+  sturmflut.py    Thw-Erkennung + BSH-Klassifikation + Trend (netzfrei, testbar)
   plot.py         matplotlib-Plot
   webexport.py    baut data.json fuer die Web-App (netzfrei, build_payload)
 calibrate.py      CLI: fittet tau/Gewichte/Offset gegen Pegel Over -> params.json
 forecast.py       CLI: erzeugt out/overwerder_forecast.{csv,png}; --explore
+analyse_sturmfluten.py CLI: Sturmflut-EDA (Haeufigkeit/Saison/Trend) -> docs/sturmflut_*.png
 export_web.py     CLI: erzeugt web/public/data.json (BSH + PEGELONLINE) fuers Frontend
 build_history.py  CLI: voller Backfill des jaehrl. Parquet-Archivs (einmalig)
 update_history.py CLI: inkrementelles Monatsupdate (nur juengste year=YYYY -> HF)
 web/              React+Vite+TS Single-Page-App (Recharts), Deploy nach GitHub Pages
 tests/test_model.py      Synthetik-Tests (netzwerkfrei)
+tests/test_sturmflut.py  Synthetik-Tests fuer Thw/Klassifikation/Trend (netzwerkfrei)
 tests/test_webexport.py  Struktur-Tests fuer data.json (netzwerkfrei)
 tests/test_history.py    Parsing/Parquet-Tests fuers Archiv (netzwerkfrei)
 tests/test_hfhub.py      Dataset-Card/Upload-Pattern-Tests (netzwerkfrei)
@@ -49,6 +52,7 @@ uv run ruff check . && uv run ruff format --check .   # Lint + Format
 uv run python calibrate.py --days 30     # braucht Netz (PEGELONLINE)
 uv run python forecast.py --params params.json --out out/   # braucht Netz (BSH)
 uv run python forecast.py --explore      # BSH-API-Struktur dumpen
+uv run python analyse_sturmfluten.py     # Sturmflut-EDA -> docs/sturmflut_*.png (braucht Netz/HF)
 uv run python export_web.py --out web/public          # data.json (braucht Netz)
 uv run python export_web.py --demo --out web/public   # data.json synthetisch (kein Netz)
 uv run python build_history.py --start 2000-01-01 --end 2000-01-08 \
@@ -66,6 +70,13 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
 - **Einheiten:** intern immer **cm über PNP** (PNP der Tideelbe-Pegel =
   NHN − 5,00 m); Zeitindizes immer **tz-aware UTC**, Ausgabe zusätzlich in
   Europe/Berlin. Neue Datenquellen zuerst nach cm über PNP normieren.
+- **Sturmflut-Schwellen sind St.-Pauli-bezogen:** BSH-Klassen und die Marke
+  "Wasser auf dem Gelaende" (St. Pauli NN+3,0 m) gelten am Pegel St. Pauli, nicht
+  an Over. `sturmflut.align_to_stpauli` uebersetzt sie ueber Datums-Anker
+  (`config.ST_PAULI_ANKER_NN_M` + MThw-Paar) linear auf Over (cm ueber PNP). Neue
+  Schwellen nicht direkt an Over-MThw haengen. Methodik/Grafiken:
+  `docs/STURMFLUT_EDA.md`; Web-Chart zeigt die Gelaende-Linie
+  (`WASSER_AUF_GELAENDE_OVER_CM`).
 - **Tide-Richtung:** die Tidewelle läuft stromauf; Elbe-km wächst stromab.
   St. Pauli führt zeitlich, Zollenspieker läuft nach. Vorzeichen der
   Zeitverschiebungen in `model.interpolate` nicht "vereinfachen".

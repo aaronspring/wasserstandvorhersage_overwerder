@@ -16,7 +16,7 @@ import os
 
 import pandas as pd
 
-from wasserstand_overwerder import model, pegelonline, webexport
+from wasserstand_overwerder import config, model, pegelonline, webexport
 from wasserstand_overwerder.bsh import BSHClient
 
 
@@ -85,6 +85,7 @@ def main() -> None:
         up=up,
         down=down,
         reference_lines=refs,
+        gelaende_cm=config.WASSER_AUF_GELAENDE_OVER_CM,
         gauge_zero_m_nhn=gauge_zero,
         now=now,
         hours_back=args.hours_back,

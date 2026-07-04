@@ -55,6 +55,35 @@ BSH_DATUM_OFFSET_CM = {
     "st_pauli": 0.0,
 }
 
+# --- Sturmflut-Bezugshoehen am Pegel HAMBURG ST. PAULI ----------------------
+# Die amtliche BSH-Sturmflut-Klassifikation und die Overwerder-Marke "Wasser auf
+# dem Gelaende" beziehen sich auf den Pegel St. Pauli, NICHT auf Over. Quelle:
+# Sturmfluttafel der Siedlung Overwerder (docs/sturmfluttafel_overwerder.jpeg).
+ST_PAULI_PNP_NN_M = -5.00  # PNP = NN - 5,00 m (wie bei allen Tideelbe-Pegeln)
+ST_PAULI_MThw_NN_M = 2.09  # mittleres Tidehochwasser (MThw) am Pegel St. Pauli
+# Marke, ab der bei Overwerder Wasser auf dem Gelaende steht (St.-Pauli-Bezug).
+WASSER_AUF_GELAENDE_NN_M = 3.00
+# Dieselbe Marke, auf den Pegel Over uebersetzt (cm ueber PNP). Ergebnis der
+# St.-Pauli-Ausrichtung ueber Datums-Anker (sturmflut.align_to_stpauli, siehe
+# docs/STURMFLUT_EDA.md). Als Referenzlinie im Web-Chart genutzt.
+WASSER_AUF_GELAENDE_OVER_CM = 834.0
+# BSH-Nordsee-Stufen als Aufschlag auf das St.-Pauli-MThw (m ueber MThw).
+BSH_STUFEN_UEBER_MThw_M = {
+    "Sturmflut": 1.5,
+    "schwere Sturmflut": 2.5,
+    "sehr schwere Sturmflut": 3.5,
+}
+# Datums-Anker zur Ausrichtung Over <-> St. Pauli: amtliche St.-Pauli-Scheitel
+# (m ueber NN) bekannter Sturmfluten aus der Sturmfluttafel. Nur Ereignisse ab
+# 2000, die auch in der Over-Langzeitreihe liegen. Zusammen mit dem MThw-Paar
+# (St.-Pauli-MThw <-> Over-MThw) ergibt sich ein linearer Zusammenhang, mit dem
+# die St.-Pauli-Schwellen in cm ueber PNP am Pegel Over uebersetzt werden.
+ST_PAULI_ANKER_NN_M = {
+    "2007-11-09": 5.65,  # Tilo
+    "2013-12-06": 6.09,  # Xaver
+    "2014-10-22": 4.17,  # Sturmflut Okt. 2014
+}
+
 # Plausibler Wertebereich fuer Tideelbe-Wasserstaende in cm ueber PNP
 # (PNP = NHN - 5,00 m): grob 100..1100 cm. Dient der Einheiten-Pruefung.
 PLAUSIBLE_CM_PNP = (50.0, 1300.0)
@@ -66,6 +95,13 @@ STURMFLUT_DOC = "docs/TOP_10_STURMFLUTEN.md"
 STURMFLUT_DOC_URL = (
     "https://github.com/aaronspring/wasserstandvorhersage_overwerder/"
     "blob/main/docs/TOP_10_STURMFLUTEN.md"
+)
+# Sturmflut-EDA (Haeufigkeit/Saison/Trend + "Wasser auf dem Gelaende"); im
+# Web-Chart als Link hinter der Gelaende-Linie verknuepft.
+STURMFLUT_EDA_DOC = "docs/STURMFLUT_EDA.md"
+STURMFLUT_EDA_DOC_URL = (
+    "https://github.com/aaronspring/wasserstandvorhersage_overwerder/"
+    "blob/main/docs/STURMFLUT_EDA.md"
 )
 STURMFLUT_SCHEITEL_CM = {
     1: (1114, "Xaver 2013"),
