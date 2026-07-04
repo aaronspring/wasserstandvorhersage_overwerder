@@ -1,5 +1,21 @@
 # Sturmfluten & Gelände-Überflutung am Pegel Over — EDA (2000–2026)
 
+*Explorative Analyse aller Tidehochwasser am Pegel Over (2000–2026) zu
+Saisonalität, Häufigkeit, Trend und Gelände-Überflutung.*
+
+## Inhaltsverzeichnis
+
+- [Kurzantwort](#kurzantwort)
+- [Definition: Sturmflut, schwere Sturmflut & „Wasser auf dem Gelände"](#definition-sturmflut-schwere-sturmflut--wasser-auf-dem-gelände)
+  - [Ausrichtung Over ↔ St. Pauli (über Datums-Anker)](#ausrichtung-over--st-pauli-über-datums-anker)
+- [1) Saisonalität](#1-saisonalität)
+- [2) Häufigkeit je Saison](#2-häufigkeit-je-saison)
+- [3) Trend: häufiger oder stärker?](#3-trend-häufiger-oder-stärker)
+- [4) Wie oft steht Wasser auf dem Gelände?](#4-wie-oft-steht-wasser-auf-dem-gelände)
+- [Methodik](#methodik)
+  - [Reproduktion](#reproduktion)
+- [Vorbehalte](#vorbehalte)
+
 Explorative Auswertung aller **Tidehochwasser** am Pegel **Over** (Tideelbe,
 Elbe-km 605,3, direkt gegenüber Overwerder) aus dem Langzeitarchiv. Sie
 beantwortet vier Fragen:

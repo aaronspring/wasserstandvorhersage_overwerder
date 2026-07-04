@@ -1,5 +1,20 @@
 # Top 10 Sturmfluten am Pegel Over (2000–2026)
 
+*Die höchsten Sturmflut-Scheitel am Pegel Over — als Gesamt-Top-10 sowie als
+saisonale Ranglisten (Sommer, April, Oktober).*
+
+## Inhaltsverzeichnis
+
+- [Ergebnis](#ergebnis)
+- [Sommerhochwasser Mai–September („Erdbeerhochwasser")](#sommerhochwasser-maiseptember-erdbeerhochwasser)
+- [Übergangsmonate April & Oktober — zu frühes Aus- und Einräumen](#übergangsmonate-april--oktober--zu-frühes-aus--und-einräumen)
+  - [April — Gefahr des zu frühen Ausräumens](#april--gefahr-des-zu-frühen-ausräumens)
+  - [Oktober — Gefahr des zu späten Einräumens](#oktober--gefahr-des-zu-späten-einräumens)
+- [Datengrundlage](#datengrundlage)
+- [Methodik](#methodik)
+  - [Reproduktion](#reproduktion)
+- [Vorbehalte](#vorbehalte)
+
 Auswertung der zehn höchsten Sturmflut-Scheitel am **Pegel Over** (Elbe-km 605,3,
 direkt gegenüber Overwerder) aus dem Langzeitarchiv. Einheiten: cm über PNP
 (PNP = NHN − 5,00 m); Scheitelzeitpunkte in gesetzlicher Zeit (MEZ/MESZ).
@@ -30,6 +45,94 @@ sich mit den dokumentierten Rekordwasserständen der Tideelbe.
 Sturmnamen sind, wo ein Artikel existiert, mit der deutschen Wikipedia verlinkt.
 Für die Ereignisse ohne eigenständigen Artikel (Dezember 2023 / Zoltan-Pia,
 Januar 2002, Januar 2000, Elon/Felix Januar 2015) ist nur das Datum angegeben.
+
+## Sommerhochwasser Mai–September („Erdbeerhochwasser")
+
+Die Gesamt-Top-10 ist ein reines **Winterbild** — Sturmfluten sind ein
+Kaltsaison-Phänomen (siehe [`STURMFLUT_EDA.md`](STURMFLUT_EDA.md): 94 % aller
+Sturmflut-Tiden fallen in Okt–Mär). Im **Sommerhalbjahr** entstehen erhöhte
+Wasserstände dagegen meist nicht durch Nordsee-Sturmfluten, sondern durch
+**anhaltende West-/Nordwestwinde plus Oberwasser** (Regen im Einzugsgebiet). Weil
+diese Ereignisse gerne in die frühe Sommerzeit fallen, heißen sie an der Elbe
+umgangssprachlich **„Erdbeerhochwasser"**.
+
+Die zehn höchsten **eigenständigen** Sommer-Scheitel (Mai–September) am Pegel
+Over:
+
+| #  | Scheitel (Europe/Berlin) | cm ü. PNP | m NHN |
+|----|--------------------------|-----------|-------|
+| 1  | 2017-09-13 22:02         | 966       | +4,66 |
+| 2  | 2007-06-27 01:56         | 934       | +4,34 |
+| 3  | 2024-08-23 21:08         | 914       | +4,14 |
+| 4  | 2004-09-21 22:24         | 906       | +4,06 |
+| 5  | 2005-07-21 17:25         | 899       | +3,99 |
+| 6  | 2023-08-07 22:03         | 896       | +3,96 |
+| 7  | 2007-07-30 18:09         | 891       | +3,91 |
+| 8  | 2001-09-08 21:03         | 890       | +3,90 |
+| 9  | 2021-09-23 19:33         | 886       | +3,86 |
+| 10 | 2021-05-06 00:07         | 886       | +3,86 |
+
+Selbst der höchste Sommer-Scheitel (Sep 2017, 966 cm ≈ NN + 4,66 m) läge in der
+Winter-Gesamtliste nur knapp über Platz 10 — die Erdbeerhochwasser bleiben
+deutlich unter den großen Wintersturmfluten. Trotzdem überschreiten fast alle
+Top-10-Sommerereignisse die Marke **„Wasser auf dem Gelände"** (≈ 834 cm ü. PNP)
+und liegen im Bereich der leichten **Sturmflut** (≈ 888 cm ü. PNP) — Sommer heißt
+also **nicht** automatisch „ungefährlich".
+
+## Übergangsmonate April & Oktober — zu frühes Aus- und Einräumen
+
+April und Oktober sind die **Wendepunkte** des Overwerder-Jahres: im **April**
+wird nach dem Winter *ausgeräumt* (Boote, Stege, Gartenmobiliar zurück ans/aufs
+Gelände), im **Oktober** wird für den Winter wieder *eingeräumt*. Beide Monate
+tragen aber noch — bzw. schon wieder — echtes Sturmflut-Potenzial: Wer im April
+zu früh ausräumt oder im Oktober zu spät einräumt, riskiert einen Scheitel auf
+Sturmflut-Niveau. Deshalb hier die zwei Übergangsmonate **separat** als Top 10.
+
+### April — Gefahr des zu frühen Ausräumens
+
+| #  | Scheitel (Europe/Berlin) | cm ü. PNP | m NHN |
+|----|--------------------------|-----------|-------|
+| 1  | 2015-04-01 16:01         | 917       | +4,17 |
+| 2  | 2021-04-05 22:55         | 891       | +3,91 |
+| 3  | 2003-04-03 06:29         | 888       | +3,88 |
+| 4  | 2006-04-14 06:02         | 871       | +3,71 |
+| 5  | 2006-04-09 15:37         | 870       | +3,70 |
+| 6  | 2014-04-14 17:42         | 859       | +3,59 |
+| 7  | 2024-04-10 06:46         | 856       | +3,56 |
+| 8  | 2005-04-09 05:42         | 854       | +3,54 |
+| 9  | 2026-04-06 08:01         | 854       | +3,54 |
+| 10 | 2023-04-25 20:39         | 852       | +3,52 |
+
+Der April-Rekord (01.04.2015, 917 cm) liegt auf **Sturmflut-Niveau** und über der
+Gelände-Marke; die gesamte April-Top-10 räumt Wasser aufs Gelände. Ausräumen
+Anfang April ist also nicht ohne Risiko.
+
+### Oktober — Gefahr des zu späten Einräumens
+
+| #  | Scheitel (Europe/Berlin) | cm ü. PNP | m NHN |
+|----|--------------------------|-----------|-------|
+| 1  | 2017-10-29 09:38         | 1064      | +5,64 (Herwart) |
+| 2  | 2014-10-22 15:56         | 955       | +4,55 |
+| 3  | 2009-10-04 17:25         | 938       | +4,38 |
+| 4  | 2002-10-28 07:15         | 933       | +4,33 |
+| 5  | 2025-10-26 19:16         | 926       | +4,26 |
+| 6  | 2025-10-05 16:03         | 921       | +4,21 |
+| 7  | 2021-10-21 18:22         | 920       | +4,20 |
+| 8  | 2023-10-14 17:48         | 917       | +4,17 |
+| 9  | 2013-10-28 21:14         | 915       | +4,15 |
+| 10 | 2025-10-24 18:52         | 914       | +4,14 |
+
+Der Oktober ist bereits **Sturmsaison**: Der Spitzenreiter Herwart (29.10.2017,
+1064 cm ≈ NN + 5,64 m) steht sogar in der Winter-Gesamt-Top-10 (Platz 4). Wer im
+Oktober noch nicht eingeräumt hat, kann eine schwere Sturmflut erwischen —
+Oktober-Scheitel liegen im Mittel **deutlich höher** als April-Scheitel.
+
+> **Ereignisdefinition hier:** Anders als in der Gesamt-Top-10 (99,9-%-Perzentil-
+> Kandidaten) werden für die Saison-Listen **alle Tidehochwasser**
+> (`sturmflut.tidal_highs`) betrachtet und greedy entzerrt — der höchste Scheitel
+> zuerst, danach alle Thw im **36-h-Umkreis** verworfen, damit die mehreren
+> Tiden **eines** Ereignisses nicht mehrfach zählen. Sonst identische Datenbasis
+> (Pegel Over, cm über PNP, gesetzliche Zeit).
 
 ## Datengrundlage
 
