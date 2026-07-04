@@ -539,7 +539,9 @@ export default function Chart({
             ifOverflow={zoomed ? "hidden" : "extendDomain"}
             label={{
               value: `${s.stufe} ${Math.round(s.cm)}`,
-              position: "insideTopLeft",
+              // oberhalb der Linie (insideBottom = ueber der Linie bei
+              // horizontaler ReferenceLine, viewBox-Hoehe 0), linksbuendig.
+              position: "insideBottomLeft",
               fill: colors.sturmflut,
               fontSize: 10,
             }}
