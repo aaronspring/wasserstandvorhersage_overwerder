@@ -23,7 +23,7 @@ import {
 } from "./format";
 import type { Colors } from "./theme";
 import { useNarrow } from "./theme";
-import type { Payload, SeriesKey } from "./types";
+import type { Payload, Point, SeriesKey } from "./types";
 
 export interface SeriesMeta {
   key: SeriesKey;
@@ -62,6 +62,28 @@ function toRows(series: Payload["series"]): Row[] {
     }
   }
   return [...map.values()].sort((a, b) => a.t - b.t);
+}
+
+export interface TideExtreme {
+  t: number;
+  v: number;
+  high: boolean; // true = Flut (lokales Maximum), false = Ebbe (lokales Minimum)
+}
+
+// Naechste Tide-Scheitel der Overwerder-Vorhersage ab `now`: je bis zu zwei
+// Flut- (lokales Maximum) und Ebbe-Scheitel (lokales Minimum), chronologisch.
+function tideExtrema(pts: Point[] | undefined, now: number): TideExtreme[] {
+  if (!pts || pts.length < 3) return [];
+  const xs = pts.map(([iso, v]) => ({ t: Date.parse(iso), v }));
+  const highs: TideExtreme[] = [];
+  const lows: TideExtreme[] = [];
+  for (let i = 1; i < xs.length - 1; i++) {
+    if (xs[i].t < now) continue;
+    const { t, v } = xs[i];
+    if (v >= xs[i - 1].v && v > xs[i + 1].v) highs.push({ t, v, high: true });
+    else if (v <= xs[i - 1].v && v < xs[i + 1].v) lows.push({ t, v, high: false });
+  }
+  return [...highs.slice(0, 2), ...lows.slice(0, 2)].sort((a, b) => a.t - b.t);
 }
 
 // Zeile am (oder naechsten) Zeitpunkt t – fuer die angeklickten Werte.
@@ -159,6 +181,9 @@ export default function Chart({
     xDomain,
     yDomain,
     ticks,
+    labelSet,
+    dense,
+    extrema,
     dayFirst,
     zoomed,
     xFull,
@@ -219,17 +244,29 @@ export default function Chart({
       const yLo = Math.floor((lo - pad) / 20) * 20;
       const yHi = Math.ceil((hi + pad) / 20) * 20;
 
-      const tk = makeTicks(x0, x1, pickStep(x1 - x0, narrow));
-      // Datumszeile nur beim ersten Tick eines Tages zeigen (wie BSH).
+      // Ticks alle 3 h, beschriftete Labels alle 6 h, solange das Fenster nicht
+      // zu breit ist; bei weit herausgezoomten Fenstern adaptiv ausduennen.
+      const span = x1 - x0;
+      const dense = span <= 72 * HOUR;
+      const tickStep = dense ? 3 * HOUR : pickStep(span, narrow);
+      const labelStep = dense ? 6 * HOUR : tickStep;
+      const tk = makeTicks(x0, x1, tickStep);
+      // 6-h-Positionen sind eine Teilmenge der 3-h-Positionen (beide an lokalen
+      // Grenzen ausgerichtet) -> markiert, welche Ticks eine Beschriftung tragen.
+      const labelSet = new Set(makeTicks(x0, x1, labelStep));
+      // Datumszeile nur beim ersten beschrifteten Tick eines Tages zeigen (wie BSH).
       const firsts = new Set<number>();
       let prevDay = "";
       for (const t of tk) {
+        if (!labelSet.has(t)) continue;
         const d = fmtDay(t);
         if (d !== prevDay) {
           firsts.add(t);
           prevDay = d;
         }
       }
+      // Naechste Tide-Scheitel (2x Flut / 2x Ebbe) fuer die Info-Box.
+      const extrema = tideExtrema(data.series.overwerder, nowT);
       // Brush-Griffe auf die Datenzeilen abbilden, die das aktuelle X-Fenster
       // begrenzen. Die Übersichtsleiste zeigt den GESAMTEN Zeitraum; die Griffe
       // markieren darin den sichtbaren Ausschnitt (Standard oder Zoom).
@@ -257,6 +294,9 @@ export default function Chart({
         xDomain: [x0, x1] as [number, number],
         yDomain: [yLo, yHi] as [number, number],
         ticks: tk,
+        labelSet,
+        dense,
+        extrema,
         dayFirst: firsts,
         zoomed,
         xFull: [xMin, xMax] as [number, number],
@@ -349,6 +389,23 @@ export default function Chart({
           </button>
         )}
       </div>
+      {extrema.length > 0 && (
+        <div
+          className="tide-info"
+          style={{ borderColor: colors.overwerder, color: colors.overwerder }}
+        >
+          <div className="tide-info-title">Nächste Scheitel Over</div>
+          {extrema.map((e) => (
+            <div key={e.t} className="tide-info-row">
+              <span className="tide-info-kind">{e.high ? "Flut" : "Ebbe"}</span>
+              <span className="tide-info-time">
+                {fmtDateShort(e.t)} {fmtTime(e.t)}
+              </span>
+              <span className="tide-info-val">{fmtCm(e.v)}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={rows}
@@ -377,6 +434,8 @@ export default function Chart({
               {...props}
               colors={colors}
               dayFirst={dayFirst}
+              labelSet={labelSet}
+              dense={dense}
               narrow={narrow}
             />
           )}
@@ -564,6 +623,8 @@ function TimeTick({
   payload,
   colors,
   dayFirst,
+  labelSet,
+  dense,
   narrow,
 }: {
   x?: number;
@@ -571,21 +632,43 @@ function TimeTick({
   payload?: { value: number };
   colors: Colors;
   dayFirst: Set<number>;
+  labelSet: Set<number>;
+  dense: boolean;
   narrow: boolean;
 }) {
   if (x == null || y == null || !payload) return null;
   const t = payload.value;
-  // Schmal: Tages-Ticks -> Wochentag + Datum (Uhrzeit waere 00:00, redundant).
-  // Breit: 12-h-Ticks -> Uhrzeit, Datum nur beim ersten Tick des Tages.
-  const line1 = narrow ? fmtWeekday(t) : fmtTime(t);
-  const line2 = narrow ? fmtDateShort(t) : dayFirst.has(t) ? fmtDay(t) : null;
+  // Dichtes Fenster: Ticks alle 3 h, Beschriftung nur alle 6 h. Unbeschriftete
+  // 3-h-Ticks nur als kurzer Strich; die Marke laenger machen.
+  const labeled = labelSet.has(t);
+  const tickLen = labeled ? 5 : 3;
+  let line1: string | null = null;
+  let line2: string | null = null;
+  if (labeled) {
+    if (dense) {
+      // Alle 6 h: Uhrzeit, Datum nur beim ersten Label des Tages.
+      line1 = fmtTime(t);
+      line2 = dayFirst.has(t) ? fmtDay(t) : null;
+    } else if (narrow) {
+      // Schmal: Tages-Ticks -> Wochentag + Datum (Uhrzeit waere 00:00).
+      line1 = fmtWeekday(t);
+      line2 = fmtDateShort(t);
+    } else {
+      // Breit: Uhrzeit, Datum nur beim ersten Tick des Tages.
+      line1 = fmtTime(t);
+      line2 = dayFirst.has(t) ? fmtDay(t) : null;
+    }
+  }
   return (
     <g transform={`translate(${x},${y})`}>
-      <text textAnchor="middle" fontSize={11} fill={colors.secondary} dy={12}>
-        {line1}
-      </text>
+      <line x1={0} y1={0} x2={0} y2={tickLen} stroke={colors.axis} strokeWidth={1} />
+      {line1 && (
+        <text textAnchor="middle" fontSize={11} fill={colors.secondary} dy={16}>
+          {line1}
+        </text>
+      )}
       {line2 && (
-        <text textAnchor="middle" fontSize={10} fill={colors.muted} dy={26}>
+        <text textAnchor="middle" fontSize={10} fill={colors.muted} dy={29}>
           {line2}
         </text>
       )}

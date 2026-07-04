@@ -107,6 +107,42 @@ body {
   color: var(--ink);
 }
 
+/* Info-Box: naechste Tide-Scheitel (2x Flut / 2x Ebbe) oben links im Chart. */
+.tide-info {
+  position: absolute;
+  top: 6px;
+  left: 60px;
+  z-index: 2;
+  padding: 5px 8px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.tide-info-title {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.tide-info-row {
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.tide-info-kind {
+  font-weight: 600;
+  width: 2.4em;
+}
+
+.tide-info-val {
+  margin-left: auto;
+  font-weight: 600;
+}
+
 .status {
   height: 240px;
   display: flex;
