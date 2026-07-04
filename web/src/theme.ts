@@ -13,6 +13,7 @@ export interface Colors {
   forecast: string;
   ref: string;
   surge: string;
+  sturmflut: string;
   gelaende: string;
   tooltipBg: string;
 }
@@ -33,6 +34,7 @@ const LIGHT: Colors = {
   forecast: "#52514e",
   ref: "#a3a199",
   surge: "#7fb2e6",
+  sturmflut: "#c0392b",
   gelaende: "#d98f2b",
   tooltipBg: "#fffffff2",
 };
@@ -50,6 +52,7 @@ const DARK: Colors = {
   forecast: "#c3c2b7",
   ref: "#77756f",
   surge: "#5a86b8",
+  sturmflut: "#e5675a",
   gelaende: "#e2a13f",
   tooltipBg: "#1f1f1ef2",
 };

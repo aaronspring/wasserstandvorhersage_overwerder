@@ -73,6 +73,15 @@ BSH_STUFEN_UEBER_MThw_M = {
     "schwere Sturmflut": 2.5,
     "sehr schwere Sturmflut": 3.5,
 }
+# Dieselben BSH-Klassen, auf den Pegel Over uebersetzt (untere Schwelle je
+# Stufe, cm ueber PNP) — analog zu WASSER_AUF_GELAENDE_OVER_CM das Ergebnis der
+# St.-Pauli-Ausrichtung (sturmflut.over_thresholds, siehe docs/STURMFLUT_EDA.md).
+# Als Referenzlinien im Web-Chart genutzt (Default aus, da weit ueber Normaltide).
+STURMFLUT_STUFEN_OVER_CM = {
+    "Sturmflut": 888.0,
+    "schwere Sturmflut": 979.0,
+    "sehr schwere Sturmflut": 1069.0,
+}
 # Datums-Anker zur Ausrichtung Over <-> St. Pauli: amtliche St.-Pauli-Scheitel
 # (m ueber NN) bekannter Sturmfluten aus der Sturmfluttafel. Nur Ereignisse ab
 # 2000, die auch in der Over-Langzeitreihe liegen. Zusammen mit dem MThw-Paar

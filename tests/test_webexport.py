@@ -89,6 +89,24 @@ def test_surge_lines_from_config():
     assert payload["surge_doc_url"] == config.STURMFLUT_DOC_URL
 
 
+def test_sturmflut_lines_from_config():
+    from wasserstand_overwerder import config
+
+    now = pd.Timestamp("2026-06-03T00:00:00", tz="UTC")
+    target, over, up, down = _scenario(now)
+    payload = webexport.build_payload(
+        target=target, over=over, up=up, down=down, now=now
+    )
+    stufen = payload["sturmflut_lines"]
+    # Eine Linie je BSH-Klasse aus config, nach Hoehe aufsteigend sortiert.
+    assert len(stufen) == len(config.STURMFLUT_STUFEN_OVER_CM)
+    cms = [s["cm"] for s in stufen]
+    assert cms == sorted(cms)
+    for s in stufen:
+        assert set(s) == {"stufe", "cm"}
+        assert config.STURMFLUT_STUFEN_OVER_CM[s["stufe"]] == s["cm"]
+
+
 def test_missing_over_and_refs():
     now = pd.Timestamp("2026-06-03T00:00:00", tz="UTC")
     target, _, up, down = _scenario(now)

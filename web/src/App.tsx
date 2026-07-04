@@ -16,6 +16,9 @@ export default function App() {
   // Top-10-Sturmflut-Marken (per Button einblendbar; Default aus, da sie weit
   // ueber Normaltiden liegen und die Skala sonst stauchen).
   const [showSurges, setShowSurges] = useState(false);
+  // BSH-Sturmflut-Klassen (Sturmflut/schwere/sehr schwere) als Referenzlinien;
+  // Default aus, da sie wie die Top-10 weit ueber Normaltiden liegen.
+  const [showSturmflut, setShowSturmflut] = useState(false);
 
   const toggle = (k: SeriesKey) =>
     setHidden((prev) => {
@@ -61,6 +64,7 @@ export default function App() {
               colors={colors}
               hidden={hidden}
               showSurges={showSurges}
+              showSturmflut={showSturmflut}
             />
           </div>
         )}
@@ -154,6 +158,28 @@ export default function App() {
               Top-10 Sturmfluten
             </button>
           ) : null}
+          {data.sturmflut_lines?.length ? (
+            <button
+              type="button"
+              className={`leg-item leg-toggle${showSturmflut ? "" : " off"}`}
+              onClick={() => setShowSturmflut((v) => !v)}
+              aria-pressed={showSturmflut}
+              title="BSH-Sturmflut-Klassen (Sturmflut, schwere, sehr schwere) als Referenzlinien, auf Pegel Over übersetzt"
+            >
+              <svg width="26" height="10" aria-hidden="true">
+                <line
+                  x1="1"
+                  y1="5"
+                  x2="25"
+                  y2="5"
+                  stroke={colors.sturmflut}
+                  strokeWidth="1.5"
+                  strokeDasharray="6 3"
+                />
+              </svg>
+              Sturmflut-Stufen
+            </button>
+          ) : null}
           {data.surge_doc_url && (
             <a
               className="leg-item leg-link"
@@ -178,7 +204,8 @@ export default function App() {
           )}
           <p className="leg-hint">
             Legende antippen blendet Linien aus · „Top-10 Sturmfluten" zeigt die
-            historischen Scheitel · ins Diagramm tippen zeigt die
+            historischen Scheitel, „Sturmflut-Stufen" die BSH-Klassen · ins
+            Diagramm tippen zeigt die
             Werte je Linie · ziehen zoomt hinein · Übersichtsleiste unten
             verschieben/aufziehen oder „Ganzer Zeitraum" zeigt die volle
             Vorhersage · Standardansicht: 12 h zurück und 36 h voraus
