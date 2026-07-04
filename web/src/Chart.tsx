@@ -504,7 +504,11 @@ export default function Chart({
             ifOverflow={zoomed ? "hidden" : "extendDomain"}
             label={{
               value: `Wasser auf Gelände ${Math.round(gelaende)}`,
-              position: "insideTopRight",
+              // oberhalb der Linie (insideBottom = ueber der Linie bei
+              // horizontaler ReferenceLine, viewBox-Hoehe 0); linksbuendig, um
+              // im Standardfenster (Gelaende ist oberste Linie) nicht mit dem
+              // "Ganzer Zeitraum"-Button oben rechts zu kollidieren.
+              position: "insideBottomLeft",
               fill: colors.gelaende,
               fontSize: 10,
             }}
