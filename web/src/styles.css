@@ -45,6 +45,29 @@ body {
   min-height: 100dvh;
 }
 
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.head-text {
+  min-width: 0;
+}
+
+.repo-link {
+  flex: none;
+  display: inline-flex;
+  margin-top: 2px;
+  color: var(--secondary);
+  transition: color 0.12s ease;
+}
+
+.repo-link:hover {
+  color: var(--ink);
+}
+
 .head h1 {
   margin: 0;
   font-size: clamp(1.25rem, 4vw, 1.6rem);

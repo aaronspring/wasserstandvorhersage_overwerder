@@ -13,6 +13,8 @@ Plan und Methodik: [PLAN_MWP.md](PLAN_MWP.md)
 
 **Web-App:** <https://aaronspring.github.io/wasserstandvorhersage_overwerder>
 
+**Pegel-Archiv (Hugging Face Dataset):** <https://huggingface.co/datasets/aaronspring/elbe-pegel-over-zollenspieker-minutely-since-2000>
+
 ![Screenshot der Web-App: Wasserstandsvorhersage Overwerder mit Tidekurven von Overwerder, Over, Zollenspieker und St. Pauli](docs/screenshot.png)
 
 ## Web-App (React-Frontend)
