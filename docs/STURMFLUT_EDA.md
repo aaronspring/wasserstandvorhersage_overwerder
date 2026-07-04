@@ -13,6 +13,9 @@ Reproduzierbar mit `analyse_sturmfluten.py` (Kennzahlen + Figuren); die Logik
 steht netzfrei/testbar in `wasserstand_overwerder/sturmflut.py`
 (`tests/test_sturmflut.py`).
 
+> **Siehe auch:** [`TOP_10_STURMFLUTEN.md`](TOP_10_STURMFLUTEN.md) — die zehn
+> höchsten einzelnen Sturmflut-Scheitel am Pegel Over samt Sturmnamen.
+
 ## Kurzantwort
 
 - **Saisonalität:** Sturmfluten sind ein reines **Winterphänomen**. **94 %**

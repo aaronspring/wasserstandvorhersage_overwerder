@@ -4,6 +4,10 @@ Auswertung der zehn höchsten Sturmflut-Scheitel am **Pegel Over** (Elbe-km 605,
 direkt gegenüber Overwerder) aus dem Langzeitarchiv. Einheiten: cm über PNP
 (PNP = NHN − 5,00 m); Scheitelzeitpunkte in gesetzlicher Zeit (MEZ/MESZ).
 
+> **Siehe auch:** [`STURMFLUT_EDA.md`](STURMFLUT_EDA.md) — Häufigkeit,
+> Saisonalität und Trend *aller* Sturmfluten, die BSH-Klassifikation
+> (Sturmflut / schwere / sehr schwere) sowie „Wasser auf dem Gelände".
+
 ## Ergebnis
 
 | #  | Scheitel (Europe/Berlin) | cm ü. PNP | m NHN  | Sturm |

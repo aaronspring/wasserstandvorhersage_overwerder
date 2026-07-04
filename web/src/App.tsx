@@ -165,6 +165,17 @@ export default function App() {
               Top-10 ↗
             </a>
           )}
+          {data.eda_doc_url && (
+            <a
+              className="leg-item leg-link"
+              href={data.eda_doc_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Sturmflut-Analyse: Häufigkeit, Saisonalität, Trend und wie oft Wasser auf dem Gelände steht"
+            >
+              Sturmflut-Analyse ↗
+            </a>
+          )}
           <p className="leg-hint">
             Legende antippen blendet Linien aus · „Top-10 Sturmfluten" zeigt die
             historischen Scheitel · ins Diagramm tippen zeigt die

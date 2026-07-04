@@ -10,7 +10,11 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .config import STURMFLUT_DOC_URL, STURMFLUT_SCHEITEL_CM
+from .config import (
+    STURMFLUT_DOC_URL,
+    STURMFLUT_EDA_DOC_URL,
+    STURMFLUT_SCHEITEL_CM,
+)
 
 
 def surge_lines() -> list[dict]:
@@ -135,5 +139,6 @@ def build_payload(
         ),
         "surge_lines": surge_lines(),
         "surge_doc_url": STURMFLUT_DOC_URL,
+        "eda_doc_url": STURMFLUT_EDA_DOC_URL,
         "series": series,
     }
