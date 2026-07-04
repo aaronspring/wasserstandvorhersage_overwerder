@@ -1,5 +1,20 @@
 # Top 10 Sturmfluten am Pegel Over (2000–2026)
 
+*Die höchsten Sturmflut-Scheitel am Pegel Over — als Gesamt-Top-10 sowie als
+saisonale Ranglisten (Sommer, April, Oktober).*
+
+## Inhaltsverzeichnis
+
+- [Ergebnis](#ergebnis)
+- [Sommerhochwasser Mai–September („Erdbeerhochwasser")](#sommerhochwasser-maiseptember-erdbeerhochwasser)
+- [Übergangsmonate April & Oktober — zu frühes Aus- und Einräumen](#übergangsmonate-april--oktober--zu-frühes-aus--und-einräumen)
+  - [April — Gefahr des zu frühen Ausräumens](#april--gefahr-des-zu-frühen-ausräumens)
+  - [Oktober — Gefahr des zu späten Einräumens](#oktober--gefahr-des-zu-späten-einräumens)
+- [Datengrundlage](#datengrundlage)
+- [Methodik](#methodik)
+  - [Reproduktion](#reproduktion)
+- [Vorbehalte](#vorbehalte)
+
 Auswertung der zehn höchsten Sturmflut-Scheitel am **Pegel Over** (Elbe-km 605,3,
 direkt gegenüber Overwerder) aus dem Langzeitarchiv. Einheiten: cm über PNP
 (PNP = NHN − 5,00 m); Scheitelzeitpunkte in gesetzlicher Zeit (MEZ/MESZ).
