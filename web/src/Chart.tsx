@@ -390,18 +390,14 @@ export default function Chart({
         )}
       </div>
       {extrema.length > 0 && (
-        <div className="tide-info" style={{ borderColor: colors.overwerder }}>
-          <div className="tide-info-title" style={{ color: colors.overwerder }}>
-            Nächste Scheitel
-          </div>
+        <div
+          className="tide-info"
+          style={{ borderColor: colors.overwerder, color: colors.overwerder }}
+        >
+          <div className="tide-info-title">Nächste Scheitel Over</div>
           {extrema.map((e) => (
             <div key={e.t} className="tide-info-row">
-              <span
-                className="tide-info-kind"
-                style={{ color: e.high ? colors.overwerder : colors.secondary }}
-              >
-                {e.high ? "Flut" : "Ebbe"}
-              </span>
+              <span className="tide-info-kind">{e.high ? "Flut" : "Ebbe"}</span>
               <span className="tide-info-time">
                 {fmtDateShort(e.t)} {fmtTime(e.t)}
               </span>

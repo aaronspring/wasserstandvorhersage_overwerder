@@ -138,14 +138,9 @@ body {
   width: 2.4em;
 }
 
-.tide-info-time {
-  color: var(--secondary);
-}
-
 .tide-info-val {
   margin-left: auto;
   font-weight: 600;
-  color: var(--ink);
 }
 
 .status {
