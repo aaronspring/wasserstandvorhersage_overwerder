@@ -8,6 +8,11 @@ export interface SurgeLine {
   cm: number;
 }
 
+export interface SturmflutLine {
+  stufe: string;
+  cm: number;
+}
+
 export interface Payload {
   generated_at: string;
   now: string;
@@ -18,6 +23,7 @@ export interface Payload {
   reference_lines: Record<string, number>;
   gelaende_cm?: number | null;
   surge_lines?: SurgeLine[];
+  sturmflut_lines?: SturmflutLine[];
   surge_doc_url?: string;
   eda_doc_url?: string;
   series: Partial<Record<SeriesKey, Point[]>>;

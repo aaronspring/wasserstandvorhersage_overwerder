@@ -156,11 +156,13 @@ export default function Chart({
   colors,
   hidden,
   showSurges = false,
+  showSturmflut = false,
 }: {
   data: Payload;
   colors: Colors;
   hidden: Set<SeriesKey>;
   showSurges?: boolean;
+  showSturmflut?: boolean;
 }) {
   const narrow = useNarrow();
 
@@ -179,6 +181,7 @@ export default function Chart({
     refLines,
     gelaende,
     surgeLines,
+    sturmflutLines,
     xDomain,
     yDomain,
     ticks,
@@ -200,6 +203,9 @@ export default function Chart({
       );
       // Top-10-Sturmflut-Marken (nur wenn per Button eingeblendet).
       const surgeLines = showSurges ? (data.surge_lines ?? []) : [];
+      // BSH-Sturmflut-Klassen (Sturmflut/schwere/sehr schwere, Over-Schwellen);
+      // nur wenn per Button eingeblendet, da sie weit ueber Normaltiden liegen.
+      const sturmflutLines = showSturmflut ? (data.sturmflut_lines ?? []) : [];
       // "Wasser auf dem Gelaende"-Marke (St. Pauli NN+3,0 m -> Over cm PNP);
       // dauerhaft eingeblendet, da praktische Ueberflutungsschwelle.
       const gelaende =
@@ -237,6 +243,10 @@ export default function Chart({
           hi = Math.max(hi, r.v as number);
         }
         for (const s of surgeLines) {
+          lo = Math.min(lo, s.cm);
+          hi = Math.max(hi, s.cm);
+        }
+        for (const s of sturmflutLines) {
           lo = Math.min(lo, s.cm);
           hi = Math.max(hi, s.cm);
         }
@@ -301,6 +311,7 @@ export default function Chart({
         refLines,
         gelaende,
         surgeLines,
+        sturmflutLines,
         xDomain: [x0, x1] as [number, number],
         yDomain: [yLo, yHi] as [number, number],
         ticks: tk,
@@ -314,7 +325,7 @@ export default function Chart({
         brushEnd: be,
         atFull,
       };
-    }, [data, narrow, hidden, zoom, showSurges]);
+    }, [data, narrow, hidden, zoom, showSurges, showSturmflut]);
 
   const now = Date.parse(data.now);
   const fcStart = Date.parse(data.forecast_start);
@@ -513,6 +524,23 @@ export default function Chart({
               // sich die Beschriftungen nicht ueberlagern.
               position: i % 2 === 0 ? "insideBottomRight" : "insideBottomLeft",
               fill: colors.surge,
+              fontSize: 10,
+            }}
+          />
+        ))}
+
+        {sturmflutLines.map((s) => (
+          <ReferenceLine
+            key={`stufe-${s.stufe}`}
+            y={s.cm}
+            stroke={colors.sturmflut}
+            strokeWidth={1.5}
+            strokeDasharray="6 3"
+            ifOverflow={zoomed ? "hidden" : "extendDomain"}
+            label={{
+              value: `${s.stufe} ${Math.round(s.cm)}`,
+              position: "insideTopLeft",
+              fill: colors.sturmflut,
               fontSize: 10,
             }}
           />

@@ -76,7 +76,9 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   (`config.ST_PAULI_ANKER_NN_M` + MThw-Paar) linear auf Over (cm ueber PNP). Neue
   Schwellen nicht direkt an Over-MThw haengen. Methodik/Grafiken:
   `docs/STURMFLUT_EDA.md`; Web-Chart zeigt die Gelaende-Linie
-  (`WASSER_AUF_GELAENDE_OVER_CM`).
+  (`WASSER_AUF_GELAENDE_OVER_CM`) dauerhaft und die BSH-Klassen-Schwellen
+  (`STURMFLUT_STUFEN_OVER_CM`: Sturmflut/schwere/sehr schwere) per Legenden-
+  Toggle „Sturmflut-Stufen" (Default aus, da weit ueber Normaltide).
 - **Tide-Richtung:** die Tidewelle läuft stromauf; Elbe-km wächst stromab.
   St. Pauli führt zeitlich, Zollenspieker läuft nach. Vorzeichen der
   Zeitverschiebungen in `model.interpolate` nicht "vereinfachen".

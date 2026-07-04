@@ -14,6 +14,7 @@ from .config import (
     STURMFLUT_DOC_URL,
     STURMFLUT_EDA_DOC_URL,
     STURMFLUT_SCHEITEL_CM,
+    STURMFLUT_STUFEN_OVER_CM,
 )
 
 
@@ -26,6 +27,19 @@ def surge_lines() -> list[dict]:
     return [
         {"rank": rank, "label": storm, "cm": float(cm)}
         for rank, (cm, storm) in sorted(STURMFLUT_SCHEITEL_CM.items())
+    ]
+
+
+def sturmflut_lines() -> list[dict]:
+    """BSH-Sturmflut-Klassen (Over-Schwellen) fuers Frontend, aufsteigend.
+
+    Aus :data:`config.STURMFLUT_STUFEN_OVER_CM` (Sturmflut, schwere, sehr
+    schwere): die auf Pegel Over uebersetzten unteren Definitionsschwellen als
+    Referenzlinien. Struktur je Eintrag: ``{"stufe", "cm"}``.
+    """
+    return [
+        {"stufe": stufe, "cm": float(cm)}
+        for stufe, cm in sorted(STURMFLUT_STUFEN_OVER_CM.items(), key=lambda kv: kv[1])
     ]
 
 
@@ -138,6 +152,7 @@ def build_payload(
             round(float(gelaende_cm), 1) if gelaende_cm is not None else None
         ),
         "surge_lines": surge_lines(),
+        "sturmflut_lines": sturmflut_lines(),
         "surge_doc_url": STURMFLUT_DOC_URL,
         "eda_doc_url": STURMFLUT_EDA_DOC_URL,
         "series": series,
