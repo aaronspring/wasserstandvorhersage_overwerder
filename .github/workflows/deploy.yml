@@ -21,6 +21,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  issues: write
 
 concurrency:
   group: pages
@@ -42,6 +43,16 @@ jobs:
 
       - name: data.json erzeugen (BSH + PEGELONLINE)
         run: uv run python export_web.py --out web/public
+
+      # Vorhergesagtes "Wasser auf dem Gelaende" -> GitHub-Issue anlegen/aktualisieren
+      # und aaronspring taggen. Idempotent (ein Issue pro Event, Abgleich ueber
+      # offene Issues), daher fuer alle Trigger sicher. Blockiert den Deploy nicht.
+      - name: Ueberflutungs-Alarm (Issues)
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: uv run python alert_issues.py --data web/public/data.json
 
       - uses: actions/setup-node@v4
         with:

@@ -21,12 +21,15 @@ wasserstand_overwerder/
   bsh.py          BSH-Vorhersagen via OGC API Features (Laufzeit-Discovery)
   model.py        Interpolation (Params, interpolate, calibrate, recent_bias_cm)
   sturmflut.py    Thw-Erkennung + BSH-Klassifikation + Trend (netzfrei, testbar)
+  alerts.py       Event-Erkennung (Gelaende/Sturmflut) + Issue-Abgleich (netzfrei)
+  ghissues.py     schlanker GitHub-Issues-Client (REST) fuer die Alarm-Issues
   plot.py         matplotlib-Plot
   webexport.py    baut data.json fuer die Web-App (netzfrei, build_payload)
 calibrate.py      CLI: fittet tau/Gewichte/Offset gegen Pegel Over -> params.json
 forecast.py       CLI: erzeugt out/overwerder_forecast.{csv,png}; --explore
 analyse_sturmfluten.py CLI: Sturmflut-EDA (Haeufigkeit/Saison/Trend) -> docs/sturmflut_*.png
 export_web.py     CLI: erzeugt web/public/data.json (BSH + PEGELONLINE) fuers Frontend
+alert_issues.py   CLI: liest data.json, legt/aktualisiert Ueberflutungs-Issues (GitHub)
 build_history.py  CLI: voller Backfill des jaehrl. Parquet-Archivs (einmalig)
 update_history.py CLI: inkrementelles Monatsupdate (nur juengste year=YYYY -> HF)
 web/              React+Vite+TS Single-Page-App (Recharts), Deploy nach GitHub Pages
@@ -35,6 +38,7 @@ tests/test_sturmflut.py  Synthetik-Tests fuer Thw/Klassifikation/Trend (netzwerk
 tests/test_webexport.py  Struktur-Tests fuer data.json (netzwerkfrei)
 tests/test_history.py    Parsing/Parquet-Tests fuers Archiv (netzwerkfrei)
 tests/test_hfhub.py      Dataset-Card/Upload-Pattern-Tests (netzwerkfrei)
+tests/test_alerts.py     Event-Erkennung + Issue-Abgleich (plan), netzwerkfrei
 ```
 
 Die Web-App ist statisch: `export_web.py` schreibt `data.json`, das React-Frontend
@@ -42,6 +46,18 @@ lädt nur diese Datei. `web/public/data.json` wird **nicht eingecheckt** (`.giti
 Der Workflow `.github/workflows/deploy.yml` erzeugt sie alle 6 h live neu, baut `web/`
 und deployt nach GitHub Pages. Für lokalen Dev: `export_web.py --demo` (synthetisch,
 kein Netz).
+
+**Überflutungs-Alarm (Issues):** Derselbe Workflow ruft nach `export_web.py`
+`alert_issues.py` auf. Zeigt die Overwerder-Vorhersage **Wasser auf dem Gelände**
+(Scheitel ≥ `WASSER_AUF_GELAENDE_OVER_CM`), wird **ein** GitHub-Issue pro Event
+(Sturm-Cluster, 36 h) angelegt und `@aaronspring` getaggt. Bei jeder Stufen-
+Änderung (Sturmflut/schwere/sehr schwere, hoch **oder** runter) folgt ein
+Kommentar mit erneutem Tag; ist das Event nicht mehr auf dem Gelände (Entwarnung)
+oder der Scheitel vorbei, wird kommentiert und das Issue geschlossen. Der Abgleich
+ist zustandslos: offene Issues mit Label `wasserstand-alert` tragen den Event-
+Zustand als Marker im Body, `alerts.plan` matcht per Zeitfenster-Überlappung. Der
+Schritt braucht `issues: write` + `GITHUB_TOKEN` und blockiert den Deploy nicht
+(`continue-on-error`). Logik netzfrei/testbar in `alerts.py` (`tests/test_alerts.py`).
 
 ## Kommandos
 
@@ -55,6 +71,7 @@ uv run python forecast.py --explore      # BSH-API-Struktur dumpen
 uv run python analyse_sturmfluten.py     # Sturmflut-EDA -> docs/sturmflut_*.png (braucht Netz/HF)
 uv run python export_web.py --out web/public          # data.json (braucht Netz)
 uv run python export_web.py --demo --out web/public   # data.json synthetisch (kein Netz)
+uv run python alert_issues.py --data web/public/data.json --dry-run  # Alarm-Plan zeigen (kein Netz/Token)
 uv run python build_history.py --start 2000-01-01 --end 2000-01-08 \
     --stations over zollenspieker         # Parquet-Archiv (braucht Netz), kleiner Test
 uv sync --extra hf                        # huggingface_hub fuer den HF-Upload
