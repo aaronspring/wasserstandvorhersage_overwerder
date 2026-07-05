@@ -25,7 +25,7 @@ def main() -> None:
     ap.add_argument(
         "--params",
         default=None,
-        help="params.json aus calibrate.py (sonst: Entfernungs-Defaults)",
+        help="params.json aus calibrate.py (Default: ./params.json falls vorhanden)",
     )
     ap.add_argument("--out", default="out", help="Ausgabeverzeichnis")
     ap.add_argument(
@@ -45,12 +45,8 @@ def main() -> None:
         client.explore()
         return
 
-    params = model.Params.load(args.params) if args.params else model.Params()
-    print(
-        f"Modell: tau={params.tau_minutes:.0f} min, Gewichte="
-        f"{tuple(round(w, 3) for w in params.weights())}, "
-        f"Offset={params.offset_cm:+.1f} cm"
-    )
+    params = model.load_params(args.params)
+    print(params.describe())
 
     print("Lade BSH-Vorhersagen ...")
     up = client.forecast("zollenspieker")

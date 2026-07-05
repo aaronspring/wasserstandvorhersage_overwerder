@@ -42,14 +42,20 @@ def test_tidal_highs_spacing_and_mthw():
     assert abs(mthw - (mean_cm + amp_cm)) < 40.0
 
 
-def test_classify_thresholds():
-    """BSH-Grenzen: <150 kein, 150/250/350 -> die drei Klassen."""
-    assert sturmflut.classify(149.9) is None
-    assert sturmflut.classify(150.0) == "Sturmflut"
-    assert sturmflut.classify(200.0) == "Sturmflut"
-    assert sturmflut.classify(250.0) == "schwere Sturmflut"
-    assert sturmflut.classify(349.9) == "schwere Sturmflut"
-    assert sturmflut.classify(400.0) == "sehr schwere Sturmflut"
+def test_classify_level_thresholds():
+    """classify_level liefert die hoechste erreichte Stufe (oder None)."""
+    thr = {
+        "Wasser auf Gelände": 800.0,
+        "Sturmflut": 850.0,
+        "schwere Sturmflut": 950.0,
+        "sehr schwere Sturmflut": 1050.0,
+    }
+    assert sturmflut.classify_level(799.9, thr) is None
+    assert sturmflut.classify_level(800.0, thr) == "Wasser auf Gelände"
+    assert sturmflut.classify_level(850.0, thr) == "Sturmflut"
+    assert sturmflut.classify_level(949.9, thr) == "Sturmflut"
+    assert sturmflut.classify_level(950.0, thr) == "schwere Sturmflut"
+    assert sturmflut.classify_level(1100.0, thr) == "sehr schwere Sturmflut"
 
 
 def test_injected_surge_is_detected_and_classified():
@@ -58,6 +64,12 @@ def test_injected_surge_is_detected_and_classified():
     s = synthetic_series(days=30, mean_cm=mean_cm, amp_cm=amp_cm).copy()
     highs0 = sturmflut.tidal_highs(s, min_height_cm=300.0)
     mthw = sturmflut.mean_high_water(highs0)
+    thr = {
+        "Wasser auf Gelände": mthw + 100.0,
+        "Sturmflut": mthw + 150.0,
+        "schwere Sturmflut": mthw + 250.0,
+        "sehr schwere Sturmflut": mthw + 350.0,
+    }
     # Sturmflut-Scheitel: MThw + 260 cm um einen Thw-Zeitpunkt herum aufsetzen.
     peak_t = highs0.index[10]
     win = (s.index >= peak_t - pd.Timedelta("60min")) & (
@@ -67,12 +79,11 @@ def test_injected_surge_is_detected_and_classified():
     s.loc[win] = s.loc[win] + bump
 
     highs = sturmflut.tidal_highs(s, min_height_cm=300.0)
-    surges = sturmflut.surge_tides(highs, mthw)
-    assert len(surges) == 1
-    row = surges.iloc[0]
-    assert row["klasse"] == "schwere Sturmflut"
-    assert 250.0 <= row["above_mthw"] < 350.0
-    assert row["month"] == surges.index[0].tz_convert("Europe/Berlin").month
+    flood = sturmflut.flood_tides(highs, thr)
+    assert len(flood) == 1
+    row = flood.iloc[0]
+    assert row["stufe"] == "schwere Sturmflut"
+    assert row["month"] == flood.index[0].tz_convert("Europe/Berlin").month
 
 
 def test_stpauli_pnp_and_thresholds_ordered():
@@ -112,8 +123,8 @@ def test_align_to_stpauli_recovers_offset():
     assert abs(fit["intercept"] - offset) < 1e-6
 
 
-def test_flood_tides_and_event_clustering():
-    """flood_tides klassifiziert korrekt; cluster_events zaehlt Sturm-Ereignisse."""
+def test_flood_tides_classification():
+    """flood_tides nimmt alle Thw ab Gelaende-Marke auf und klassifiziert sie."""
     mean_cm, amp_cm = 500.0, 200.0
     s = synthetic_series(days=30, mean_cm=mean_cm, amp_cm=amp_cm).copy()
     highs = sturmflut.tidal_highs(s, min_height_cm=300.0)
@@ -133,11 +144,10 @@ def test_flood_tides_and_event_clustering():
         s.loc[win] += bump_to - float(s[win].max())
     highs2 = sturmflut.tidal_highs(s, min_height_cm=300.0)
     flood = sturmflut.flood_tides(highs2, thr)
+    assert len(flood) == 2
     stufen = set(flood["stufe"])
     assert "Wasser auf Gelände" in stufen
     assert "Sturmflut" in stufen
-    # zwei weit auseinanderliegende Ereignisse
-    assert sturmflut.cluster_events(flood.index) == 2
 
 
 def test_linear_trend_recovers_slope():
@@ -151,11 +161,8 @@ def test_linear_trend_recovers_slope():
 
 
 if __name__ == "__main__":
-    test_tidal_highs_spacing_and_mthw()
-    test_classify_thresholds()
-    test_injected_surge_is_detected_and_classified()
-    test_stpauli_pnp_and_thresholds_ordered()
-    test_align_to_stpauli_recovers_offset()
-    test_flood_tides_and_event_clustering()
-    test_linear_trend_recovers_slope()
-    print("ok")
+    for name, fn in sorted(globals().items()):
+        if name.startswith("test_") and callable(fn):
+            fn()
+            print(f"ok  {name}")
+    print("Alle Tests bestanden.")

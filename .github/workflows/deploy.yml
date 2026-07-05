@@ -41,18 +41,43 @@ jobs:
       - name: Sync Python-Abhaengigkeiten
         run: uv sync
 
+      # Modell frisch am Pegel Over kalibrieren (tau/Gewichte/Offset), damit die
+      # Seite nicht mit den Entfernungs-Defaults rechnet. Schlaegt die
+      # Kalibrierung fehl (PEGELONLINE nicht erreichbar), entsteht kein
+      # params.json und export_web.py laeuft mit den Defaults weiter.
+      - name: Modell kalibrieren (PEGELONLINE)
+        continue-on-error: true
+        run: uv run python calibrate.py --days 30 --out params.json
+
       - name: data.json erzeugen (BSH + PEGELONLINE)
-        run: uv run python export_web.py --out web/public
+        run: uv run python export_web.py --out web/public --bias-correct
 
       # Vorhergesagtes "Wasser auf dem Gelaende" -> GitHub-Issue anlegen/aktualisieren
       # und aaronspring taggen. Idempotent (ein Issue pro Event, Abgleich ueber
       # offene Issues), daher fuer alle Trigger sicher. Blockiert den Deploy nicht.
       - name: Ueberflutungs-Alarm (Issues)
+        id: alerts
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: uv run python alert_issues.py --data web/public/data.json
+
+      # continue-on-error verschluckt Fehler des Alarm-Schritts -- gerade bei
+      # Sturmflut darf das nicht unbemerkt bleiben. Solange dazu schon ein
+      # offenes Issue existiert, wird kein weiteres angelegt (kein Spam bei
+      # stuendlichen Laeufen).
+      - name: Fehler im Alarm-Schritt melden (Issue)
+        if: steps.alerts.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          title="Alarm-Schritt fehlgeschlagen (alert_issues.py)"
+          existing=$(gh issue list --state open --search "in:title \"$title\"" \
+            --json number --jq '.[0].number // empty')
+          if [ -z "$existing" ]; then
+            gh issue create --title "$title" --body "@aaronspring — \`alert_issues.py\` ist im Deploy-Workflow fehlgeschlagen; Ueberflutungs-Alarme werden derzeit NICHT erzeugt. Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
 
       - uses: actions/setup-node@v4
         with:

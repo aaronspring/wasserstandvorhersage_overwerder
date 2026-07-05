@@ -61,7 +61,8 @@ def main() -> None:
     events = alerts.detect_events(target, now, thresholds)
     print(f"Erkannte Events (auf Gelände, künftig): {len(events)}")
     for ev in events:
-        print(f"  {alerts._local(ev.peak_time)}  {ev.stufe}  {ev.peak_cm:.0f} cm PNP")
+        peak = alerts.fmt_local(ev.peak_time)
+        print(f"  {peak}  {ev.stufe}  {ev.peak_cm:.0f} cm PNP")
 
     gh: GitHubIssues | None = None
     open_issues: list[alerts.OpenIssue] = []

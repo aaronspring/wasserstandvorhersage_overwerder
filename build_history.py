@@ -26,8 +26,7 @@ from __future__ import annotations
 import argparse
 
 from wasserstand_overwerder import history
-from wasserstand_overwerder.config import PEGELONLINE_STATION_UUIDS
-from wasserstand_overwerder.hfhub import DEFAULT_HF_REPO
+from wasserstand_overwerder.config import PEGELONLINE_HF_REPO, PEGELONLINE_STATION_UUIDS
 
 ALL_STATIONS = list(PEGELONLINE_STATION_UUIDS)
 
@@ -59,12 +58,12 @@ def main() -> None:
     ap.add_argument(
         "--hf-repo",
         nargs="?",
-        const=DEFAULT_HF_REPO,
+        const=PEGELONLINE_HF_REPO,
         default=None,
         metavar="ORG/NAME",
         help=(
             "nach dem Schreiben zu Hugging Face SPIEGELN (voller Ersatz); "
-            f"ohne Wert -> {DEFAULT_HF_REPO}; braucht HF_TOKEN"
+            f"ohne Wert -> {PEGELONLINE_HF_REPO}; braucht HF_TOKEN"
         ),
     )
     args = ap.parse_args()
@@ -82,7 +81,7 @@ def main() -> None:
         f"(year-Partitionen: {', '.join(map(str, years))})"
     )
 
-    if args.hf_repo:  # nicht gesetzt -> None; ohne Wert -> DEFAULT_HF_REPO
+    if args.hf_repo:  # nicht gesetzt -> None; ohne Wert -> PEGELONLINE_HF_REPO
         from wasserstand_overwerder import hfhub
 
         print(f"Spiegle nach Hugging Face: {args.hf_repo} ...", flush=True)

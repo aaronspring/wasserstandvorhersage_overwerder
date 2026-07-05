@@ -13,10 +13,6 @@ from .config import STURMFLUT_DOC, STURMFLUT_DOC_URL, STURMFLUT_SCHEITEL_CM
 
 TZ = "Europe/Berlin"
 
-# Kurz-Aliase (Doku-Verweis auf die Top-10-Sturmfluten).
-SURGE_DOC = STURMFLUT_DOC
-SURGE_DOC_URL = STURMFLUT_DOC_URL
-
 # Farben: Zielserie blau, Stuetzpegel violett/orange, Beobachtung grau
 C_TARGET = "#2a78d6"
 C_UP = "#4a3aa7"  # Zollenspieker
@@ -144,7 +140,7 @@ def plot_forecast(
         last_label = None
         for cm, rank, storm in sorted(surges):
             line = ax.axhline(cm, color=C_SURGE, lw=0.8, zorder=1)
-            line.set_url(SURGE_DOC_URL)  # klickbar in SVG-Ausgaben
+            line.set_url(STURMFLUT_DOC_URL)  # klickbar in SVG-Ausgaben
             label_y = cm if last_label is None else max(cm, last_label + label_gap_cm)
             last_label = label_y
             ax.annotate(
@@ -160,14 +156,14 @@ def plot_forecast(
             )
         # Quelle klein unten rechts vermerken (Klick-Link in SVG-Ausgaben).
         ax.annotate(
-            f"Sturmflut-Marken: {SURGE_DOC}",
+            f"Sturmflut-Marken: {STURMFLUT_DOC}",
             xy=(0.995, 0.02),
             xycoords="axes fraction",
             fontsize=6.5,
             color=C_SURGE,
             ha="right",
             va="bottom",
-            url=SURGE_DOC_URL,
+            url=STURMFLUT_DOC_URL,
         )
 
     # Naechste Tide-Scheitel (2x Flut / 2x Ebbe) als Textbox einblenden.

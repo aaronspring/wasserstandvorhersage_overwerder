@@ -23,6 +23,7 @@ import pandas as pd
 from wasserstand_overwerder import hfhub, history
 from wasserstand_overwerder.config import (
     PEGELONLINE_ARCHIVE_STATIONS,
+    PEGELONLINE_HF_REPO,
     PEGELONLINE_STATION_UUIDS,
 )
 
@@ -34,7 +35,7 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     ap.add_argument(
-        "--hf-repo", default=hfhub.DEFAULT_HF_REPO, metavar="ORG/NAME", help="Ziel-Repo"
+        "--hf-repo", default=PEGELONLINE_HF_REPO, metavar="ORG/NAME", help="Ziel-Repo"
     )
     ap.add_argument(
         "--years-back",

@@ -18,9 +18,10 @@ sehr schwere Sturmflut  > 3,5 m
 Unterhalb von MThw + 1,5 m spricht das BSH nicht von einer Sturmflut.
 
 Vorbehalt: die offizielle Klassifikation bezieht sich auf den Pegel **Hamburg
-St. Pauli**; dieser ist nicht im Langzeitarchiv. Hier wird das MThw des Pegels
-**Over** aus den Daten selbst geschaetzt und als Bezug genutzt (siehe
-``docs/STURMFLUT_EDA.md``). Alles netzfrei und rein auf uebergebenen Reihen.
+St. Pauli**; dieser ist nicht im Langzeitarchiv. Die Schwellen werden daher
+ueber Datums-Anker linear auf den Pegel **Over** uebersetzt
+(:func:`align_to_stpauli`, siehe ``docs/STURMFLUT_EDA.md``). Alles netzfrei
+und rein auf uebergebenen Reihen.
 """
 
 from __future__ import annotations
@@ -29,11 +30,6 @@ import numpy as np
 import pandas as pd
 
 from . import config
-
-# BSH-Nordsee-Schwellen als Aufschlag auf das MThw (cm).
-STURMFLUT_CM = 150.0  # ab hier "Sturmflut"
-SCHWERE_CM = 250.0  # ab hier "schwere Sturmflut"
-SEHR_SCHWERE_CM = 350.0  # ab hier "sehr schwere Sturmflut"
 
 #: Klassennamen von der niedrigsten zur hoechsten Stufe.
 KLASSEN = ("Sturmflut", "schwere Sturmflut", "sehr schwere Sturmflut")
@@ -99,48 +95,9 @@ def mean_high_water(highs: pd.Series) -> float:
     return float(highs.mean())
 
 
-def classify(above_mthw_cm: float) -> str | None:
-    """BSH-Nordsee-Klasse fuer einen Scheitel ``above_mthw_cm`` cm ueber MThw."""
-    if above_mthw_cm < STURMFLUT_CM:
-        return None
-    if above_mthw_cm < SCHWERE_CM:
-        return KLASSEN[0]
-    if above_mthw_cm < SEHR_SCHWERE_CM:
-        return KLASSEN[1]
-    return KLASSEN[2]
-
-
 def _season(month: np.ndarray, year: np.ndarray) -> np.ndarray:
     """Sturmflut-Saison Jul(y)..Jun(y+1), benannt nach dem Startjahr y."""
     return np.where(month >= 7, year, year - 1)
-
-
-def surge_tides(
-    highs: pd.Series, mthw: float, tz: str = "Europe/Berlin"
-) -> pd.DataFrame:
-    """Alle Thw ueber MThw + 1,5 m als klassifizierte Sturmflut-Tiden.
-
-    Rueckgabe (Index = Scheitelzeit UTC): ``peak_cm``, ``above_mthw`` (cm ueber
-    MThw), ``klasse``, lokale Zeit ``local`` sowie ``year``/``month``/``season``
-    in gesetzlicher Zeit.
-    """
-    above = highs - mthw
-    mask = above >= STURMFLUT_CM
-    peaks = highs[mask]
-    local = peaks.index.tz_convert(tz)
-    df = pd.DataFrame(
-        {
-            "peak_cm": peaks.to_numpy(),
-            "above_mthw": above[mask].to_numpy(),
-            "klasse": [classify(a) for a in above[mask].to_numpy()],
-            "local": local,
-            "year": local.year.to_numpy(),
-            "month": local.month.to_numpy(),
-        },
-        index=peaks.index,
-    )
-    df["season"] = _season(df["month"].to_numpy(), df["year"].to_numpy())
-    return df
 
 
 def annual_mthw(highs: pd.Series, tz: str = "Europe/Berlin") -> pd.Series:
@@ -257,8 +214,9 @@ def flood_tides(
 ) -> pd.DataFrame:
     """Alle Thw ab "Wasser auf dem Gelaende" mit St.-Pauli-Stufe (aligned).
 
-    Rueckgabe wie :func:`surge_tides`, aber ``stufe`` traegt die
-    St.-Pauli-ausgerichtete Klasse (inkl. ``"Wasser auf Gelände"``).
+    Rueckgabe (Index = Scheitelzeit UTC): ``peak_cm``, ``stufe`` (die
+    St.-Pauli-ausgerichtete Klasse inkl. ``"Wasser auf Gelände"``), lokale Zeit
+    ``local`` sowie ``year``/``month``/``season`` in gesetzlicher Zeit.
     """
     floor = thresholds["Wasser auf Gelände"]
     peaks = highs[highs >= floor]
@@ -275,18 +233,3 @@ def flood_tides(
     )
     df["season"] = _season(df["month"].to_numpy(), df["year"].to_numpy())
     return df
-
-
-def cluster_events(times, gap: str = "36h") -> int:
-    """Zahl eigenstaendiger Ereignisse: Scheitel < ``gap`` auseinander = ein Sturm."""
-    ordered = sorted(pd.DatetimeIndex(times))
-    if not ordered:
-        return 0
-    limit = pd.Timedelta(gap)
-    count = 1
-    last = ordered[0]
-    for t in ordered[1:]:
-        if t - last > limit:
-            count += 1
-        last = t
-    return count

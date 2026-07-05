@@ -25,7 +25,7 @@ def main() -> None:
     ap.add_argument(
         "--params",
         default=None,
-        help="params.json aus calibrate.py (Default: params.json falls vorhanden)",
+        help="params.json aus calibrate.py (Default: ./params.json falls vorhanden)",
     )
     ap.add_argument(
         "--out", default="web/public", help="Zielverzeichnis fuer data.json"
@@ -34,21 +34,19 @@ def main() -> None:
         "--hours-back", type=int, default=36, help="Stunden Vergangenheit im Chart"
     )
     ap.add_argument(
+        "--bias-correct",
+        action="store_true",
+        help="mittleres Residuum der letzten 6 h am Pegel Over abziehen",
+    )
+    ap.add_argument(
         "--demo",
         action="store_true",
         help="synthetische Offline-Daten erzeugen (kein Netz; fuer lokalen Dev)",
     )
     args = ap.parse_args()
 
-    params_path = args.params
-    if params_path is None and os.path.exists("params.json"):
-        params_path = "params.json"
-    params = model.Params.load(params_path) if params_path else model.Params()
-    print(
-        f"Modell: tau={params.tau_minutes:.0f} min, Gewichte="
-        f"{tuple(round(w, 3) for w in params.weights())}, "
-        f"Offset={params.offset_cm:+.1f} cm"
-    )
+    params = model.load_params(args.params)
+    print(params.describe())
 
     now = pd.Timestamp.now(tz="UTC")
     if args.demo:
@@ -79,6 +77,10 @@ def main() -> None:
             gauge_zero = pegelonline.gauge_zero_m_nhn("over")  # i. d. R. -5.00
 
     target = model.interpolate(up, down, params)
+    if args.bias_correct and over is not None and len(over):
+        bias = model.recent_bias_cm(target, over, hours=6.0)
+        print(f"Bias-Korrektur: {bias:+.1f} cm (Modell - Beobachtung, letzte 6 h)")
+        target = target - bias
     payload = webexport.build_payload(
         target=target,
         over=over,
