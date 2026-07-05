@@ -15,7 +15,7 @@ Ausgabe in Europe/Berlin.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import pandas as pd
 
@@ -30,6 +30,12 @@ GAP = "36h"
 #: Toleranz, mit der sich zwei Event-Zeitfenster überlappen dürfen, um als
 #: dasselbe Event (Lauf-übergreifend) zu gelten.
 OVERLAP_TOL = "6h"
+#: Hysterese-Band (cm) gegen Zappeln an einer Schwelle bei stündlichen Läufen.
+#: Eröffnet wird exakt an der Marke; geschlossen/herabgestuft erst, wenn der
+#: Scheitel die Schwelle um HYSTERESE_CM klar unterschreitet, höhergestuft erst,
+#: wenn er sie um HYSTERESE_CM klar überschreitet. So erzeugt eine Vorhersage,
+#: die knapp um eine Grenze pendelt, nicht Lauf für Lauf neue Issues/Kommentare.
+HYSTERESE_CM = 5.0
 
 
 @dataclass(frozen=True)
@@ -113,18 +119,26 @@ def detect_events(
     thresholds: dict[str, float],
     *,
     gap: str = GAP,
+    hysterese_cm: float = HYSTERESE_CM,
 ) -> list[Event]:
     """Vorhergesagte Gelände-/Sturmflut-Events aus der Overwerder-Kurve.
 
     Nutzt :func:`sturmflut.tidal_highs`, betrachtet nur künftige Scheitel
-    (``index >= now``) ab der Gelände-Marke und fasst Scheitel, die weniger als
-    ``gap`` auseinanderliegen, zu einem Event zusammen.
+    (``index >= now``) und fasst Scheitel, die weniger als ``gap``
+    auseinanderliegen, zu einem Event zusammen.
+
+    Erkannt wird bereits ab ``Gelände-Marke − hysterese_cm`` (Halte-Schwelle),
+    damit ein knapp unter die Marke fallender Scheitel ein laufendes Event am
+    Leben hält (kein Zappeln). ``stufe`` bleibt die echte Klassifikation des
+    Scheitels und ist ``None``, wenn er die Marke selbst nicht erreicht; das
+    Eröffnen an der echten Marke entscheidet :func:`plan`.
     """
     floor = thresholds.get("Wasser auf Gelände")
     if floor is None or target is None or len(target) == 0:
         return []
+    keep_alive = floor - hysterese_cm
     highs = sturmflut.tidal_highs(target)
-    future = highs[(highs.index >= now) & (highs >= floor)].sort_index()
+    future = highs[(highs.index >= now) & (highs >= keep_alive)].sort_index()
     if future.empty:
         return []
 
@@ -179,12 +193,11 @@ def parse_open_issue(number: int, body: str | None) -> OpenIssue | None:
     if not body or MARKER_PREFIX not in body:
         return None
     start = body.index(MARKER_PREFIX) + len(MARKER_PREFIX)
-    end = body.index("-->", start)
-    try:
-        data = json.loads(body[start:end].strip())
-    except (ValueError, json.JSONDecodeError):
+    end = body.find("-->", start)
+    if end == -1:  # Marker ohne schliessendes "-->": unbrauchbar, aber kein Crash
         return None
     try:
+        data = json.loads(body[start:end].strip())
         return OpenIssue(
             number=number,
             start=pd.Timestamp(data["start"]),
@@ -192,7 +205,7 @@ def parse_open_issue(number: int, body: str | None) -> OpenIssue | None:
             peak_time=pd.Timestamp(data["peak_time"]),
             stufe=str(data["stufe"]),
         )
-    except (KeyError, ValueError):
+    except (KeyError, ValueError, json.JSONDecodeError):
         return None
 
 
@@ -203,20 +216,49 @@ def _overlaps(a: OpenIssue | Event, b: OpenIssue | Event, tol: pd.Timedelta) -> 
     return max(a.start, b.start) <= min(a.end, b.end) + tol
 
 
+def sticky_stufe(
+    prev_stufe: str,
+    peak_cm: float,
+    thresholds: dict[str, float],
+    hysterese_cm: float = HYSTERESE_CM,
+) -> str | None:
+    """Stufe eines laufenden Events mit Hysterese gegen Grenz-Zappeln.
+
+    Ausgehend von ``prev_stufe`` wird nur dann höhergestuft, wenn ``peak_cm`` die
+    nächste Schwelle um ``hysterese_cm`` überschreitet, und nur dann herabgestuft,
+    wenn er die aktuelle Schwelle um ``hysterese_cm`` unterschreitet. ``None``
+    heißt: unter die Gelände-Marke (minus Band) gefallen. Reihenfolge:
+    :data:`sturmflut.STUFEN`.
+    """
+    order = [s for s in sturmflut.STUFEN if s in thresholds]
+    if prev_stufe not in order:  # unbekannt: frische Klassifikation
+        return sturmflut.classify_level(peak_cm, thresholds)
+    i = order.index(prev_stufe)
+    while i + 1 < len(order) and peak_cm >= thresholds[order[i + 1]] + hysterese_cm:
+        i += 1
+    while i >= 0 and peak_cm < thresholds[order[i]] - hysterese_cm:
+        i -= 1
+    return order[i] if i >= 0 else None
+
+
 def plan(
     events: list[Event],
     issues: list[OpenIssue],
     now: pd.Timestamp,
+    thresholds: dict[str, float],
     *,
     overlap_tol: str = OVERLAP_TOL,
+    hysterese_cm: float = HYSTERESE_CM,
 ) -> list[PlannedAction]:
     """Aktionen ableiten: neue Issues, Stufen-Kommentare, Entwarnungen.
 
     Jedes Event wird über Zeitfenster-Überlappung höchstens einem offenen Issue
-    zugeordnet (ein Issue pro Sturm). Ohne Treffer entsteht ein neues Issue; bei
-    Stufen-Änderung ein Kommentar; unveränderte werden nur "getoucht". Offene
-    Issues ohne aktuelles Event werden entwarnt (künftig, aber nicht mehr auf
-    Gelände) bzw. als vorbei geschlossen (Scheitel bereits vergangen).
+    zugeordnet (ein Issue pro Sturm). Eröffnet wird nur an der echten Gelände-
+    Marke (Events im Halte-Band ohne Treffer werden ignoriert); die Stufe eines
+    laufenden Events folgt der Hysterese (:func:`sticky_stufe`), sodass eine um
+    eine Grenze pendelnde Vorhersage keine wechselnden Kommentare erzeugt. Offene
+    Issues ohne aktuelles (Halte-)Event werden entwarnt (künftig, aber klar unter
+    der Marke) bzw. als vorbei geschlossen (Scheitel bereits vergangen).
     """
     tol = pd.Timedelta(overlap_tol)
     actions: list[PlannedAction] = []
@@ -232,9 +274,14 @@ def plan(
             None,
         )
         if match is None:
-            actions.append(PlannedAction("create", event=event, tag=True))
+            # Neues Issue nur, wenn der Scheitel die echte Gelände-Marke erreicht;
+            # Scheitel bloß im Halte-Band (stufe None) eröffnen nichts.
+            if event.stufe is not None:
+                actions.append(PlannedAction("create", event=event, tag=True))
             continue
         used.add(match.number)
+        stufe = sticky_stufe(match.stufe, event.peak_cm, thresholds, hysterese_cm)
+        event = replace(event, stufe=stufe or match.stufe)
         if event.stufe != match.stufe:
             actions.append(
                 PlannedAction(

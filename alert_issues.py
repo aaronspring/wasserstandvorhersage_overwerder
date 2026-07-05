@@ -77,7 +77,7 @@ def main() -> None:
                 open_issues.append(parsed)
     print(f"Offene Alarm-Issues: {len(open_issues)}")
 
-    actions = alerts.plan(events, open_issues, now)
+    actions = alerts.plan(events, open_issues, now, thresholds)
     if not actions:
         print("Nichts zu tun.")
         return

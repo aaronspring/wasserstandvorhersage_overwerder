@@ -88,7 +88,7 @@ NOW = pd.Timestamp("2026-01-10 00:00", tz="UTC")
 
 
 def test_plan_creates_issue_for_new_event():
-    (action,) = alerts.plan([_event()], [], NOW)
+    (action,) = alerts.plan([_event()], [], NOW, THRESHOLDS)
     assert action.kind == "create"
     assert action.tag is True
 
@@ -98,7 +98,7 @@ def test_plan_touch_when_unchanged():
     iss = alerts.OpenIssue(
         number=1, start=ev.start, end=ev.end, peak_time=ev.peak_time, stufe=ev.stufe
     )
-    (action,) = alerts.plan([ev], [iss], NOW)
+    (action,) = alerts.plan([ev], [iss], NOW, THRESHOLDS)
     assert action.kind == "touch"
     assert action.tag is False
 
@@ -112,7 +112,7 @@ def test_plan_comments_on_stufe_change():
         peak_time=ev.peak_time,
         stufe="Wasser auf Gelände",
     )
-    (action,) = alerts.plan([ev], [iss], NOW)
+    (action,) = alerts.plan([ev], [iss], NOW, THRESHOLDS)
     assert action.kind == "change"
     assert action.number == 1
     assert action.prev_stufe == "Wasser auf Gelände"
@@ -129,7 +129,7 @@ def test_plan_retracts_future_event_no_longer_forecast():
         peak_time=peak,
         stufe="Sturmflut",
     )
-    (action,) = alerts.plan([], [iss], NOW)
+    (action,) = alerts.plan([], [iss], NOW, THRESHOLDS)
     assert action.kind == "retract"
     assert action.tag is True
 
@@ -143,7 +143,7 @@ def test_plan_closes_passed_event():
         peak_time=peak,
         stufe="Wasser auf Gelände",
     )
-    (action,) = alerts.plan([], [iss], NOW)
+    (action,) = alerts.plan([], [iss], NOW, THRESHOLDS)
     assert action.kind == "passed"
     assert action.tag is False
 
@@ -158,9 +158,52 @@ def test_plan_matches_drifted_window_to_same_issue():
         peak_time=NOW + pd.Timedelta(hours=14),
         stufe=ev.stufe,
     )
-    (action,) = alerts.plan([ev], [iss], NOW)
+    (action,) = alerts.plan([ev], [iss], NOW, THRESHOLDS)
     assert action.kind == "touch"
     assert action.number == 3
+
+
+def test_plan_ignores_deadband_event_without_issue():
+    # Scheitel nur im Halte-Band (830 < Marke 834), kein offenes Issue -> nichts tun.
+    ev = _event(stufe=None, peak_cm=830.0)
+    assert alerts.plan([ev], [], NOW, THRESHOLDS) == []
+
+
+def test_plan_keeps_issue_open_when_peak_dips_into_band():
+    # Scheitel faellt knapp unter die Marke (831), aber im Band -> Issue bleibt
+    # offen (touch), keine Entwarnung.
+    ev = _event(stufe=None, peak_cm=831.0)
+    iss = alerts.OpenIssue(
+        number=5,
+        start=ev.start,
+        end=ev.end,
+        peak_time=ev.peak_time,
+        stufe="Wasser auf Gelände",
+    )
+    (action,) = alerts.plan([ev], [iss], NOW, THRESHOLDS)
+    assert action.kind == "touch"
+    assert action.event.stufe == "Wasser auf Gelände"
+
+
+def test_sticky_stufe_hysteresis():
+    # Innerhalb des Bandes um eine Grenze bleibt die Stufe haengen ...
+    assert alerts.sticky_stufe("Sturmflut", 981.0, THRESHOLDS) == "Sturmflut"
+    assert alerts.sticky_stufe("schwere Sturmflut", 977.0, THRESHOLDS) == (
+        "schwere Sturmflut"
+    )
+    # ... erst jenseits des Bandes wird um-/herabgestuft.
+    assert alerts.sticky_stufe("Sturmflut", 985.0, THRESHOLDS) == "schwere Sturmflut"
+    assert alerts.sticky_stufe("schwere Sturmflut", 973.0, THRESHOLDS) == "Sturmflut"
+
+
+def test_plan_no_change_on_jitter_across_class_boundary():
+    # Scheitel pendelt knapp ueber die schwere-Grenze (981) -> kein Kommentar.
+    ev = _event(stufe="schwere Sturmflut", peak_cm=981.0)
+    iss = alerts.OpenIssue(
+        number=6, start=ev.start, end=ev.end, peak_time=ev.peak_time, stufe="Sturmflut"
+    )
+    (action,) = alerts.plan([ev], [iss], NOW, THRESHOLDS)
+    assert action.kind == "touch"
 
 
 def test_marker_roundtrip():
