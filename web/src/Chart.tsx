@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Brush,
   CartesianGrid,
@@ -173,9 +173,21 @@ export default function Chart({
   // Angeklickter Zeitpunkt: fixiert eine Ablese-Linie mit Werten je Serie.
   const [pinned, setPinned] = useState<number | null>(null);
 
+  // „jetzt" = echte Uhrzeit im Browser des Nutzers, nicht der Build-Zeitpunkt
+  // aus data.json. Die Seite ist zwar statisch (GitHub Pages), aber dieses JS
+  // laeuft clientseitig -> wir lesen die aktuelle Zeit und ticken minuetlich,
+  // damit die rote Linie mitwandert, solange die Seite offen ist. data.now
+  // bleibt nur Fallback (unten auf den Datenbereich begrenzt).
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setClock(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   // Alles Abgeleitete in einem Memo, damit es nur bei data/narrow/hidden/zoom
   // neu rechnet (nicht bei jedem Render, z. B. Tooltip-Hover oder Drag).
   const {
+    now,
     rows,
     visible,
     refLines,
@@ -215,7 +227,9 @@ export default function Chart({
       const xMax = xs[xs.length - 1] ?? 0;
       // Standardausschnitt: 12 h zurück + 36 h voraus um "jetzt" (auf die
       // vorhandenen Daten begrenzt). Zoom übersteuert diesen Ausschnitt.
-      const nowT = Date.parse(data.now);
+      // "jetzt" = laufende Client-Zeit, auf den Datenbereich geklemmt, damit
+      // die Linie auch bei veralteter data.json noch am Datenrand sichtbar ist.
+      const nowT = Math.min(Math.max(clock, xMin), xMax);
       const dfltLo = Math.max(xMin, nowT - DEFAULT_BACK);
       const dfltHi = Math.min(xMax, nowT + DEFAULT_FWD);
       const zoomed = zoom !== null;
@@ -306,6 +320,7 @@ export default function Chart({
       const atFull = x0 <= xMin + 1 && x1 >= xMax - 1;
 
       return {
+        now: nowT,
         rows,
         visible,
         refLines,
@@ -325,9 +340,8 @@ export default function Chart({
         brushEnd: be,
         atFull,
       };
-    }, [data, narrow, hidden, zoom, showSurges, showSturmflut]);
+    }, [data, narrow, hidden, zoom, showSurges, showSturmflut, clock]);
 
-  const now = Date.parse(data.now);
   const fcStart = Date.parse(data.forecast_start);
 
   // Drag-to-Zoom: activeLabel ist der t-Wert (ms) am Cursor, am nächsten
