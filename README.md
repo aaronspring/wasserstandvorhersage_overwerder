@@ -26,7 +26,7 @@ Vorhersagebeginn) und die Tide-Kennwerte MThw/MTnw als waagerechte Linien.
 
 Da GitHub Pages statisch ist, gibt es **kein Live-Backend**. Die Datendatei
 `web/public/data.json` wird **nicht eingecheckt**, sondern nur erzeugt: In der CI
-(`.github/workflows/deploy.yml`) läuft **alle 6 h** `export_web.py` mit echten
+(`.github/workflows/deploy.yml`) läuft **stündlich** `export_web.py` mit echten
 BSH-/PEGELONLINE-Daten, baut das Frontend und deployt nach Pages. Lokal erzeugt
 `--demo` synthetische Daten ganz ohne Netz.
 

@@ -43,7 +43,7 @@ tests/test_alerts.py     Event-Erkennung + Issue-Abgleich (plan), netzwerkfrei
 
 Die Web-App ist statisch: `export_web.py` schreibt `data.json`, das React-Frontend
 lädt nur diese Datei. `web/public/data.json` wird **nicht eingecheckt** (`.gitignore`):
-Der Workflow `.github/workflows/deploy.yml` erzeugt sie alle 6 h live neu, baut `web/`
+Der Workflow `.github/workflows/deploy.yml` erzeugt sie stündlich live neu, baut `web/`
 und deployt nach GitHub Pages. Für lokalen Dev: `export_web.py --demo` (synthetisch,
 kein Netz).
 

@@ -7,6 +7,11 @@ import type { Payload, SeriesKey } from "./types";
 
 const DATA_URL = `${import.meta.env.BASE_URL}data.json`;
 
+// Die Seite ist statisch: faellt der stuendliche Deploy laenger aus (API- oder
+// Schema-Aenderung bei BSH/PEGELONLINE), zeigt sie sonst kommentarlos veraltete
+// Kurven. Ab diesem Alter der data.json wird deshalb gewarnt.
+const STALE_MS = 6 * 3600 * 1000;
+
 export default function App() {
   const { colors } = useTheme();
   const [data, setData] = useState<Payload | null>(null);
@@ -37,6 +42,15 @@ export default function App() {
       .then((d: Payload) => setData(d))
       .catch((e) => setError(String(e)));
   }, []);
+
+  // Minuetlicher Tick, damit die Veraltet-Warnung auch in einem lange offenen
+  // Tab erscheint (analog zur wandernden „jetzt"-Linie im Chart).
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setClock(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const staleMs = data ? clock - Date.parse(data.generated_at) : 0;
 
   return (
     <div className="app">
@@ -69,6 +83,18 @@ export default function App() {
           </svg>
         </a>
       </header>
+
+      {data && staleMs >= STALE_MS && (
+        <div
+          className="stale-warning"
+          role="alert"
+          style={{ borderColor: colors.gelaende, color: colors.gelaende }}
+        >
+          ⚠️ Daten veraltet: letzte Aktualisierung vor{" "}
+          {Math.round(staleMs / 3600000)} h. Die Vorhersage ist möglicherweise
+          nicht mehr aktuell.
+        </div>
+      )}
 
       <main className="chart-card">
         {error && (

@@ -34,6 +34,11 @@ def main() -> None:
         "--hours-back", type=int, default=36, help="Stunden Vergangenheit im Chart"
     )
     ap.add_argument(
+        "--bias-correct",
+        action="store_true",
+        help="mittleres Residuum der letzten 6 h am Pegel Over abziehen",
+    )
+    ap.add_argument(
         "--demo",
         action="store_true",
         help="synthetische Offline-Daten erzeugen (kein Netz; fuer lokalen Dev)",
@@ -72,6 +77,10 @@ def main() -> None:
             gauge_zero = pegelonline.gauge_zero_m_nhn("over")  # i. d. R. -5.00
 
     target = model.interpolate(up, down, params)
+    if args.bias_correct and over is not None and len(over):
+        bias = model.recent_bias_cm(target, over, hours=6.0)
+        print(f"Bias-Korrektur: {bias:+.1f} cm (Modell - Beobachtung, letzte 6 h)")
+        target = target - bias
     payload = webexport.build_payload(
         target=target,
         over=over,
