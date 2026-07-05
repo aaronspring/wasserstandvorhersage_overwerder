@@ -325,7 +325,7 @@ def plan(
 TZ = "Europe/Berlin"
 
 
-def _local(ts: pd.Timestamp) -> str:
+def fmt_local(ts: pd.Timestamp) -> str:
     """Zeit in gesetzlicher Zeit (Europe/Berlin) als ``TT.MM.JJJJ HH:MM``."""
     return ts.tz_convert(TZ).strftime("%d.%m.%Y %H:%M")
 
@@ -340,7 +340,8 @@ def _height_line(event: Event, gauge_zero_m_nhn: float | None) -> str:
 
 def issue_title(event: Event) -> str:
     """Kurzer Issue-Titel mit höchster Stufe und lokalem Scheiteltag."""
-    return f"⚠️ Overwerder: {event.stufe} vorhergesagt am {_local(event.peak_time)[:10]}"
+    day = fmt_local(event.peak_time)[:10]
+    return f"⚠️ Overwerder: {event.stufe} vorhergesagt am {day}"
 
 
 def issue_body(
@@ -351,9 +352,9 @@ def issue_body(
         f"@{mention} — für **Overwerder** ist **Wasser auf dem Gelände** vorhergesagt.",
         "",
         f"- **Höchste Stufe:** {event.stufe}",
-        f"- **Scheitel:** {_local(event.peak_time)} (gesetzliche Zeit)",
+        f"- **Scheitel:** {fmt_local(event.peak_time)} (gesetzliche Zeit)",
         f"- **Höhe:** {_height_line(event, gauge_zero_m_nhn)}",
-        f"- **Event-Fenster:** {_local(event.start)} – {_local(event.end)}",
+        f"- **Event-Fenster:** {fmt_local(event.start)} – {fmt_local(event.end)}",
         "",
         "Ein Issue pro vorhergesagtem Event. Bei jeder Stufen-Änderung oder der "
         "Entwarnung folgt ein Kommentar.",
@@ -378,7 +379,7 @@ def change_comment(
         [
             f"@{mention} — **{verb}:** {prev} → **{event.stufe}**.",
             "",
-            f"- **Neuer Scheitel:** {_local(event.peak_time)} "
+            f"- **Neuer Scheitel:** {fmt_local(event.peak_time)} "
             f"({_height_line(event, gauge_zero_m_nhn)})",
         ]
     )

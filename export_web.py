@@ -25,7 +25,7 @@ def main() -> None:
     ap.add_argument(
         "--params",
         default=None,
-        help="params.json aus calibrate.py (Default: params.json falls vorhanden)",
+        help="params.json aus calibrate.py (Default: ./params.json falls vorhanden)",
     )
     ap.add_argument(
         "--out", default="web/public", help="Zielverzeichnis fuer data.json"
@@ -40,15 +40,8 @@ def main() -> None:
     )
     args = ap.parse_args()
 
-    params_path = args.params
-    if params_path is None and os.path.exists("params.json"):
-        params_path = "params.json"
-    params = model.Params.load(params_path) if params_path else model.Params()
-    print(
-        f"Modell: tau={params.tau_minutes:.0f} min, Gewichte="
-        f"{tuple(round(w, 3) for w in params.weights())}, "
-        f"Offset={params.offset_cm:+.1f} cm"
-    )
+    params = model.load_params(args.params)
+    print(params.describe())
 
     now = pd.Timestamp.now(tz="UTC")
     if args.demo:

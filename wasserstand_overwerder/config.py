@@ -5,7 +5,6 @@ ELBE_KM = {
     "zollenspieker": 598.3,
     "over": 605.3,  # Messpegel direkt gegenueber Overwerder
     "overwerder": 605.3,  # Zielort: Overwerder
-    "bunthaus": 609.8,
     "st_pauli": 623.1,
 }
 
@@ -24,7 +23,6 @@ PEGELONLINE_STATIONS = {
 # HAMBURG ST. PAULI sind NICHT im Archiv (nur rollierende 31 Tage per REST).
 PEGELONLINE_WEB_BASE = "https://www.pegelonline.wsv.de/gast"
 PEGELONLINE_HISTORY_PARAMETER = "WASSERSTAND ROHDATEN"
-PEGELONLINE_HISTORY_START = "2000-01-01"  # frueheste im Archiv verfuegbare Daten
 # Stations-UUIDs (identisch mit REST-API-v2-"uuid") fuer das Langzeitarchiv.
 PEGELONLINE_STATION_UUIDS = {
     "zollenspieker": "3de8ea26-ab29-4e46-adad-06198ba2e0b7",
@@ -97,21 +95,18 @@ ST_PAULI_ANKER_NN_M = {
 # (PNP = NHN - 5,00 m): grob 100..1100 cm. Dient der Einheiten-Pruefung.
 PLAUSIBLE_CM_PNP = (50.0, 1300.0)
 
+# GitHub-Repo mit Quellcode und Pipeline (Doku-Links, HF-Dataset-Card).
+GITHUB_REPO_URL = "https://github.com/aaronspring/wasserstandvorhersage_overwerder"
+
 # Historische Sturmflut-Scheitel am Pegel Over (cm ueber PNP), Raenge 1/3/5/10.
 # Einzige Quelle fuer Plot (plot.py) und Web-Export (webexport.py); die volle
 # Tabelle samt Methodik steht in docs/TOP_10_STURMFLUTEN.md.
 STURMFLUT_DOC = "docs/TOP_10_STURMFLUTEN.md"
-STURMFLUT_DOC_URL = (
-    "https://github.com/aaronspring/wasserstandvorhersage_overwerder/"
-    "blob/main/docs/TOP_10_STURMFLUTEN.md"
-)
+STURMFLUT_DOC_URL = f"{GITHUB_REPO_URL}/blob/main/{STURMFLUT_DOC}"
 # Sturmflut-EDA (Haeufigkeit/Saison/Trend + "Wasser auf dem Gelaende"); im
 # Web-Chart als Link hinter der Gelaende-Linie verknuepft.
 STURMFLUT_EDA_DOC = "docs/STURMFLUT_EDA.md"
-STURMFLUT_EDA_DOC_URL = (
-    "https://github.com/aaronspring/wasserstandvorhersage_overwerder/"
-    "blob/main/docs/STURMFLUT_EDA.md"
-)
+STURMFLUT_EDA_DOC_URL = f"{GITHUB_REPO_URL}/blob/main/{STURMFLUT_EDA_DOC}"
 STURMFLUT_SCHEITEL_CM = {
     1: (1114, "Xaver 2013"),
     3: (1067, "Tilo 2007"),

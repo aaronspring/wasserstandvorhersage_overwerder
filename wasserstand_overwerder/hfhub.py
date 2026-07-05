@@ -11,16 +11,10 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from .config import PEGELONLINE_HF_REPO
-
-#: Default-Ziel: Dataset-Repo unter https://huggingface.co/aaronspring
-DEFAULT_HF_REPO = PEGELONLINE_HF_REPO
+from .config import GITHUB_REPO_URL, PEGELONLINE_HF_REPO
 
 # Dateien, die zusaetzlich zu den year=YYYY/-Partitionen ins Repo gehoeren.
 _DATASET_CARD = "README.md"
-
-#: GitHub-Repo, das die Pipeline (Download/Build/Upload) enthaelt.
-GITHUB_REPO_URL = "https://github.com/aaronspring/wasserstandvorhersage_overwerder"
 
 
 def _upload_patterns(replace_years: list[int] | None) -> tuple[list[str], list[str]]:
@@ -104,7 +98,7 @@ monatliche inkrementelle Update).
 
 def upload_dataset(
     local_dir: str | Path,
-    repo_id: str = DEFAULT_HF_REPO,
+    repo_id: str = PEGELONLINE_HF_REPO,
     token: str | None = None,
     stations: list[str] | None = None,
     private: bool = False,

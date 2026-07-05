@@ -11,7 +11,13 @@ import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from wasserstand_overwerder.model import Params, calibrate, interpolate, recent_bias_cm
+from wasserstand_overwerder.model import (
+    Params,
+    calibrate,
+    interpolate,
+    load_params,
+    recent_bias_cm,
+)
 
 M2_MIN = 12.42 * 60.0  # M2-Periode in Minuten
 
@@ -89,6 +95,24 @@ def test_params_roundtrip(tmp_path=None):
         p.save(path)
         q = Params.load(path)
     assert q == p
+
+
+def test_load_params_auto_detects_params_json():
+    """Ohne Pfad: ./params.json falls vorhanden, sonst Entfernungs-Defaults."""
+    import tempfile
+
+    p = Params(tau_minutes=72.0, a_up=0.7, a_down=0.3, offset_cm=-2.5)
+    cwd = os.getcwd()
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            os.chdir(d)
+            assert load_params(None) == Params()  # keine Datei -> Defaults
+            p.save("params.json")
+            assert load_params(None) == p  # auto-erkannt
+            Params(tau_minutes=50.0).save("other.json")
+            assert load_params("other.json").tau_minutes == 50.0  # expliziter Pfad
+        finally:
+            os.chdir(cwd)
 
 
 if __name__ == "__main__":

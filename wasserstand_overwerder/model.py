@@ -12,6 +12,7 @@ Zollenspieker -> Overwerder an der Gesamtstrecke.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import asdict, dataclass
 
 import numpy as np
@@ -50,6 +51,22 @@ class Params:
     def load(cls, path: str) -> Params:
         with open(path) as fh:
             return cls(**json.load(fh))
+
+    def describe(self) -> str:
+        """Kurzbeschreibung der Parameter fuer CLI-Ausgaben."""
+        return (
+            f"Modell: tau={self.tau_minutes:.0f} min, "
+            f"Gewichte={tuple(round(w, 3) for w in self.weights())}, "
+            f"Offset={self.offset_cm:+.1f} cm"
+        )
+
+
+def load_params(path: str | None = None) -> Params:
+    """Params laden: expliziter Pfad, sonst ./params.json falls vorhanden,
+    sonst Entfernungs-Defaults."""
+    if path is None and os.path.exists("params.json"):
+        path = "params.json"
+    return Params.load(path) if path else Params()
 
 
 def _on_grid(s: pd.Series, shift_minutes: float = 0.0) -> pd.Series:

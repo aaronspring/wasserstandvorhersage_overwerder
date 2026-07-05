@@ -6,10 +6,11 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from wasserstand_overwerder import hfhub
+from wasserstand_overwerder.config import PEGELONLINE_HF_REPO
 
 
 def test_default_repo_under_aaronspring():
-    assert hfhub.DEFAULT_HF_REPO.startswith("aaronspring/")
+    assert PEGELONLINE_HF_REPO.startswith("aaronspring/")
 
 
 def test_upload_patterns_full_mirror():
