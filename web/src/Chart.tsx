@@ -174,10 +174,10 @@ export default function Chart({
   const [pinned, setPinned] = useState<number | null>(null);
 
   // „jetzt" = echte Uhrzeit im Browser des Nutzers, nicht der Build-Zeitpunkt
-  // aus data.json. Die Seite ist zwar statisch (GitHub Pages), aber dieses JS
-  // laeuft clientseitig -> wir lesen die aktuelle Zeit und ticken minuetlich,
-  // damit die rote Linie mitwandert, solange die Seite offen ist. data.now
-  // bleibt nur Fallback (unten auf den Datenbereich begrenzt).
+  // aus data.json (data.now). Die Seite ist zwar statisch (GitHub Pages), aber
+  // dieses JS laeuft clientseitig -> wir lesen die aktuelle Zeit und ticken
+  // minuetlich, damit die rote Linie mitwandert, solange die Seite offen ist.
+  // Unten auf den Datenbereich begrenzt, falls data.json einmal veraltet ist.
   const [clock, setClock] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setClock(Date.now()), 60_000);
