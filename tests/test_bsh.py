@@ -109,12 +109,25 @@ def test_forecast_uses_dense_curve_not_extremes():
     s = c.forecast("zollenspieker")
     assert s.name == "zollenspieker"
     assert len(s) == 36, len(s)  # 6 + 30 Kurvenpunkte, nicht 2
-    assert set(s.values) == {550.0, 650.0}  # measurement + forecast
+    # Vergangenheit = Messung (550); der Vorhersageteil dockt stetig an und
+    # klingt zur rohen Vorhersage (650) ab -> Werte im Band [550, 650].
+    assert s.min() >= 550.0 - 1e-6 and s.max() <= 650.0 + 1e-6
+    assert float(s.iloc[:6].max()) == 550.0  # reine Messung
+    assert float(s.iloc[-1]) > 640.0  # weit draussen wieder ~rohe Vorhersage
     assert 999.0 not in set(s.values)  # nicht die Tidescheitel
     assert 500.0 not in set(s.values)  # tidal_prediction nur Fallback
     assert s.index.tz is not None  # tz-aware UTC
     assert str(s.index.tz) == "UTC"
     assert s.index.is_monotonic_increasing
+
+
+def test_forecast_docks_smoothly_no_kink():
+    """Die Naht Messung -> Vorhersage darf keinen Sprung mehr zeigen."""
+    c = _mock_client()
+    s = c.forecast("zollenspieker")
+    steps = s.diff().dropna().abs()
+    # Ohne Andockung waere der Naht-Sprung 100 cm (550 -> 650); jetzt glatt.
+    assert steps.max() < 15.0, steps.max()
 
 
 def test_forecast_station_matching():
@@ -127,10 +140,16 @@ def test_forecast_station_matching():
         assert 50.0 < float(s.median()) < 1300.0
 
 
-def test_parse_embedded_value_preference():
+def test_parse_embedded_docks_forecast_to_measurement():
     c = _mock_client()
-    order_probe = c._parse_embedded(_curve(n_past=2, n_future=2))
-    assert list(order_probe.values) == [550.0, 550.0, 650.0, 650.0]
+    s = c._parse_embedded(_curve(n_past=2, n_future=2))
+    vals = list(s.values)
+    assert vals[:2] == [550.0, 550.0]  # Vergangenheit = Messung
+    # erster Vorhersagepunkt dockt exakt an die letzte Messung an (offset0=-100)
+    assert abs(vals[2] - 550.0) < 1e-6
+    # danach klingt die Korrektur Richtung roher Vorhersage (650) ab
+    assert 550.0 < vals[3] < 650.0
+    assert vals[3] > vals[2]
 
 
 def test_value_rank_prefers_forecast_over_measurement():
