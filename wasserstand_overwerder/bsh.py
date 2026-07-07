@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import re
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -45,6 +46,17 @@ _FORECAST_HINTS = (
     "wlf",
     "data",
 )
+# Zeitkonstante (Minuten) fuer das Andocken des Vorhersageteils an die letzte
+# Messung: an der Naht (Ende Messung -> Beginn Vorhersagelauf) weicht das BSH-
+# Modell meist um ein paar cm von der realen Messung ab -> sichtbarer Knick.
+# Die Differenz wird auf den Vorhersageteil aufaddiert und klingt mit dieser
+# Zeitkonstante exponentiell ab (nach ~3*NOWCAST_BLEND_MINUTES praktisch die
+# rohe BSH-Vorhersage).
+NOWCAST_BLEND_MINUTES = 120.0
+
+_FORECAST_FIELD_HINTS = ("forecast", "vorhersage")
+_MEASURE_FIELD_HINTS = ("measure", "mess", "observ", "beob")
+
 _TIME_KEY_HINTS = ("time", "date", "zeit", "stamp")
 _VALUE_KEY_HINTS = (
     "value",
@@ -306,14 +318,59 @@ class BSHClient:
         s = pd.Series(dict(records)).sort_index()
         return s[~s.index.duplicated(keep="last")]
 
+    def _series_from_fields(
+        self, items: list[dict], tkey: str, keys: list[str]
+    ) -> pd.Series | None:
+        """Serie aus genau den angegebenen Wertfeldern (erstes belegtes je Eintrag)."""
+        idx, vals = [], []
+        for it in items:
+            t = it.get(tkey)
+            val = next(
+                (
+                    self._as_float(it[k])
+                    for k in keys
+                    if self._as_float(it.get(k)) is not None
+                ),
+                None,
+            )
+            if t is None or val is None:
+                continue
+            idx.append(t)
+            vals.append(val)
+        if not vals:
+            return None
+        s = pd.Series(vals, index=pd.to_datetime(idx, utc=True)).sort_index()
+        return s[~s.index.duplicated(keep="last")]
+
+    @staticmethod
+    def _dock_forecast(meas: pd.Series, fcst: pd.Series) -> pd.Series | None:
+        """Vorhersage stetig an die letzte Messung andocken (Knick entfernen).
+
+        Vergangenheit bleibt Messung, ab Vorhersagebeginn (`fcst.index[0]`) wird
+        die BSH-Vorhersage genutzt, aber um die Naht-Differenz (letzte Messung -
+        erster Vorhersagewert) verschoben; diese Korrektur klingt exponentiell
+        mit :data:`NOWCAST_BLEND_MINUTES` ab. Ohne Messung vor dem
+        Vorhersagebeginn nicht andockbar -> None (Fallback auf Standardlogik).
+        """
+        t0 = fcst.index[0]
+        past = meas[meas.index < t0]
+        if past.empty:
+            return None
+        offset0 = float(past.iloc[-1]) - float(fcst.iloc[0])
+        dt_min = (fcst.index - t0).total_seconds().to_numpy() / 60.0
+        corrected = fcst + offset0 * np.exp(-dt_min / NOWCAST_BLEND_MINUTES)
+        out = pd.concat([past, corrected])
+        return out[~out.index.duplicated(keep="last")].sort_index()
+
     def _parse_embedded(self, items: list[dict]) -> pd.Series | None:
         """Eingebettete Zeitreihe (Liste von Dicts) -> Serie.
 
         Das Zeit- und das Wertfeld koennen je Eintrag unterschiedlich belegt
         sein (BSH-Kurve: Vergangenheit hat `measurement`, Zukunft
-        `automated_curve_forecast`). Pro Eintrag wird das hoechstrangige
-        vorhandene Wertfeld gewaehlt (_value_rank) und aus String/Zahl
-        gelesen.
+        `automated_curve_forecast`). Liegen Mess- und Vorhersagefeld getrennt
+        vor, wird der Vorhersageteil stetig an die letzte Messung angedockt
+        (`_dock_forecast`), sonst pro Eintrag das hoechstrangige vorhandene
+        Wertfeld gewaehlt (_value_rank).
         """
         if not items:
             return None
@@ -328,6 +385,22 @@ class BSHClient:
         }
         if not cand:
             return None
+
+        # Getrennte Mess-/Vorhersagefelder -> Naht glaetten (Knick entfernen).
+        meas_keys = [
+            k for k in cand if any(h in k.lower() for h in _MEASURE_FIELD_HINTS)
+        ]
+        fcst_keys = [
+            k for k in cand if any(h in k.lower() for h in _FORECAST_FIELD_HINTS)
+        ]
+        if meas_keys and fcst_keys:
+            meas = self._series_from_fields(items, tkey, meas_keys)
+            fcst = self._series_from_fields(items, tkey, fcst_keys)
+            if meas is not None and fcst is not None:
+                docked = self._dock_forecast(meas, fcst)
+                if docked is not None and len(docked) >= 2:
+                    return docked
+
         order = sorted(cand, key=lambda k: (self._value_rank(k), k))
         idx, vals = [], []
         for it in items:
