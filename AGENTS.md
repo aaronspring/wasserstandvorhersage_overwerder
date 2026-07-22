@@ -28,6 +28,7 @@ wasserstand_overwerder/
 calibrate.py      CLI: fittet tau/Gewichte/Offset gegen Pegel Over -> params.json
 forecast.py       CLI: erzeugt out/overwerder_forecast.{csv,png}; --explore
 analyse_sturmfluten.py CLI: Sturmflut-EDA (Haeufigkeit/Saison/Trend) -> docs/sturmflut_*.png
+analyse_over_zollenspieker.py CLI: Messvergleich Over<->Zollenspieker bei Sturmfluten
 export_web.py     CLI: erzeugt web/public/data.json (BSH + PEGELONLINE) fuers Frontend
 alert_issues.py   CLI: liest data.json, legt/aktualisiert Ueberflutungs-Issues (GitHub)
 build_history.py  CLI: voller Backfill des jaehrl. Parquet-Archivs (einmalig)
@@ -69,6 +70,7 @@ uv run python calibrate.py --days 30     # braucht Netz (PEGELONLINE)
 uv run python forecast.py --params params.json --out out/   # braucht Netz (BSH)
 uv run python forecast.py --explore      # BSH-API-Struktur dumpen
 uv run python analyse_sturmfluten.py     # Sturmflut-EDA -> docs/sturmflut_*.png (braucht Netz/HF)
+uv run python analyse_over_zollenspieker.py  # Over vs. Zollenspieker -> docs/over_zollenspieker_*.png
 uv run python export_web.py --out web/public          # data.json (braucht Netz)
 uv run python export_web.py --demo --out web/public   # data.json synthetisch (kein Netz)
 uv run python alert_issues.py --data web/public/data.json --dry-run  # Alarm-Plan zeigen (kein Netz/Token)
@@ -103,6 +105,12 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   `bsh.py` heuristisch erkannt. Bei Schema-Änderungen `--explore` nutzen und
   `config.py` (`BSH_STATION_PATTERNS`, `BSH_DATUM_OFFSET_CM`) anpassen, nicht
   die Heuristik hart verdrahten.
+- **Kein BSH-Vorhersagearchiv:** die API hat genau eine Collection
+  (`waterlevelforecastdata`) mit einem Feature je Pegel, das immer den
+  **aktuellen** Lauf traegt — kein `datetime`-Filter, keine alten Laeufe. Eine
+  Verifikation vergangener Vorhersagen ist deshalb nur moeglich, wenn man die
+  stuendlichen `data.json` selbst wegschreibt. Was mit Messdaten geht, steht in
+  `docs/OVER_ZOLLENSPIEKER.md`.
 - **Sandbox-Hinweis:** In Claude-Code-Remote-Umgebungen sind
   `gdi.bsh.de`/`pegelonline.wsv.de` u. U. per Egress-Policy blockiert —
   Netz-Codepfade dann nur per Mock/Synthetik testen (`tests/test_model.py`).
