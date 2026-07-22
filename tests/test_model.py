@@ -15,6 +15,7 @@ from wasserstand_overwerder.model import (
     Params,
     calibrate,
     interpolate,
+    is_plausible,
     load_params,
     recent_bias_cm,
 )
@@ -76,6 +77,44 @@ def test_interpolate_matches_target():
     rmse = float(np.sqrt(((both["est"] - both["obs"]) ** 2).mean()))
     assert rmse < 5.0, rmse
     assert abs(recent_bias_cm(est, target)) < 3.0
+
+
+def test_calibrate_marks_free_fit():
+    """Der gesunde Fall bleibt der freie Fit (nicht eingeschraenkt)."""
+    up, down, target, _ = build_scenario()
+    _, metrics = calibrate(up, down, target)
+    assert metrics["restricted"] is False, metrics
+
+
+def test_is_plausible_rejects_degenerate():
+    assert is_plausible(Params(tau_minutes=60.0, a_up=0.6, a_down=0.4, offset_cm=5.0))
+    # Kollaps auf einen Pegel plus grosse Konstante (so gesehen vor Xaver 2013)
+    assert not is_plausible(
+        Params(tau_minutes=170.0, a_up=1.08, a_down=0.03, offset_cm=-85.0)
+    )
+    assert not is_plausible(Params(a_up=-0.2, a_down=1.2, offset_cm=0.0))  # negativ
+    assert not is_plausible(Params(a_up=0.7, a_down=0.3, offset_cm=-80.0))  # Offset
+
+
+def test_calibrate_falls_back_when_only_degenerate_fits():
+    """Laesst sich das Ziel nur mit riesigem Offset treffen, ist jeder freie Fit
+    entartet -> eingeschraenkte Kalibrierung mit festen Entfernungsgewichten."""
+    up, down, _, _ = build_scenario()
+    target = up - 200.0  # kein Gewichtspaar in [0,1] kommt ohne grossen c aus
+    params, metrics = calibrate(up, down, target)
+    assert metrics["restricted"] is True, metrics
+    assert metrics["rejected"] > 0, metrics
+    assert params.weights() == Params().weights()  # Gewichte kamen nicht aus den Daten
+
+
+def test_calibrate_keeps_weights_plausible():
+    """Egal wie die Daten aussehen: die Gewichte bleiben eine Konvexkombination."""
+    up, down, target, _ = build_scenario()
+    for obs in (target, up - 90.0, down + 40.0):
+        params, _ = calibrate(up, down, obs)
+        a_up, a_down = params.weights()
+        assert 0.0 <= a_up <= 1.0 and 0.0 <= a_down <= 1.0, params
+        assert 0.8 <= a_up + a_down <= 1.2, params
 
 
 def test_default_params_reasonable():

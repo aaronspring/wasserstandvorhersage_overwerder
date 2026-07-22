@@ -22,6 +22,13 @@ from .config import ELBE_KM
 
 GRID = "1min"
 
+# Plausibilitaetsschranken fuer die Kalibrierung. Erwartet wird eine
+# Konvexkombination beider Stuetzpegel plus kleiner Offset; alles andere ist
+# ein entarteter Fit (siehe is_plausible).
+WEIGHT_BOUNDS = (0.0, 1.0)
+WEIGHT_SUM_BOUNDS = (0.8, 1.2)
+OFFSET_LIMIT_CM = 50.0
+
 
 @dataclass
 class Params:
@@ -96,6 +103,54 @@ def interpolate(up: pd.Series, down: pd.Series, params: Params) -> pd.Series:
     return est
 
 
+def is_plausible(params: Params) -> bool:
+    """Liegen die gefitteten Parameter im physikalisch sinnvollen Bereich?
+
+    Der freie Fit ist bei 30 Tagen Normaltide nicht immer identifizierbar: er
+    kann auf "nur ein Stuetzpegel plus grosser Konstante" kollabieren
+    (a_down ~ 0, Offset ~ -100 cm). In-sample sieht das gut aus, bei Sturmflut
+    liegt es um Dezimeter daneben (Beleg: docs/OVER_ZOLLENSPIEKER.md).
+    """
+    a_up, a_down = params.weights()
+    lo, hi = WEIGHT_BOUNDS
+    if not (lo <= a_up <= hi and lo <= a_down <= hi):
+        return False
+    s_lo, s_hi = WEIGHT_SUM_BOUNDS
+    if not (s_lo <= a_up + a_down <= s_hi):
+        return False
+    return abs(params.offset_cm) <= OFFSET_LIMIT_CM
+
+
+def _design(
+    up: pd.Series, down: pd.Series, target_g: pd.Series, base: Params, tau: float
+) -> pd.DataFrame | None:
+    """Beide Stuetzpegel um ``tau`` verschoben und mit dem Ziel gemeinsam auf
+    ein Raster gebracht; None, wenn zu wenig Ueberlappung bleibt."""
+    f = base.frac
+    df = pd.concat(
+        {
+            "up": _on_grid(up, shift_minutes=-tau * f),
+            "down": _on_grid(down, shift_minutes=+tau * (1.0 - f)),
+            "obs": target_g,
+        },
+        axis=1,
+        join="inner",
+    ).dropna()
+    return None if len(df) < 100 else df
+
+
+def _metrics(pred: np.ndarray, obs: np.ndarray, tau: float) -> dict:
+    resid = obs - pred
+    return {
+        "rmse_cm": float(np.sqrt(np.mean(resid**2))),
+        "mae_cm": float(np.mean(np.abs(resid))),
+        "bias_cm": float(np.mean(resid)),
+        "corr": float(np.corrcoef(pred, obs)[0, 1]),
+        "n": int(len(obs)),
+        "tau_minutes": float(tau),
+    }
+
+
 def calibrate(
     up: pd.Series,
     down: pd.Series,
@@ -106,6 +161,13 @@ def calibrate(
     """Fit (tau, a_up, a_down, c) per Gittersuche + linearer Regression.
 
     target: Beobachtungen am Pegel Over (cm ueber PNP).
+
+    Es gewinnt der beste Fit, der :func:`is_plausible` erfuellt — ein
+    niedrigeres RMSE rettet entartete Parameter nicht. Findet die Gittersuche
+    gar keinen plausiblen Fit, wird auf einen **eingeschraenkten** Fit
+    zurueckgefallen (Gewichte fest auf den Entfernungsanteilen, nur tau und
+    Offset frei); ``metrics["restricted"]`` sagt, welcher Weg genommen wurde.
+
     Rueckgabe: (Params, Metriken des besten Fits).
     """
     base = base or Params()
@@ -113,49 +175,74 @@ def calibrate(
         tau_grid = np.arange(0.0, 181.0, 5.0)
     target_g = _on_grid(target)
     best: tuple[float, Params, dict] | None = None
+    rejected = 0
     for tau in tau_grid:
-        p = Params(
+        df = _design(up, down, target_g, base, float(tau))
+        if df is None:
+            continue
+        A = np.column_stack([df["up"], df["down"], np.ones(len(df))])
+        obs = df["obs"].to_numpy()
+        coef, *_ = np.linalg.lstsq(A, obs, rcond=None)
+        fitted = Params(
             **{
                 **asdict(base),
                 "tau_minutes": float(tau),
-                "a_up": None,
-                "a_down": None,
-                "offset_cm": 0.0,
+                "a_up": float(coef[0]),
+                "a_down": float(coef[1]),
+                "offset_cm": float(coef[2]),
             }
         )
-        f = p.frac
-        up_g = _on_grid(up, shift_minutes=-tau * f)
-        down_g = _on_grid(down, shift_minutes=+tau * (1.0 - f))
-        df = pd.concat(
-            {"up": up_g, "down": down_g, "obs": target_g}, axis=1, join="inner"
-        ).dropna()
-        if len(df) < 100:
+        if not is_plausible(fitted):
+            rejected += 1
             continue
-        A = np.column_stack([df["up"], df["down"], np.ones(len(df))])
-        coef, *_ = np.linalg.lstsq(A, df["obs"].to_numpy(), rcond=None)
-        resid = df["obs"].to_numpy() - A @ coef
-        rmse = float(np.sqrt(np.mean(resid**2)))
-        if best is None or rmse < best[0]:
-            fitted = Params(
+        metrics = _metrics(A @ coef, obs, float(tau))
+        if best is None or metrics["rmse_cm"] < best[0]:
+            best = (metrics["rmse_cm"], fitted, metrics)
+    if best is not None:
+        best[2].update(restricted=False, rejected=rejected)
+        return best[1], best[2]
+    fallback = _calibrate_restricted(up, down, target_g, base, tau_grid)
+    if fallback is None:
+        raise RuntimeError("Kalibrierung fehlgeschlagen: zu wenig ueberlappende Daten.")
+    params, metrics = fallback
+    metrics.update(restricted=True, rejected=rejected)
+    return params, metrics
+
+
+def _calibrate_restricted(
+    up: pd.Series,
+    down: pd.Series,
+    target_g: pd.Series,
+    base: Params,
+    tau_grid: np.ndarray,
+) -> tuple[Params, dict] | None:
+    """Eingeschraenkter Fit: Gewichte fest, nur tau und Offset frei.
+
+    Kann nicht entarten, weil die Gewichte nicht aus den Daten kommen: sie
+    bleiben auf den Entfernungsanteilen (``Params.weights`` ohne a_up/a_down).
+    """
+    a_up, a_down = Params(**{**asdict(base), "a_up": None, "a_down": None}).weights()
+    best: tuple[float, Params, dict] | None = None
+    for tau in tau_grid:
+        df = _design(up, down, target_g, base, float(tau))
+        if df is None:
+            continue
+        obs = df["obs"].to_numpy()
+        mix = a_up * df["up"].to_numpy() + a_down * df["down"].to_numpy()
+        offset = float(np.mean(obs - mix))
+        metrics = _metrics(mix + offset, obs, float(tau))
+        if best is None or metrics["rmse_cm"] < best[0]:
+            params = Params(
                 **{
-                    **asdict(p),
-                    "a_up": float(coef[0]),
-                    "a_down": float(coef[1]),
-                    "offset_cm": float(coef[2]),
+                    **asdict(base),
+                    "tau_minutes": float(tau),
+                    "a_up": a_up,
+                    "a_down": a_down,
+                    "offset_cm": offset,
                 }
             )
-            metrics = {
-                "rmse_cm": rmse,
-                "mae_cm": float(np.mean(np.abs(resid))),
-                "bias_cm": float(np.mean(resid)),
-                "corr": float(np.corrcoef(A @ coef, df["obs"])[0, 1]),
-                "n": int(len(df)),
-                "tau_minutes": float(tau),
-            }
-            best = (rmse, fitted, metrics)
-    if best is None:
-        raise RuntimeError("Kalibrierung fehlgeschlagen: zu wenig ueberlappende Daten.")
-    return best[1], best[2]
+            best = (metrics["rmse_cm"], params, metrics)
+    return None if best is None else (best[1], best[2])
 
 
 def recent_bias_cm(

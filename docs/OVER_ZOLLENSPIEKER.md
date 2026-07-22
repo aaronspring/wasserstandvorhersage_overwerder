@@ -9,6 +9,7 @@ Sturmfluten?*
 - [Ergebnis](#ergebnis)
 - [Die zehn höchsten Ereignisse](#die-zehn-höchsten-ereignisse)
 - [Was das fürs Vorhersagemodell heißt](#was-das-fürs-vorhersagemodell-heißt)
+- [Hindcast: extrapoliert das Modell in den Sturmflutbereich?](#hindcast-extrapoliert-das-modell-in-den-sturmflutbereich)
 - [Datengrundlage & Methodik](#datengrundlage--methodik)
 - [Vorbehalte](#vorbehalte)
 
@@ -102,6 +103,47 @@ Top-10-Ereignissen 2–77 cm). Der Stützpegel bildet also vor allem den
   nie einen Sturmflutfall. Der Sturmflut-Bias ist damit unbeobachtet; die
   Nowcast-Korrektur (`recent_bias_cm`, `NOWCAST_BLEND_MINUTES`) fängt ihn nur
   kurzfristig ab. Siehe [`CAVEAT.md`](CAVEAT.md).
+
+## Hindcast: extrapoliert das Modell in den Sturmflutbereich?
+
+Gegenprobe mit **gemessenen** Stützpegeln — Zollenspieker und, weil St. Pauli
+kein Langzeitarchiv hat, dem WSV-Pegel **Cranz** (km 634,4). Kalibriert wird auf
+den 31 Tagen **vor** dem Ereignis (endend 24 h vor dem Scheitel), angewendet auf
+das Ereignisfenster. Das isoliert den Interpolationsfehler; der BSH-Fehler kommt
+im Betrieb obendrauf. 9 der 10 Top-Ereignisse (2000 fehlt, Cranz-Archiv beginnt
+später):
+
+| Variante | Median \|Scheitelfehler\| | Median RMSE (±15 h) |
+|---|---:|---:|
+| statische Parameter | 4,0 cm | 11,2 cm |
+| 30-Tage-Rekalibrierung | **2,6 cm** | 8,9 cm |
+| Orakel (auf dem Ereignis selbst gefittet) | 1,6 cm | 6,6 cm |
+
+Das Modell wird auf Tiden ≤ ~850 cm kalibriert und trifft Scheitel von
+1008–1114 cm auf wenige cm — die Extrapolation bricht **nicht** zusammen, und
+zum Orakel fehlt nur ~1 cm.
+
+**Aber der freie Fit kann entarten.** Vor Xaver 2013 und der Januarflut 2002
+lieferte die 30-Tage-Kalibrierung `tau ≈ 165 min` (statt 55–65), `a_up ≈ 1,1`,
+`a_down ≈ 0,03` und einen Offset von −85 bzw. −116 cm: das Modell kollabiert auf
+„nur Zollenspieker plus große Konstante". In-sample gehörte das zu den besten
+RMSE des Feldes — der Fit merkt es also nicht. Am Sturmflutscheitel lag es dann
++18 bzw. +36 cm daneben.
+
+Deshalb prüft `model.calibrate` die Kandidaten jetzt gegen
+`model.is_plausible` (Gewichte in [0, 1], Summe 0,8–1,2, |Offset| ≤ 50 cm) und
+nimmt den besten **plausiblen** Fit; findet sich keiner, wird eingeschränkt
+kalibriert (Gewichte fest auf den Entfernungsanteilen, nur `tau` und Offset aus
+den Daten, `metrics["restricted"]`). Wirkung im selben Hindcast:
+
+| Ereignis | Scheitelfehler vorher → nachher | RMSE vorher → nachher |
+|---|---|---|
+| 2013-12-06 (Xaver) | +18,4 → **+4,7 cm** | 20,8 → 11,3 cm |
+| 2002-01-29 | +36,1 → **+4,7 cm** | 35,6 → 12,0 cm |
+
+Die übrigen sieben Ereignisse bleiben unverändert, der maximale Scheitelfehler
+sinkt von 36,1 auf 5,7 cm. In-sample kostet die Schranke fast nichts (RMSE der
+Kalibrierung 7,4 → 7,6 bzw. 8,2 → 8,7 cm).
 
 ## Datengrundlage & Methodik
 

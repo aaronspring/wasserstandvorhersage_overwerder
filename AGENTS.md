@@ -117,6 +117,13 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
 - **Kalibrier-Identifizierbarkeit:** Bei rein sinusförmigen Testdaten ist die
   Laufzeit `tau` nicht identifizierbar; synthetische Tiden brauchen Obertiden
   (siehe `synthetic_tide` in den Tests).
+- **Kalibrierung ist eingezäunt:** `model.calibrate` nimmt den besten Fit, der
+  `model.is_plausible` erfüllt (Gewichte in [0, 1], Summe 0,8–1,2, |Offset|
+  ≤ 50 cm), sonst einen eingeschränkten Fit mit festen Entfernungsgewichten
+  (`metrics["restricted"]`). Grund: der freie Fit kollabiert auf 30 Tagen
+  Normaltide gelegentlich auf „nur ein Stützpegel plus große Konstante" — in
+  sample unauffällig, am Sturmflutscheitel bis 36 cm daneben. Schranken nicht
+  aufweichen, ohne den Hindcast in `docs/OVER_ZOLLENSPIEKER.md` nachzurechnen.
 - PEGELONLINE-REST-API (`pegelonline.py`) liefert max. die letzten **31 Tage**
   (`--days` entsprechend). Fuer aeltere Daten das **Langzeitarchiv** nutzen:
   `history.fetch_history` / `build_history.py` (minuetliche Rohdaten ab
