@@ -37,9 +37,9 @@ def _tide_extrema(
 ) -> list[tuple[pd.Timestamp, float, bool]]:
     """Naechste Tide-Scheitel (Hoch-/Niedrigwasser) der Zielserie.
 
-    Liefert je bis zu zwei Flut- (lokales Maximum) und Ebbe-Scheitel (lokales
-    Minimum) ab ``now``, chronologisch sortiert. Rueckgabe je Eintrag:
-    ``(zeitpunkt, wert_cm, ist_flut)``.
+    Liefert je bis zu zwei Hochwasser- (lokales Maximum) und Niedrigwasser-
+    Scheitel (lokales Minimum) ab ``now``, chronologisch sortiert. Rueckgabe je
+    Eintrag: ``(zeitpunkt, wert_cm, ist_hochwasser)``.
     """
     if target is None or len(target) < 3:
         return []
@@ -166,12 +166,12 @@ def plot_forecast(
             url=STURMFLUT_DOC_URL,
         )
 
-    # Naechste Tide-Scheitel (2x Flut / 2x Ebbe) als Textbox einblenden.
+    # Naechste Tide-Scheitel (2x Hochwasser / 2x Niedrigwasser) als Textbox einblenden.
     extrema = _tide_extrema(target, now)
     if extrema:
         lines = ["Nächste Scheitel Overwerder:"]
         for t, cm, is_high in extrema:
-            kind = "Flut " if is_high else "Ebbe "
+            kind = "Hochwasser " if is_high else "Niedrigwasser "
             lines.append(f"{kind} {t.tz_convert(TZ):%d.%m. %H:%M}  {cm:.0f} cm")
         ax.annotate(
             "\n".join(lines),

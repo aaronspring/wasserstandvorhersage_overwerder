@@ -67,11 +67,12 @@ function toRows(series: Payload["series"]): Row[] {
 export interface TideExtreme {
   t: number;
   v: number;
-  high: boolean; // true = Flut (lokales Maximum), false = Ebbe (lokales Minimum)
+  high: boolean; // true = Hochwasser (lokales Maximum), false = Niedrigwasser (lokales Minimum)
 }
 
 // Naechste Tide-Scheitel der Overwerder-Vorhersage ab `now`: je bis zu zwei
-// Flut- (lokales Maximum) und Ebbe-Scheitel (lokales Minimum), chronologisch.
+// Hochwasser- (lokales Maximum) und Niedrigwasser-Scheitel (lokales Minimum),
+// chronologisch.
 function tideExtrema(pts: Point[] | undefined, now: number): TideExtreme[] {
   if (!pts || pts.length < 3) return [];
   const xs = pts.map(([iso, v]) => ({ t: Date.parse(iso), v }));
@@ -298,7 +299,7 @@ export default function Chart({
           prevDay = d;
         }
       }
-      // Naechste Tide-Scheitel (2x Flut / 2x Ebbe) fuer die Info-Box.
+      // Naechste Tide-Scheitel (2x Hochwasser / 2x Niedrigwasser) fuer die Info-Box.
       const extrema = tideExtrema(data.series.overwerder, nowT);
       // Brush-Griffe auf die Datenzeilen abbilden, die das aktuelle X-Fenster
       // begrenzen. Die Übersichtsleiste zeigt den GESAMTEN Zeitraum; die Griffe
@@ -432,7 +433,9 @@ export default function Chart({
           <div className="tide-info-title">Nächste Scheitel Over</div>
           {extrema.map((e) => (
             <div key={e.t} className="tide-info-row">
-              <span className="tide-info-kind">{e.high ? "Flut" : "Ebbe"}</span>
+              <span className="tide-info-kind">
+                {e.high ? "Hochwasser" : "Niedrigwasser"}
+              </span>
               <span className="tide-info-time">
                 {fmtDateShort(e.t)} {fmtTime(e.t)}
               </span>
