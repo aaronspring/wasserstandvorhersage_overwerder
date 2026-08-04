@@ -130,7 +130,7 @@ body {
   color: var(--ink);
 }
 
-/* Info-Box: naechste Tide-Scheitel (2x Flut / 2x Ebbe) unten rechts im Chart,
+/* Info-Box: naechste Tide-Scheitel (2x Hochwasser / 2x Niedrigwasser) unten rechts im Chart,
    oberhalb von X-Achse und Uebersichtsleiste. */
 .tide-info {
   position: absolute;
