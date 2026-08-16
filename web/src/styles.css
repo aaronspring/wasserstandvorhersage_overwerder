@@ -159,13 +159,20 @@ body {
 
 .tide-info-row {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   white-space: nowrap;
 }
 
 .tide-info-kind {
   font-weight: 600;
-  width: 2.4em;
+  flex: none;
+  /* Breite auf das laengste Label ("Niedrigwasser") fixiert, damit die
+     Zeit-Spalte buendig startet und der Text nicht ueberlappt (Handy). */
+  width: 8.3em;
+}
+
+.tide-info-time {
+  flex: none;
 }
 
 .tide-info-val {
