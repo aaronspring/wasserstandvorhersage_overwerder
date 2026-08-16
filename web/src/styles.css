@@ -81,6 +81,12 @@ body {
   font-size: 0.9rem;
 }
 
+.head .sub .moon {
+  font-size: 1.05em;
+  cursor: help;
+  vertical-align: -0.05em;
+}
+
 .head .updated {
   margin: 2px 0 0;
   color: var(--muted);

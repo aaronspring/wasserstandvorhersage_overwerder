@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import Chart, { SERIES } from "./Chart";
 import { fmtDateTime } from "./format";
+import { moonPhase } from "./moon";
 import { useTheme } from "./theme";
 import type { Payload, SeriesKey } from "./types";
 
@@ -52,12 +53,26 @@ export default function App() {
   }, []);
   const staleMs = data ? clock - Date.parse(data.generated_at) : 0;
 
+  // Aktuelle Mondphase (treibt ueber Spring-/Nipptide die Tide-Amplitude);
+  // an den Minuten-Tick gekoppelt, damit sie auch im lange offenen Tab folgt.
+  const moon = moonPhase(clock);
+
   return (
     <div className="app">
       <header className="head">
         <div className="head-text">
           <h1>Wasserstandsvorhersage Overwerder</h1>
-          <p className="sub">Tideelbe · km 605,3</p>
+          <p className="sub">
+            Tideelbe · km 605,3 ·{" "}
+            <span
+              className="moon"
+              title={`Mondphase: ${moon.label}`}
+              aria-label={`Mondphase: ${moon.label}`}
+              role="img"
+            >
+              {moon.emoji}
+            </span>
+          </p>
           {data && (
             <p className="updated">
               aktualisiert {fmtDateTime(Date.parse(data.generated_at))} Uhr
