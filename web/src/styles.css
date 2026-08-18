@@ -143,23 +143,23 @@ body {
   bottom: 84px;
   right: 12px;
   z-index: 2;
-  padding: 4px 6px;
+  padding: 3px 5px;
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   border: 1px solid;
   border-radius: 8px;
-  font-size: 0.66rem;
-  line-height: 1.28;
+  font-size: 0.62rem;
+  line-height: 1.2;
   pointer-events: none;
 }
 
 .tide-info-title {
   font-weight: 600;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 
 .tide-info-row {
   display: flex;
-  gap: 7px;
+  gap: 5px;
   white-space: nowrap;
 }
 
