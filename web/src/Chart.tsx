@@ -21,6 +21,7 @@ import {
   fmtTime,
   fmtWeekday,
 } from "./format";
+import { moonPhase } from "./moon";
 import type { Colors } from "./theme";
 import { useNarrow } from "./theme";
 import type { Payload, Point, SeriesKey } from "./types";
@@ -102,6 +103,7 @@ function nearestRow(rows: Row[], t: number): Row | undefined {
 }
 
 const HOUR = 3600 * 1000;
+const DAY = 24 * HOUR;
 
 // Kleinere Ziehstrecke als das gilt als Tippen (Ablese-Linie), nicht als Zoom.
 const MIN_ZOOM_SPAN = 30 * 60 * 1000;
@@ -152,6 +154,40 @@ function makeTicks(min: number, max: number, step: number): number[] {
   return out;
 }
 
+export interface MoonMark {
+  t: number;
+  emoji: string;
+  label: string;
+  // true = Tag, in den "jetzt" faellt (heutige Mondphase).
+  today: boolean;
+}
+
+// Mondphasen-Leiste ueber dem Chart (sekundaere X-Achse): je sichtbarem
+// Kalendertag ein Emoji, gesetzt in die Mitte des sichtbaren Tagesanteils.
+// Dadurch zeigt die Leiste immer die heutige Phase und beim Herauszoomen
+// zusaetzlich die der Folgetage (Standardfenster ~2 Tage, ganzer Zeitraum
+// ~6 Tage) — die Tide-Amplitude folgt dem Mond (Spring-/Nipptide).
+function moonMarks(x0: number, x1: number, now: number): MoonMark[] {
+  const span = x1 - x0;
+  if (!(span > 0)) return [];
+  const off = berlinOffsetMs(x0);
+  const dayOf = (t: number) => Math.floor((t + off) / DAY) * DAY - off;
+  const nowDay = dayOf(now);
+  const out: MoonMark[] = [];
+  // Die Abschnitte zerlegen das Fenster lueckenlos, es bleibt also immer
+  // mindestens einer uebrig (auch tief hineingezoomt innerhalb eines Tages).
+  for (let d = dayOf(x0); d < x1; d += DAY) {
+    const lo = Math.max(d, x0);
+    const hi = Math.min(d + DAY, x1);
+    // Schmale Randstreifen auslassen, damit am Rand nichts klebt/ueberlappt.
+    if (hi - lo < span * 0.06) continue;
+    const t = (lo + hi) / 2;
+    const { emoji, label } = moonPhase(t);
+    out.push({ t, emoji, label, today: d === nowDay });
+  }
+  return out;
+}
+
 export default function Chart({
   data,
   colors,
@@ -198,6 +234,7 @@ export default function Chart({
     xDomain,
     yDomain,
     ticks,
+    moon,
     labelSet,
     dense,
     extrema,
@@ -299,6 +336,8 @@ export default function Chart({
           prevDay = d;
         }
       }
+      // Mondphasen-Leiste ueber dem Chart (sekundaere X-Achse).
+      const moon = moonMarks(x0, x1, nowT);
       // Naechste Tide-Scheitel (2x Hochwasser / 2x Niedrigwasser) fuer die Info-Box.
       const extrema = tideExtrema(data.series.overwerder, nowT);
       // Brush-Griffe auf die Datenzeilen abbilden, die das aktuelle X-Fenster
@@ -331,6 +370,7 @@ export default function Chart({
         xDomain: [x0, x1] as [number, number],
         yDomain: [yLo, yHi] as [number, number],
         ticks: tk,
+        moon,
         labelSet,
         dense,
         extrema,
@@ -458,6 +498,25 @@ export default function Chart({
           }}
         >
           <CartesianGrid stroke={colors.grid} vertical={false} />
+        {/* Sekundaere X-Achse oben: Mondphase je sichtbarem Tag. Die Achsenhoehe
+            haelt oberhalb der Emojis Platz fuer die absolut positionierten
+            Zoom-Buttons (.chart-controls) frei, die sonst die Leiste
+            ueberdecken wuerden. */}
+        <XAxis
+          xAxisId="moon"
+          type="number"
+          dataKey="t"
+          scale="time"
+          orientation="top"
+          domain={xDomain}
+          allowDataOverflow
+          ticks={moon.map((m) => m.t)}
+          tickLine={false}
+          axisLine={false}
+          tick={(props) => <MoonTick {...props} marks={moon} />}
+          height={42}
+          interval={0}
+        />
         <XAxis
           type="number"
           dataKey="t"
@@ -691,6 +750,37 @@ export default function Chart({
         </LineChart>
       </ResponsiveContainer>
     </div>
+  );
+}
+
+// Tick der Mond-Achse: Emoji fuer die Phase des jeweiligen Tages. Der Tag mit
+// "jetzt" wird hervorgehoben, die Folgetage stehen gedaempft daneben.
+function MoonTick({
+  x,
+  y,
+  payload,
+  marks,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value: number };
+  marks: MoonMark[];
+}) {
+  if (x == null || y == null || !payload) return null;
+  const m = marks.find((v) => v.t === payload.value);
+  if (!m) return null;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <title>{`Mondphase ${fmtDateShort(m.t)}: ${m.label}`}</title>
+      <text
+        textAnchor="middle"
+        dy={-3}
+        fontSize={m.today ? 16 : 13}
+        opacity={m.today ? 1 : 0.55}
+      >
+        {m.emoji}
+      </text>
+    </g>
   );
 }
 
