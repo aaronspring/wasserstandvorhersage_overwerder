@@ -96,6 +96,13 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   (`WASSER_AUF_GELAENDE_OVER_CM`) dauerhaft und die BSH-Klassen-Schwellen
   (`STURMFLUT_STUFEN_OVER_CM`: Sturmflut/schwere/sehr schwere) per Legenden-
   Toggle „Sturmflut-Stufen" (Default aus, da weit ueber Normaltide).
+- **Mondphasen-Leiste:** ueber dem Chart laeuft eine zweite X-Achse
+  (`xAxisId="moon"` in `web/src/Chart.tsx`) mit je einem Emoji pro sichtbarem
+  Kalendertag, gesetzt in die Mitte des sichtbaren Tagesanteils; der Tag mit
+  "jetzt" ist hervorgehoben. Phase netzfrei aus `web/src/moon.ts`. Die
+  Achsenhoehe haelt bewusst Platz fuer die absolut positionierten Zoom-Buttons
+  (`.chart-controls`) frei — beim Aendern nicht knapper machen, sonst
+  ueberdecken die Buttons die Emojis.
 - **Tide-Richtung:** die Tidewelle läuft stromauf; Elbe-km wächst stromab.
   St. Pauli führt zeitlich, Zollenspieker läuft nach. Vorzeichen der
   Zeitverschiebungen in `model.interpolate` nicht "vereinfachen".
