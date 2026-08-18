@@ -143,12 +143,12 @@ body {
   bottom: 84px;
   right: 12px;
   z-index: 2;
-  padding: 5px 8px;
+  padding: 4px 6px;
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   border: 1px solid;
   border-radius: 8px;
-  font-size: 0.72rem;
-  line-height: 1.35;
+  font-size: 0.66rem;
+  line-height: 1.28;
   pointer-events: none;
 }
 
@@ -159,7 +159,7 @@ body {
 
 .tide-info-row {
   display: flex;
-  gap: 10px;
+  gap: 7px;
   white-space: nowrap;
 }
 
