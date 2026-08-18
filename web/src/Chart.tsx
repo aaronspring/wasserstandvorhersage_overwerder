@@ -562,12 +562,13 @@ export default function Chart({
             stroke={colors.ref}
             strokeDasharray="2 4"
             ifOverflow={zoomed ? "hidden" : "extendDomain"}
-            label={{
-              value: `${r.k} ${Math.round(r.v as number)}`,
-              position: "insideTopLeft",
-              fill: colors.muted,
-              fontSize: 10,
-            }}
+            label={
+              <RefTickLabel
+                text={r.k}
+                value={Math.round(r.v as number)}
+                color={colors.muted}
+              />
+            }
           />
         ))}
 
@@ -779,6 +780,51 @@ function MoonTick({
         opacity={m.today ? 1 : 0.55}
       >
         {m.emoji}
+      </text>
+    </g>
+  );
+}
+
+// Label fuer die MThw/MTnw-Referenzlinien: die Zahl steht links in der
+// Y-Achsen-Spalte (dort, wo die Achsenbeschriftung/Ticks sitzen), die Kennung
+// ("MThw"/"MTnw") direkt daneben im Diagramm. viewBox kommt von Recharts:
+// bei waagerechter Linie ist {x} der linke Diagrammrand und {y} die Linienhoehe.
+function RefTickLabel({
+  viewBox,
+  text,
+  value,
+  color,
+}: {
+  viewBox?: { x?: number; y?: number };
+  text: string;
+  value: number;
+  color: string;
+}) {
+  const x = viewBox?.x;
+  const y = viewBox?.y;
+  if (x == null || y == null) return null;
+  return (
+    <g>
+      <text
+        x={x - 6}
+        y={y}
+        textAnchor="end"
+        dominantBaseline="central"
+        fill={color}
+        fontSize={11}
+        fontWeight={600}
+      >
+        {value}
+      </text>
+      <text
+        x={x + 4}
+        y={y}
+        textAnchor="start"
+        dominantBaseline="central"
+        fill={color}
+        fontSize={10}
+      >
+        {text}
       </text>
     </g>
   );
