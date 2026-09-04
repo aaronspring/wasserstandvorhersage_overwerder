@@ -555,22 +555,33 @@ export default function Chart({
           }}
         />
 
-        {refLines.map((r) => (
-          <ReferenceLine
-            key={r.k}
-            y={r.v as number}
-            stroke={colors.ref}
-            strokeDasharray="2 4"
-            ifOverflow={zoomed ? "hidden" : "extendDomain"}
-            label={
-              <RefTickLabel
-                text={r.k}
-                value={Math.round(r.v as number)}
-                color={colors.muted}
-              />
-            }
-          />
-        ))}
+        {refLines
+          // Im Zoom die Linie selbst ausblenden, wenn sie ausserhalb der
+          // Y-Skala liegt (statt ifOverflow="hidden") — sonst clippt Recharts
+          // die gesamte Label-Ebene auf die Plotflaeche und die Zahl in der
+          // Y-Achsen-Spalte (links des Plots) verschwaende. Sichtbare Linien
+          // daher mit ifOverflow="visible" ohne Clip zeichnen.
+          .filter(
+            (r) =>
+              !zoomed ||
+              ((r.v as number) >= yDomain[0] && (r.v as number) <= yDomain[1]),
+          )
+          .map((r) => (
+            <ReferenceLine
+              key={r.k}
+              y={r.v as number}
+              stroke={colors.ref}
+              strokeDasharray="2 4"
+              ifOverflow={zoomed ? "visible" : "extendDomain"}
+              label={
+                <RefTickLabel
+                  text={r.k}
+                  value={Math.round(r.v as number)}
+                  color={colors.muted}
+                />
+              }
+            />
+          ))}
 
         {gelaende !== null && (
           <ReferenceLine
