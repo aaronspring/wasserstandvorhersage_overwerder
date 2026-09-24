@@ -137,3 +137,14 @@ if __name__ == "__main__":
                 fn()
             print(f"ok  {name}")
     print("Alle Tests bestanden.")
+
+
+def test_restrict_to_years_drops_utc_spillover_hour():
+    # Abruf ab 2025-01-01 MEZ beginnt 2024-12-31 23:00 UTC -> year=2024.
+    idx = pd.date_range("2024-12-31 23:00", periods=120, freq="min", tz="UTC")
+    frame = history.series_to_frame(pd.Series(range(120), index=idx), "over")
+    assert sorted(frame["year"].unique()) == [2024, 2025]
+    out = history.restrict_to_years(frame, [2025, 2026])
+    assert sorted(out["year"].unique()) == [2025]
+    assert len(out) == 60
+    assert out["time"].min() == pd.Timestamp("2025-01-01 00:00", tz="UTC")
