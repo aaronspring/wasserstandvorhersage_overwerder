@@ -67,6 +67,9 @@ def main() -> None:
     print(f"Inkrementelles Update: Jahre {years} ({start} .. {end})")
 
     df = history.fetch_station_frames(args.stations, start, end, rest_fallback=False)
+    # Start ist gesetzliche Zeit -> die erste Stunde faellt ins UTC-Vorjahr;
+    # nur die geplanten Jahre bauen/ersetzen, aeltere Partitionen nie anfassen.
+    df = history.restrict_to_years(df, years)
     if df.empty:
         raise SystemExit("Keine Daten geladen.")
 

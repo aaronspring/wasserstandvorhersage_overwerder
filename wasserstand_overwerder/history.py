@@ -206,6 +206,17 @@ def write_parquet(
     return out
 
 
+def restrict_to_years(frame: pd.DataFrame, years) -> pd.DataFrame:
+    """Nur Zeilen der UTC-Jahre ``years`` behalten.
+
+    Ein Abruf ab ``YYYY-01-01`` (gesetzliche Zeit, MEZ = UTC+1) beginnt bereits
+    am 31.12. des Vorjahres um 23:00 UTC. Ohne diesen Filter landet diese Stunde
+    in ``year=YYYY-1`` und ein inkrementelles Update wuerde die komplette
+    Vorjahres-Partition durch 60 Minuten ersetzen.
+    """
+    return frame[frame["year"].isin(list(years))].reset_index(drop=True)
+
+
 def read_parquet(out_dir: str | Path) -> pd.DataFrame:
     """Partitioniertes Parquet-Dataset einlesen (bequem fuer Tests/Analyse)."""
     dataset = ds.dataset(str(out_dir), format="parquet", partitioning="hive")
