@@ -10,8 +10,10 @@ und das Hinterland hinter dem Hauptdeich bleibt trocken.
 Die Ueberlaufhoehe haengt nur vom Gelaende ab (morphologische Rekonstruktion
 durch Erosion) und wird einmal berechnet. Danach ist jede Zeitreihe billig:
 Beginn = erster Zeitschritt, in dem das laufende Maximum des Wasserstands die
-Ueberlaufhoehe erreicht. Fliesswiderstand und Einstroemzeit fehlen: Das
-Ergebnis ist der fruehestmoegliche Beginn.
+Ueberlaufhoehe erreicht. Beim Ablauf faellt der Spiegel einer Zelle nur bis auf
+ihre Ueberlaufhoehe: Senken hinter Sommerdeichen behalten Stauwasser, das mit
+einer waehlbaren Rate (Siele/Versickerung) sinkt. Fliesswiderstand und
+Einstroemzeit fehlen: Der Beginn ist der fruehestmoegliche.
 
 Gelaende: DGM1 2022 (1-m-Raster, ETRS89/UTM32 = EPSG:25832, Hoehen m ueber
 NHN/DHHN2016, +/- 15 cm) aus dem Transparenzportal Hamburg; Datenlizenz
@@ -164,38 +166,88 @@ def spill_elevation(z: np.ndarray, river: np.ndarray) -> np.ndarray:
 
 
 def flood_timing(
-    spill: np.ndarray, z: np.ndarray, level_m_nhn: pd.Series
+    spill: np.ndarray,
+    z: np.ndarray,
+    level_m_nhn: pd.Series,
+    drain_m_per_h: float = 0.0,
+    pond_min_m: float = 0.01,
 ) -> dict[str, np.ndarray]:
     """Zeitpunkte und Kennwerte je Zelle fuer eine Wasserstandskurve (m NHN).
+
+    Ablauf: Faellt der Strom unter die Ueberlaufhoehe, laeuft eine Zelle nur bis
+    auf diese Schwelle leer. In Senken hinter einem Sommerdeich bleibt Wasser
+    bis zur Deichkrone stehen (Tiefe ``spill - z``) und sinkt danach mit
+    ``drain_m_per_h`` (Siele/Versickerung; 0 = bleibt bis Reihenende stehen).
 
     Rueckgabe (alle wie ``z``, NaN/NaT = bleibt trocken):
 
     * ``onset``: erster Zeitpunkt nass (datetime64[ns], UTC)
-    * ``end``: letzter Zeitpunkt nass
-    * ``hours_wet``: Summe der nassen Zeit in Stunden (mehrere Tiden addieren)
+    * ``inflow_end``: Ende des letzten Zeitschritts mit Verbindung zum Strom
+    * ``end``: Zelle wieder trocken (bei stehendem Wasser ggf. erst danach)
+    * ``hours_wet``: nasse Zeit in Stunden (Verbindung zum Strom + Stauwasser)
     * ``max_depth``: maximale Wassertiefe in m (Scheitel - Gelaende)
+    * ``residual_depth``: Stauwasser-Tiefe am Reihenende in m (0 = abgelaufen)
     """
     level = level_m_nhn.sort_index().dropna()
     t = level.index.tz_convert("UTC").tz_localize(None).values
     h = level.to_numpy(dtype=float)
     dt_h = np.diff(t).astype("timedelta64[s]").astype(float) / 3600.0
     dt_h = np.append(dt_h, np.median(dt_h) if len(dt_h) else 0.0)
+    step = (dt_h * 3600e9).astype("timedelta64[ns]")
 
     wet = np.isfinite(spill) & (spill <= h.max())
     s = np.where(wet, spill, np.inf)
-    i_on = np.searchsorted(np.maximum.accumulate(h), s, side="left")
-    i_off = len(h) - 1 - np.searchsorted(np.maximum.accumulate(h[::-1]), s, side="left")
-    # nasse Dauer: Zeitschritte mit h >= spill, gewichtet mit ihrer Laenge
+    i_on = np.minimum(
+        np.searchsorted(np.maximum.accumulate(h), s, side="left"), len(h) - 1
+    )
+    i_off = np.clip(
+        len(h) - 1 - np.searchsorted(np.maximum.accumulate(h[::-1]), s, side="left"),
+        0,
+        len(h) - 1,
+    )
+    # Dauer mit Verbindung: Zeitschritte mit h >= spill, gewichtet mit Laenge
     order = np.argsort(h)
-    cum = np.concatenate([[0.0], np.cumsum(dt_h[order][::-1])])  # Dauer >= Schwelle
-    k = len(h) - np.searchsorted(h[order], s, side="left")
+    cum = np.concatenate([[0.0], np.cumsum(dt_h[order][::-1])])
+    connected_h = cum[len(h) - np.searchsorted(h[order], s, side="left")]
+
+    # Stauwasser nach dem letzten Kontakt bis Reihenende (bzw. bis abgelaufen)
+    inflow_end = t[i_off] + step[i_off]
+    left_h = (t[-1] + step[-1] - inflow_end) / np.timedelta64(1, "h")
+    pond = np.where(wet & (spill - z >= pond_min_m), spill - z, 0.0)
+    pond_h = left_h if drain_m_per_h <= 0 else np.minimum(pond / drain_m_per_h, left_h)
+    pond_h = np.where(pond > 0, pond_h, 0.0)
+    residual = pond if drain_m_per_h <= 0 else pond - drain_m_per_h * pond_h
+    pond_end = inflow_end + (pond_h * 3600e9).astype("timedelta64[ns]")
+
     nat = np.datetime64("NaT", "ns")
     return {
-        "onset": np.where(wet, t[np.minimum(i_on, len(t) - 1)], nat),
-        "end": np.where(wet, t[np.clip(i_off, 0, len(t) - 1)], nat),
-        "hours_wet": np.where(wet, cum[k], np.nan),
+        "onset": np.where(wet, t[i_on], nat),
+        "inflow_end": np.where(wet, inflow_end, nat),
+        "end": np.where(wet, np.where(pond > 0, pond_end, t[i_off]), nat),
+        "hours_wet": np.where(wet, connected_h + pond_h, np.nan),
         "max_depth": np.where(wet, h.max() - z, np.nan),
+        "residual_depth": np.where(wet, np.maximum(residual, 0.0), np.nan),
     }
+
+
+def depth_at(
+    spill: np.ndarray,
+    z: np.ndarray,
+    level_m_nhn: pd.Series,
+    when: pd.Timestamp,
+    drain_m_per_h: float = 0.0,
+    pond_min_m: float = 0.01,
+) -> np.ndarray:
+    """Wassertiefe (m, NaN = trocken) zum Zeitpunkt ``when``: verbundene Zellen
+    stehen auf Stromniveau, Senken behalten ihr Stauwasser (sinkend mit
+    ``drain_m_per_h``)."""
+    past = level_m_nhn.sort_index().dropna()[:when]
+    tm = flood_timing(spill, z, past, drain_m_per_h, pond_min_m)
+    now = past.index[-1].tz_convert("UTC").tz_localize(None).to_datetime64()
+    hrs = np.maximum((now - tm["inflow_end"]) / np.timedelta64(1, "h"), 0.0)
+    surface = np.maximum(past.iloc[-1], spill - drain_m_per_h * hrs)
+    depth = np.where(np.isnat(tm["onset"]), np.nan, surface - z)
+    return np.where(depth >= pond_min_m, depth, np.nan)
 
 
 def height_timing_table(

@@ -26,6 +26,7 @@ wasserstand_overwerder/
   plot.py         matplotlib-Plot
   webexport.py    baut data.json fuer die Web-App (netzfrei, build_payload)
   inundation.py   DGM1 (LGV) laden + Ueberlauf-/Ueberflutungs-Zeitpunkte je 1-m-Zelle
+  inundation_plot.py Grafiken dazu (Uebersicht, Gelaende, Querprofil, Verlauf, GIF)
 calibrate.py      CLI: fittet tau/Gewichte/Offset gegen Pegel Over -> params.json
 forecast.py       CLI: erzeugt out/overwerder_forecast.{csv,png}; --explore
 analyse_sturmfluten.py CLI: Sturmflut-EDA (Haeufigkeit/Saison/Trend) -> docs/sturmflut_*.png
@@ -82,7 +83,7 @@ HF_TOKEN=... uv run python build_history.py --start 2000-01-01 --end 2026-07-01 
     --stations over zollenspieker --hf-repo   # einmaliger Backfill -> Hugging Face
 HF_TOKEN=... uv run python update_history.py  # inkrementelles Monatsupdate -> HF
 uv sync --extra gelaende                  # rasterio/remotezip/scikit-image fuers DGM1
-uv run python inundation.py --recent     # Ueberflutungs-Zeitpunkte (braucht Netz: LGV + PEGELONLINE)
+uv run python inundation.py --recent --animate  # Ueberflutungs-Zeitpunkte + Grafiken (Netz: LGV + PEGELONLINE)
 cd web && npm ci && npm run build        # Frontend bauen (Typecheck + Vite)
 cd web && npm run dev                    # Frontend lokal (data.json vorher erzeugen)
 ```
@@ -157,7 +158,9 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   See 1,00 m) -> `water_fill_mask`, sonst wirkt die Elbe als 2-m-Schwelle.
   Download-ZIP liegt auf `archiv.transparenz.hamburg.de` (alte
   daten-hamburg.de-Links 404); Kacheln per HTTP-Range, Cache `out/dgm1/`.
-  Extra `gelaende` ist optional und wird lazy importiert.
+  Extra `gelaende` ist optional und wird lazy importiert. Ablauf: Spiegel faellt
+  nur bis zur Ueberlaufhoehe (Stauwasser in abflusslosen Mulden, `--drain-cm-h`);
+  Profil/Kartenausschnitt/Beschriftungen in `config.INUNDATION_*`.
 - Sprache: Doku/CLI-Ausgaben auf Deutsch, Bezeichner im Code auf Englisch.
 
 ## Tests vor dem Commit

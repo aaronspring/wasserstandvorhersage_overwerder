@@ -4,11 +4,14 @@
 Laedt (einmalig, gecacht) die DGM1-Kacheln des LGV Hamburg, berechnet je
 1-m-Zelle die Ueberlaufhoehe vom Strom aus und daraus fuer eine
 Wasserstandskurve am Pegel Over: Beginn, Ende, nasse Dauer und maximale Tiefe.
-Ergebnis: GeoTIFFs, eine Tabelle Gelaendehoehe -> Zeitpunkt und eine Grafik.
+Beim Ablauf bleibt Stauwasser in Senken hinter Sommerdeichen bis zur
+Ueberlaufhoehe stehen (``--drain-cm-h`` laesst es sinken). Ergebnis:
+GeoTIFFs, eine Tabelle Gelaendehoehe -> Zeitpunkt und Grafiken (Uebersicht,
+Gelaendekarte, Querprofil, Verlauf; mit ``--animate`` zusaetzlich ein GIF).
 
     uv sync --extra gelaende
     python inundation.py --data web/public/data.json        # aktuelle Vorhersage
-    python inundation.py --recent                           # hoechste Tide, 31 Tage
+    python inundation.py --recent --animate                 # hoechste Tide, 31 Tage
     python inundation.py --event 2013-12-06                 # Xaver (PEGELONLINE-Archiv)
     python inundation.py --demo --peak-cm 960               # synthetische Sturmflut
 """
@@ -20,7 +23,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from wasserstand_overwerder import config, inundation
+from wasserstand_overwerder import config, inundation, inundation_plot
 
 
 def level_from_data_json(path: str) -> tuple[pd.Series, float]:
@@ -75,69 +78,6 @@ def area_mask(terrain: inundation.Terrain, bbox) -> np.ndarray:
     return ((y >= ymin) & (y <= ymax))[:, None] & ((x >= xmin) & (x <= xmax))[None, :]
 
 
-def plot(terrain, timing, level_m, tide, table, peak, area_bbox, out: Path) -> Path:
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
-    rel_min = (
-        timing["onset"] - peak.tz_localize(None).to_datetime64()
-    ) / np.timedelta64(1, "m")
-    fig, axes = plt.subplots(1, 3, figsize=(18, 6), width_ratios=[1.2, 1, 1])
-    ax = axes[0]
-    ax.imshow(terrain.z, cmap="gray", vmin=0, vmax=9, extent=terrain.extent)
-    im = ax.imshow(
-        rel_min, cmap="viridis", vmin=np.nanmin(rel_min), vmax=0, extent=terrain.extent
-    )
-    fig.colorbar(im, ax=ax, shrink=0.8, label="Beginn relativ zum Scheitel [min]")
-    xmin, ymin, xmax, ymax = area_bbox
-    ax.plot([xmin, xmax, xmax, xmin, xmin], [ymin, ymin, ymax, ymax, ymin], "r--", lw=1)
-    ax.set_title("Ueberflutungsbeginn in der Sturmtide (DGM1 2022)")
-    ax.ticklabel_format(useOffset=False, style="plain")
-    ax.tick_params(labelsize=7)
-
-    ax = axes[1]
-    win = pd.Timedelta(hours=18)
-    loc = level_m[peak - win : peak + win].tz_convert("Europe/Berlin")
-    ax.plot(loc.index, loc.values, color="#1f77b4")
-    ax.axvspan(tide.index[0], tide.index[-1], color="C1", alpha=0.1, label="Sturmtide")
-    ax.legend(loc="upper right", fontsize=8)
-    for zc in np.arange(2.5, 4.51, 0.5):
-        ax.axhline(zc, color="0.6", lw=0.6, ls=":")
-        ax.text(loc.index[0], zc, f" {zc:.1f} m", fontsize=7, va="bottom", color="0.4")
-    ax.set_ylabel("Wasserstand Over [m NHN]")
-    ax.set_title("Wasserstand und Gelaendehoehen")
-    fig.autofmt_xdate()
-
-    ax = axes[2]
-    tab = table[table["cells"] >= 50]
-    rel = (tab["onset_median"] - peak).dt.total_seconds() / 60.0
-    ax.plot(tab.index, rel, "o-", label="Beginn - Scheitel [min]")
-    ax.plot(tab.index, tab["hours_wet_median"] * 60.0, "s-", label="nasse Dauer [min]")
-    ax.axhline(0, color="k", lw=0.5)
-    ax.set_xlabel("Gelaendehoehe [m NHN] (0,1-m-Klassen, Auswerteflaeche)")
-    ax.set_ylabel("Minuten")
-    ax2 = ax.twinx()
-    ax2.bar(tab.index, tab["wet_share"], width=0.08, alpha=0.2, color="C2")
-    ax2.set_ylabel("Anteil nass", color="C2")
-    ax2.set_ylim(0, 1.05)
-    ax.legend(loc="upper left", fontsize=8)
-    ax.set_xlim(1.5, max(5.0, float(tab.index.max()) + 0.2))
-    ax.set_title("Wie die Gelaendehoehe den Zeitpunkt steuert")
-    fig.text(
-        0.99,
-        0.01,
-        "Gelaende: DGM1 (c) LGV Hamburg, dl-de/by-2-0",
-        ha="right",
-        fontsize=7,
-    )
-    fig.tight_layout()
-    p = out / "inundation.png"
-    fig.savefig(p, dpi=110)
-    return p
-
-
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     src = ap.add_mutually_exclusive_group(required=True)
@@ -155,6 +95,13 @@ def main() -> None:
         "--tiles", default="out/dgm1", help="Cache-Verzeichnis DGM1-Kacheln"
     )
     ap.add_argument("--out", default="out/inundation", help="Ausgabeverzeichnis")
+    ap.add_argument(
+        "--drain-cm-h",
+        type=float,
+        default=config.INUNDATION_DRAIN_M_PER_H * 100.0,
+        help="Ablauf von Stauwasser aus Senken in cm/h (Default 0: bleibt stehen)",
+    )
+    ap.add_argument("--animate", action="store_true", help="zusaetzlich animation.gif")
     ap.add_argument(
         "--area-bbox",
         type=float,
@@ -198,7 +145,8 @@ def main() -> None:
     terrain = inundation.load_terrain(paths, config.INUNDATION_BBOX)
     river = inundation.river_mask(terrain.z)
     spill = inundation.spill_elevation(terrain.z, river)
-    timing = inundation.flood_timing(spill, terrain.z, tide)
+    drain = args.drain_cm_h / 100.0
+    timing = inundation.flood_timing(spill, terrain.z, tide, drain)
 
     area = area_mask(terrain, args.area_bbox) & (spill < config.VORLAND_MAX_SPILL_M)
     table = inundation.height_timing_table(terrain.z, timing, area)
@@ -212,6 +160,7 @@ def main() -> None:
         "onset_min_rel_peak": rel_min,
         "hours_wet": timing["hours_wet"],
         "max_depth_m": timing["max_depth"],
+        "residual_depth_m": timing["residual_depth"],
     }.items():
         inundation.write_geotiff(out / f"{name}.tif", terrain, data)
 
@@ -223,7 +172,34 @@ def main() -> None:
     if wet.any():
         first = pd.Timestamp(np.nanmin(timing["onset"][wet])).tz_localize("UTC")
         print(f"erste nasse Zelle: {first.tz_convert('Europe/Berlin'):%d.%m. %H:%M}")
-    print(f"-> {plot(terrain, timing, level, tide, table, peak, args.area_bbox, out)}")
+    pond = timing["residual_depth"][area & (timing["residual_depth"] > 0)]
+    print(
+        f"Stauwasser am Ende der Sturmtide: {pond.size / 1e4:.1f} ha, "
+        f"Median {np.median(pond) if pond.size else 0:.2f} m, "
+        f"Max {pond.max() if pond.size else 0:.2f} m (Ablauf {args.drain_cm_h:g} cm/h)"
+    )
+
+    gelaende_m = config.WASSER_AUF_GELAENDE_OVER_CM / 100.0 + gauge_zero
+    plots = [
+        inundation_plot.summary(
+            terrain, timing, level, tide, table, peak, args.area_bbox, out
+        ),
+        inundation_plot.terrain_map(
+            terrain, river, spill, args.area_bbox, gelaende_m, out
+        ),
+        inundation_plot.profile(
+            terrain, river, spill, level, tide, peak, gelaende_m, drain, out
+        ),
+        inundation_plot.snapshots(terrain, river, spill, tide, peak, drain, out),
+    ]
+    if args.animate:
+        plots.append(
+            inundation_plot.animation(
+                terrain, river, spill, tide, gelaende_m, drain, out
+            )
+        )
+    for p in plots:
+        print(f"-> {p}")
     print(f"-> {out}/hoehe_zeitpunkt.csv, *.tif")
 
 

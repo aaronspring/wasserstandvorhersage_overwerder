@@ -47,13 +47,42 @@ def test_flood_timing_onset_duration_depth():
     assert out["end"][0, 15] == np.datetime64("2026-01-01T05:00")
     assert out["hours_wet"][0, 15] == 4.0
     np.testing.assert_allclose(out["max_depth"][0, 15], 0.7)
-    # Senke (2,0 m) erst mit Deichueberstroemung um 03:00, dann 1 h, Tiefe 1,2 m
+    assert out["residual_depth"][0, 15] == 0.0
+    # Senke (2,0 m) erst mit Deichueberstroemung um 03:00, Tiefe 1,2 m; danach
+    # bleibt sie bis zur Deichkrone (1,0 m) gefuellt bis zum Reihenende 07:00
     assert out["onset"][0, 25] == np.datetime64("2026-01-01T03:00")
-    assert out["hours_wet"][0, 25] == 1.0
+    assert out["inflow_end"][0, 25] == np.datetime64("2026-01-01T04:00")
+    assert out["end"][0, 25] == np.datetime64("2026-01-01T07:00")
+    assert out["hours_wet"][0, 25] == 4.0
     np.testing.assert_allclose(out["max_depth"][0, 25], 1.2)
+    np.testing.assert_allclose(out["residual_depth"][0, 25], 1.0)
     # Hinterland bleibt trocken, obwohl es tiefer liegt
     assert np.isnat(out["onset"][0, 40])
     assert np.isnan(out["hours_wet"][0, 40])
+
+
+def test_pond_drains_with_rate():
+    z = terrain()
+    spill = inundation.spill_elevation(z, inundation.river_mask(z))
+    idx = pd.date_range("2026-01-01", periods=7, freq="1h", tz="UTC")
+    level = pd.Series([2.0, 2.4, 2.6, 3.2, 2.9, 2.6, 2.0], index=idx)
+    out = inundation.flood_timing(spill, z, level, drain_m_per_h=0.5)
+    # 1,0 m Stauwasser / 0,5 m/h = 2 h nach Kontaktende 04:00
+    assert out["end"][0, 25] == np.datetime64("2026-01-01T06:00")
+    assert out["hours_wet"][0, 25] == 3.0
+    assert out["residual_depth"][0, 25] == 0.0
+
+    at = pd.Timestamp("2026-01-01T05:00", tz="UTC")
+    d0 = inundation.depth_at(spill, z, level, at)
+    np.testing.assert_allclose(d0[0, 15], 0.1)  # Vorland folgt dem Strom
+    np.testing.assert_allclose(d0[0, 25], 1.0)  # Senke bis zur Deichkrone voll
+    assert np.isnan(d0[0, 40])
+    d1 = inundation.depth_at(spill, z, level, at, drain_m_per_h=0.5)
+    # 1 h Ablauf seit 04:00 -> 2,5 m, aber nicht unter Strom (2,6 m, Siel zu)
+    np.testing.assert_allclose(d1[0, 25], 0.6)
+    late = pd.Timestamp("2026-01-01T06:00", tz="UTC")
+    assert np.isnan(inundation.depth_at(spill, z, level, late)[0, 15])
+    assert np.isnan(inundation.depth_at(spill, z, level, late, 0.5)[0, 25])
 
 
 def test_higher_ground_floods_later():
