@@ -13,6 +13,8 @@ den Zeitpunkt bestimmt.
 
 ![Verlauf stündlich](inundation_verlauf_2026-10-26.png)
 
+![Gebäude mit Nummern](inundation_gebaeude_2026-10-26.png)
+
 ## Daten
 
 | | |
@@ -22,6 +24,21 @@ den Zeitpunkt bestimmt.
 | Download | per HTTP-Range nur die 1-km-Kacheln des Ausschnitts (`remotezip`), Cache `out/dgm1/` |
 | Lizenz | Datenlizenz Deutschland – Namensnennung 2.0, © LGV Hamburg |
 | Wasserstand | Pegel Over, cm über PNP → m NHN mit **PNP = −5,098 m NHN** (PEGELONLINE `gaugeZero`, nicht −5,00) |
+
+| Gebäude | **LoD2-DE 2026**, LGV Hamburg (CityGML-Kacheln, Grundriss aus ALKIS, Bodenhöhe, Hausnummer falls vergeben) |
+
+## Auflösung
+
+| | räumlich | Höhe / Wert | Genauigkeit |
+|---|---|---|---|
+| Gelände DGM1 | 1 m × 1 m Raster (gerechnet wird voll in 1 m, 5,5 Mio. Zellen; das GIF zeigt 2 m) | gespeichert in 1-cm-Schritten | ±15 cm auf eindeutigen Flächen (Straßen), schlechter unter dichter Vegetation, an Böschungen und unter Brücken |
+| Wasserstand Over | ein Punkt (km 605,3), gilt für das ganze Vorland | 1 cm, Rohdaten minütlich → 5-min-Mittel | Zeitauflösung des Ergebnisses 5 min |
+| Gebäude LoD2 | Grundriss aus dem Kataster (cm-genau) | Bodenhöhe aus dem DGM | ALKIS-Stand je Gebäude (`Grundrissaktualitaet`) |
+
+Was das für den Zeitpunkt heißt: Eine Höhenunsicherheit von ±15 cm
+entspricht auf dem steigenden Ast etwa ±10 min, nahe dem Scheitel eher
+±15–25 min. Strukturen schmaler als ~2 m, etwa Gartenzäune, Mauern oder
+schmale Gräben, sind im 1-m-Raster nur unscharf oder gar nicht abgebildet.
 
 Fallstricke im DGM1:
 
@@ -60,6 +77,29 @@ deshalb nur ein Parameter. Die Wasserspiegellage
 von Over gilt für das ganze Vorland (Over liegt gegenüber, km 605,3). Zäune,
 Lauben und Sandsäcke sind nicht im DGM enthalten. Archivdaten vor 2019-11
 könnten einen anderen PNP haben (`--gauge-zero`).
+
+## Gebäude
+
+`buildings.py` lädt die LoD2-Kacheln (Cache `out/lod2/`) und nimmt die
+**502 Gebäude im Vorland**, also alle mit Überlaufhöhe < 7 m. Hausnummern
+gibt es dort kaum: ALKIS führt nur **4** davon mit Adresse (Overwerder Bogen
+32/76/78/80), die Lauben und Wochenendhäuser haben keine. Jedes Gebäude
+bekommt deshalb eine **laufende Nummer** (`nr`, entlang des Deichs von NW
+nach SO). Wo eine Hausnummer existiert, steht sie zusätzlich in der Karte
+(rot) und in `gebaeude.csv`. Die ALKIS-Kennung (`alkis_id`) bleibt für den
+Abgleich erhalten, z. B. mit einer Parzellenliste des Vereins.
+
+Je Gebäude (`gebaeude.csv`): Bodenhöhe `base_m`, Überlaufhöhe `spill_m`
+(niedrigste im Grundriss), `onset` (Wasser erreicht das Gebäude, MEZ),
+`onset_min_rel_peak`, `hours_wet` und `depth_m` (Scheitel über
+Bodenhöhe). Die Grafiken zeigen die Grundrisse überall. `gebaeude.png` ist
+die nummerierte Detailkarte, eingefärbt nach Beginn, und im Querprofil sind
+die geschnittenen Gebäude eingezeichnet.
+
+Sturmflut 26.10.2026: 491 von 502 Gebäuden erreicht das Wasser, im Median
+**115 min vor dem Scheitel** (Spanne 180–15 min), bei einer mittleren
+Wassertiefe von **1,0 m** über Bodenhöhe (max. 2,1 m). Trocken bleiben die
+höher gelegenen Gebäude am Overwerder Bogen (76/78/80, Bodenhöhe 4,6–4,9 m).
 
 ## Ergebnis Sturmflut 26.10.2026
 
@@ -101,5 +141,6 @@ Ausgabe in `out/inundation/`: Grafiken `inundation.png` (Übersicht),
 (stündliche Tiefenkarten −3 h … +4 h), mit `--animate` `animation.gif`
 (10-min-Schritte, ~1 min Rechenzeit). Daten: `hoehe_zeitpunkt.csv`,
 `spill_m_nhn.tif`, `onset_min_rel_peak.tif`, `hours_wet.tif`, `max_depth_m.tif`,
-`residual_depth_m.tif`
+`residual_depth_m.tif`, `gebaeude.csv`; `gebaeude.png` (nummerierte
+Gebäudekarte). `--no-buildings` lässt den LoD2-Teil weg
 (GeoTIFF, EPSG:25832, z. B. in QGIS über ein Luftbild legen).

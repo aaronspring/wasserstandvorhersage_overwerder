@@ -45,20 +45,28 @@ def cm_pnp_to_m_nhn(w_cm: pd.Series, gauge_zero_m_nhn: float = OVER_PNP_NHN_M):
 # --- Gelaende laden ----------------------------------------------------------
 
 
-def tile_names(bbox: tuple[float, float, float, float], year: int = 2022) -> list[str]:
+DGM1_TILE = "dgm1_32_{e}_{n}_1_hh_2022.tif"
+
+
+def tile_names(
+    bbox: tuple[float, float, float, float], pattern: str = DGM1_TILE
+) -> list[str]:
     """Dateinamen der 1-km-Kacheln, die ``bbox`` (xmin, ymin, xmax, ymax in
-    EPSG:25832) schneiden. Schema: ``dgm1_32_<E km>_<N km>_1_hh_<jahr>.tif``
-    mit der linken unteren Ecke in km."""
+    EPSG:25832) schneiden. ``pattern`` mit ``{e}``/``{n}`` = linke untere Ecke
+    in km (LGV-Schema fuer DGM1 und LoD2)."""
     xmin, ymin, xmax, ymax = bbox
     return [
-        f"dgm1_32_{e}_{n}_1_hh_{year}.tif"
+        pattern.format(e=e, n=n)
         for e in range(int(xmin // 1000), int(np.ceil(xmax / 1000)))
         for n in range(int(ymin // 1000), int(np.ceil(ymax / 1000)))
     ]
 
 
 def fetch_tiles(
-    bbox: tuple[float, float, float, float], out_dir: str | Path, url: str = DGM1_URL
+    bbox: tuple[float, float, float, float],
+    out_dir: str | Path,
+    url: str = DGM1_URL,
+    pattern: str = DGM1_TILE,
 ) -> list[Path]:
     """Laedt die Kacheln fuer ``bbox`` aus dem Hamburg-ZIP (nur diese Bytes) nach
     ``out_dir``. Bereits vorhandene Kacheln werden nicht erneut geladen.
@@ -67,8 +75,8 @@ def fetch_tiles(
 
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    want = set(tile_names(bbox))
-    have = {p.name: p for p in out.glob("*.tif") if p.name in want}
+    want = set(tile_names(bbox, pattern))
+    have = {p.name: p for p in out.iterdir() if p.name in want}
     if missing := want - have.keys():
         with RemoteZip(url) as z:
             for info in z.infolist():

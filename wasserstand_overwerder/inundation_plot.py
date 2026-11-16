@@ -5,6 +5,10 @@
 * ``profile``: Querprofil A -> B, Wasserspiegel stuendlich (Auf- und Ablauf)
 * ``snapshots``: Wassertiefe stuendlich um den Scheitel
 * ``animation``: GIF der Sturmtide in 10-min-Schritten
+* ``buildings_map``: Gebaeude mit Nummer, eingefaerbt nach Ueberflutungsbeginn
+
+``bldg`` ist optional die Tabelle aus ``buildings.flood_table`` (mit ``nr``,
+``footprint``); dann werden die Grundrisse ueberall eingezeichnet.
 
 matplotlib wird lazy importiert (Agg-Backend, ohne Display).
 """
@@ -59,6 +63,23 @@ def _base(ax, z: np.ndarray, river: np.ndarray, extent) -> None:
     )
     ax.set_xticks([])
     ax.set_yticks([])
+
+
+def _outlines(ax, bldg, color="k", lw=0.4, facecolors="none", **kw):
+    """Gebaeude-Grundrisse als PolyCollection."""
+    from matplotlib.collections import PolyCollection
+
+    if bldg is None or len(bldg) == 0:
+        return None
+    pc = PolyCollection(
+        list(bldg["footprint"]),
+        edgecolors=color,
+        facecolors=facecolors,
+        linewidths=lw,
+        **kw,
+    )
+    ax.add_collection(pc)
+    return pc
 
 
 def _local(ts: pd.Timestamp) -> str:
@@ -120,7 +141,9 @@ def summary(terrain, timing, level, tide, table, peak, area_bbox, out: Path) -> 
     return p
 
 
-def terrain_map(terrain, river, spill, area_bbox, gelaende_m, out: Path) -> Path:
+def terrain_map(
+    terrain, river, spill, area_bbox, gelaende_m, out: Path, bldg=None
+) -> Path:
     """Gelaende mit Schummerung, Marke "Wasser auf dem Gelaende" (rot),
     Auswerteflaeche (gestrichelt) und Profillinie A -> B."""
     plt = _plt()
@@ -137,6 +160,7 @@ def terrain_map(terrain, river, spill, area_bbox, gelaende_m, out: Path) -> Path
         extent=terrain.extent,
         origin="lower",
     )
+    _outlines(ax, bldg, color="0.15", lw=0.3, facecolors="0.35")
     xmin, ymin, xmax, ymax = area_bbox
     ax.plot(
         [xmin, xmax, xmax, xmin, xmin], [ymin, ymin, ymax, ymax, ymin], "k--", lw=0.8
@@ -180,8 +204,34 @@ def _profile_cells(terrain: Terrain, *arrays: np.ndarray, n: int | None = None):
     return np.arange(n), terrain.z[rows, cols], *(a[rows, cols] for a in arrays)
 
 
+def _profile_buildings(bldg, dist):
+    """Gebaeude, die die Profillinie schneiden: (nr, Distanz von, bis, Zeile)."""
+    from matplotlib.path import Path as MplPath
+
+    if bldg is None:
+        return []
+    (x0, y0), (x1, y1) = config.INUNDATION_PROFILE
+    f = dist / dist[-1]
+    pts = np.c_[x0 + f * (x1 - x0), y0 + f * (y1 - y0)]
+    hits = []
+    for _, b in bldg.iterrows():
+        inside = MplPath(b["footprint"]).contains_points(pts)
+        if inside.any():
+            hits.append((dist[inside].min(), dist[inside].max(), b))
+    return hits
+
+
 def profile(
-    terrain, river, spill, level, tide, peak, gelaende_m, drain_m_per_h, out: Path
+    terrain,
+    river,
+    spill,
+    level,
+    tide,
+    peak,
+    gelaende_m,
+    drain_m_per_h,
+    out: Path,
+    bldg=None,
 ) -> Path:
     """Querprofil A -> B: oben Auflauf (stuendlich bis zum Scheitel), unten Ablauf
     (Scheitel und stuendlich danach) mit Stauwasser hinter dem Sommerdeich."""
@@ -190,6 +240,7 @@ def profile(
     other = np.isnan(zp) & ~rv
     ground = np.where(np.isnan(zp), np.where(rv, -2.0, 1.0), zp)
     land = np.isfinite(zp)
+    houses = _profile_buildings(bldg, dist)
     fig, axes = plt.subplots(2, 1, figsize=(13, 9), sharex=True)
     rising = [peak + pd.Timedelta(hours=h) for h in (0, -1, -2, -3, -4)]
     falling = [peak + pd.Timedelta(hours=h) for h in (0, 1, 2, 3, 4)]
@@ -234,10 +285,39 @@ def profile(
             fontsize=8,
             va="center",
         )
+        for d0, d1, b in houses:
+            ax.add_patch(
+                plt.Rectangle(
+                    (d0, b["base_m"]),
+                    max(d1 - d0, 1.0),
+                    b["height_m"],
+                    fc="0.85",
+                    ec="0.3",
+                    lw=0.6,
+                    zorder=3,
+                )
+            )
+            ax.text(
+                (d0 + d1) / 2,
+                b["base_m"] + b["height_m"] + 0.1,
+                f"#{b['nr']}",
+                ha="center",
+                va="bottom",
+                fontsize=7,
+                zorder=4,
+            )
         for txt, x in config.INUNDATION_PROFILE_LABELS:
-            ax.text(x, 9.0, txt, ha="center", va="top", fontsize=9, weight="bold")
+            ax.text(
+                x,
+                11.2 if houses else 9.0,
+                txt,
+                ha="center",
+                va="top",
+                fontsize=9,
+                weight="bold",
+            )
         ax.set_xlim(0, dist[-1])
-        ax.set_ylim(-2, 9.4)
+        ax.set_ylim(-2, 11.5 if houses else 9.4)
         ax.set_ylabel("m NHN")
         ax.set_title(title, fontsize=10)
         ax.legend(fontsize=8, loc="center right", bbox_to_anchor=(1.0, 0.6))
@@ -253,7 +333,9 @@ def profile(
     return p
 
 
-def snapshots(terrain, river, spill, tide, peak, drain_m_per_h, out: Path) -> Path:
+def snapshots(
+    terrain, river, spill, tide, peak, drain_m_per_h, out: Path, bldg=None
+) -> Path:
     """Wassertiefe stuendlich von -3 h bis +4 h um den Scheitel (2 Reihen)."""
     plt = _plt()
     extent, z, rv, sp = crop(terrain, config.INUNDATION_VIEW, river, spill)
@@ -268,6 +350,9 @@ def snapshots(terrain, river, spill, tide, peak, drain_m_per_h, out: Path) -> Pa
         depth = depth_at(sp, z, tide, when, drain_m_per_h)
         _base(ax, z, rv, extent)
         im = ax.imshow(depth, cmap="Blues", vmin=0, vmax=2.5, extent=extent)
+        _outlines(ax, bldg, color="0.1", lw=0.25)
+        ax.set_xlim(extent[:2])
+        ax.set_ylim(extent[2:])
         rel = round((when - peak) / pd.Timedelta(hours=1))
         tag = "Scheitel" if rel == 0 else f"{rel:+d} h"
         ax.set_title(
@@ -282,7 +367,7 @@ def snapshots(terrain, river, spill, tide, peak, drain_m_per_h, out: Path) -> Pa
 
 
 def animation(
-    terrain, river, spill, tide, gelaende_m, drain_m_per_h, out: Path
+    terrain, river, spill, tide, gelaende_m, drain_m_per_h, out: Path, bldg=None
 ) -> Path:
     """GIF der Sturmtide (10-min-Schritte) mit Wasserstandskurve darunter."""
     plt = _plt()
@@ -301,6 +386,9 @@ def animation(
     im = ax.imshow(
         np.full_like(z, np.nan), cmap="Blues", vmin=0, vmax=2.5, extent=extent
     )
+    _outlines(ax, bldg, color="0.1", lw=0.25)
+    ax.set_xlim(extent[:2])
+    ax.set_ylim(extent[2:])
     fig.colorbar(im, ax=ax, shrink=0.7, label="Wassertiefe [m]")
     title = ax.set_title("")
     bx = fig.add_subplot(gs[1])
@@ -322,5 +410,75 @@ def animation(
     ani = anim.FuncAnimation(fig, update, frames=len(frames), blit=False)
     p = out / "animation.gif"
     ani.save(p, writer=anim.PillowWriter(fps=7), dpi=70)
+    plt.close(fig)
+    return p
+
+
+def buildings_map(terrain, river, bldg, peak, out: Path) -> Path:
+    """Detailkarte aller Gebaeude im Vorland mit laufender Nummer, eingefaerbt
+    nach Ueberflutungsbeginn relativ zum Scheitel (grau = bleibt trocken).
+    Gebaeude mit ALKIS-Hausnummer tragen sie zusaetzlich (rot)."""
+    plt = _plt()
+    from matplotlib import colormaps, colors
+
+    pad = 40.0
+    view = (
+        bldg["x"].min() - pad,
+        bldg["y"].min() - pad,
+        bldg["x"].max() + pad,
+        bldg["y"].max() + pad,
+    )
+    extent, z, rv = crop(terrain, view, river)
+    w, h = extent[1] - extent[0], extent[3] - extent[2]
+    fig, ax = plt.subplots(figsize=(16, 16 * h / w + 1.5))
+    _base(ax, z, rv, extent)
+    rel = (bldg["onset"] - peak).dt.total_seconds() / 60.0
+    norm = colors.Normalize(vmin=float(np.nanmin(rel)), vmax=0.0)
+    cmap = colormaps["viridis"]
+    face = [
+        "0.7" if np.isnan(r) else colors.to_hex(cmap(norm(r))) for r in rel.to_numpy()
+    ]
+    _outlines(ax, bldg, color="k", lw=0.4, facecolors=face)
+    for (_, b), r in zip(bldg.iterrows(), rel, strict=True):
+        ax.text(
+            b["x"],
+            b["y"],
+            str(b["nr"]),
+            fontsize=4.5,
+            ha="center",
+            va="center",
+            color="w" if np.isfinite(r) and norm(r) < 0.45 else "k",
+        )
+        if b["number"]:
+            ax.text(
+                b["x"],
+                b["y"] - 6,
+                f"Nr. {b['number']}",
+                fontsize=4.5,
+                ha="center",
+                va="top",
+                color="crimson",
+                weight="bold",
+            )
+    sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+    fig.colorbar(
+        sm, ax=ax, shrink=0.5, label="Wasser am Gebaeude: Minuten vor Scheitel"
+    )
+    ax.set_xlim(extent[:2])
+    ax.set_ylim(extent[2:])
+    ax.set_title(
+        f"Gebaeude im Overwerder Vorland ({len(bldg)}, laufende Nr. NW -> SO; "
+        f"grau = trocken) - Sturmflut {_local(peak)}"
+    )
+    fig.text(
+        0.99,
+        0.005,
+        "Gebaeude: LoD2-DE, " + CREDIT,
+        ha="right",
+        fontsize=7,
+    )
+    fig.tight_layout()
+    p = out / "gebaeude.png"
+    fig.savefig(p, dpi=170, bbox_inches="tight")
     plt.close(fig)
     return p

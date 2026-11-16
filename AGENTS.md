@@ -26,7 +26,8 @@ wasserstand_overwerder/
   plot.py         matplotlib-Plot
   webexport.py    baut data.json fuer die Web-App (netzfrei, build_payload)
   inundation.py   DGM1 (LGV) laden + Ueberlauf-/Ueberflutungs-Zeitpunkte je 1-m-Zelle
-  inundation_plot.py Grafiken dazu (Uebersicht, Gelaende, Querprofil, Verlauf, GIF)
+  inundation_plot.py Grafiken dazu (Uebersicht, Gelaende, Querprofil, Verlauf, Gebaeude, GIF)
+  buildings.py    LoD2-Gebaeude (LGV): Grundriss, Bodenhoehe, Hausnr., Ueberflutung je Gebaeude
 calibrate.py      CLI: fittet tau/Gewichte/Offset gegen Pegel Over -> params.json
 forecast.py       CLI: erzeugt out/overwerder_forecast.{csv,png}; --explore
 analyse_sturmfluten.py CLI: Sturmflut-EDA (Haeufigkeit/Saison/Trend) -> docs/sturmflut_*.png
@@ -43,6 +44,7 @@ tests/test_history.py    Parsing/Parquet-Tests fuers Archiv (netzwerkfrei)
 tests/test_hfhub.py      Dataset-Card/Upload-Pattern-Tests (netzwerkfrei)
 tests/test_alerts.py     Event-Erkennung + Issue-Abgleich (plan), netzwerkfrei
 tests/test_inundation.py Ueberlaufhoehe/Zeitpunkte auf Synthetik-Gelaende, netzwerkfrei
+tests/test_buildings.py  Mini-CityGML + Gebaeude-Ueberflutung, netzwerkfrei
 ```
 
 Die Web-App ist statisch: `export_web.py` schreibt `data.json`, das React-Frontend
@@ -161,6 +163,9 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   Extra `gelaende` ist optional und wird lazy importiert. Ablauf: Spiegel faellt
   nur bis zur Ueberlaufhoehe (Stauwasser in abflusslosen Mulden, `--drain-cm-h`);
   Profil/Kartenausschnitt/Beschriftungen in `config.INUNDATION_*`.
+  Gebaeude: LoD2-DE (CityGML 1.0, `config.LOD2_URL`); im Vorland haben fast
+  keine Gebaeude eine ALKIS-Hausnummer -> laufende Nummer `nr` (NW->SO) +
+  `alkis_id`; Nummern aendern sich, wenn Gebaeude hinzukommen.
 - Sprache: Doku/CLI-Ausgaben auf Deutsch, Bezeichner im Code auf Englisch.
 
 ## Tests vor dem Commit

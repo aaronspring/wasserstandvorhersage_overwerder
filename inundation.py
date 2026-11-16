@@ -23,7 +23,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from wasserstand_overwerder import config, inundation, inundation_plot
+from wasserstand_overwerder import buildings, config, inundation, inundation_plot
 
 
 def level_from_data_json(path: str) -> tuple[pd.Series, float]:
@@ -93,6 +93,10 @@ def main() -> None:
     )
     ap.add_argument(
         "--tiles", default="out/dgm1", help="Cache-Verzeichnis DGM1-Kacheln"
+    )
+    ap.add_argument("--lod2", default="out/lod2", help="Cache LoD2-Gebaeudekacheln")
+    ap.add_argument(
+        "--no-buildings", action="store_true", help="ohne Gebaeude (kein LoD2-Download)"
     )
     ap.add_argument("--out", default="out/inundation", help="Ausgabeverzeichnis")
     ap.add_argument(
@@ -179,28 +183,58 @@ def main() -> None:
         f"Max {pond.max() if pond.size else 0:.2f} m (Ablauf {args.drain_cm_h:g} cm/h)"
     )
 
+    bldg = None
+    if not args.no_buildings:
+        print("LoD2-Gebaeude ...")
+        bldg = buildings.parse_lod2(
+            buildings.fetch_lod2(config.INUNDATION_VIEW, args.lod2)
+        )
+        bldg = buildings.flood_table(
+            buildings.select(bldg, config.INUNDATION_VIEW),
+            terrain,
+            spill,
+            timing,
+            float(tide.max()),
+        )
+        bldg = buildings.number_buildings(
+            bldg[bldg["spill_m"] < config.VORLAND_MAX_SPILL_M]
+        )
+        csv = bldg.drop(columns=["footprint"]).assign(
+            onset=bldg["onset"].dt.tz_convert("Europe/Berlin"),
+            onset_min_rel_peak=(bldg["onset"] - peak).dt.total_seconds() / 60.0,
+        )
+        csv.to_csv(out / "gebaeude.csv", index=False, float_format="%.3f")
+        reached = bldg["onset"].notna()
+        print(
+            f"Gebaeude im Vorland: {len(bldg)}, davon {reached.sum()} vom Wasser "
+            f"erreicht, {(bldg['depth_m'] > 0).sum()} mit Wasser ueber Bodenhoehe; "
+            f"{(bldg['number'] != '').sum()} mit ALKIS-Hausnummer"
+        )
+
     gelaende_m = config.WASSER_AUF_GELAENDE_OVER_CM / 100.0 + gauge_zero
     plots = [
         inundation_plot.summary(
             terrain, timing, level, tide, table, peak, args.area_bbox, out
         ),
         inundation_plot.terrain_map(
-            terrain, river, spill, args.area_bbox, gelaende_m, out
+            terrain, river, spill, args.area_bbox, gelaende_m, out, bldg
         ),
         inundation_plot.profile(
-            terrain, river, spill, level, tide, peak, gelaende_m, drain, out
+            terrain, river, spill, level, tide, peak, gelaende_m, drain, out, bldg
         ),
-        inundation_plot.snapshots(terrain, river, spill, tide, peak, drain, out),
+        inundation_plot.snapshots(terrain, river, spill, tide, peak, drain, out, bldg),
     ]
+    if bldg is not None:
+        plots.append(inundation_plot.buildings_map(terrain, river, bldg, peak, out))
     if args.animate:
         plots.append(
             inundation_plot.animation(
-                terrain, river, spill, tide, gelaende_m, drain, out
+                terrain, river, spill, tide, gelaende_m, drain, out, bldg
             )
         )
     for p in plots:
         print(f"-> {p}")
-    print(f"-> {out}/hoehe_zeitpunkt.csv, *.tif")
+    print(f"-> {out}/hoehe_zeitpunkt.csv, gebaeude.csv, *.tif")
 
 
 if __name__ == "__main__":

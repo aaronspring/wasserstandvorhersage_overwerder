@@ -160,3 +160,9 @@ INUNDATION_PROFILE_LABELS = (
 # Ablauf von Stauwasser aus Senken (Siele/Versickerung), m/h. 0 = Wasser bleibt
 # bis zur Ueberlaufhoehe stehen; unbekannt, per --drain-cm-h variierbar.
 INUNDATION_DRAIN_M_PER_H = 0.0
+# 3D-Gebaeudemodell LoD2-DE Hamburg 2026 (CityGML-Kacheln 1x1 km, 630 MB ZIP),
+# fuer Grundrisse, Bodenhoehen und (wo vorhanden) Hausnummern der Gebaeude.
+LOD2_URL = (
+    "https://www.daten-hamburg.de/opendata/3d_stadtmodell_lod2/"
+    "LoD2-DE_HH_2026-04-28.zip"
+)
