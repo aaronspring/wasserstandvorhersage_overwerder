@@ -25,11 +25,13 @@ wasserstand_overwerder/
   ghissues.py     schlanker GitHub-Issues-Client (REST) fuer die Alarm-Issues
   plot.py         matplotlib-Plot
   webexport.py    baut data.json fuer die Web-App (netzfrei, build_payload)
+  inundation.py   DGM1 (LGV) laden + Ueberlauf-/Ueberflutungs-Zeitpunkte je 1-m-Zelle
 calibrate.py      CLI: fittet tau/Gewichte/Offset gegen Pegel Over -> params.json
 forecast.py       CLI: erzeugt out/overwerder_forecast.{csv,png}; --explore
 analyse_sturmfluten.py CLI: Sturmflut-EDA (Haeufigkeit/Saison/Trend) -> docs/sturmflut_*.png
 export_web.py     CLI: erzeugt web/public/data.json (BSH + PEGELONLINE) fuers Frontend
 alert_issues.py   CLI: liest data.json, legt/aktualisiert Ueberflutungs-Issues (GitHub)
+inundation.py     CLI: Ueberflutungsbeginn/-dauer/-tiefe Overhaken -> out/inundation/
 build_history.py  CLI: voller Backfill des jaehrl. Parquet-Archivs (einmalig)
 update_history.py CLI: inkrementelles Monatsupdate (nur juengste year=YYYY -> HF)
 web/              React+Vite+TS Single-Page-App (Recharts), Deploy nach GitHub Pages
@@ -39,6 +41,7 @@ tests/test_webexport.py  Struktur-Tests fuer data.json (netzwerkfrei)
 tests/test_history.py    Parsing/Parquet-Tests fuers Archiv (netzwerkfrei)
 tests/test_hfhub.py      Dataset-Card/Upload-Pattern-Tests (netzwerkfrei)
 tests/test_alerts.py     Event-Erkennung + Issue-Abgleich (plan), netzwerkfrei
+tests/test_inundation.py Ueberlaufhoehe/Zeitpunkte auf Synthetik-Gelaende, netzwerkfrei
 ```
 
 Die Web-App ist statisch: `export_web.py` schreibt `data.json`, das React-Frontend
@@ -78,6 +81,8 @@ uv sync --extra hf                        # huggingface_hub fuer den HF-Upload
 HF_TOKEN=... uv run python build_history.py --start 2000-01-01 --end 2026-07-01 \
     --stations over zollenspieker --hf-repo   # einmaliger Backfill -> Hugging Face
 HF_TOKEN=... uv run python update_history.py  # inkrementelles Monatsupdate -> HF
+uv sync --extra gelaende                  # rasterio/remotezip/scikit-image fuers DGM1
+uv run python inundation.py --recent     # Ueberflutungs-Zeitpunkte (braucht Netz: LGV + PEGELONLINE)
 cd web && npm ci && npm run build        # Frontend bauen (Typecheck + Vite)
 cd web && npm run dev                    # Frontend lokal (data.json vorher erzeugen)
 ```
@@ -146,6 +151,13 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   - Workflow `.github/workflows/history.yml`: monatlich inkrementell (Cron),
     `workflow_dispatch` mit `mode=full` fuer den Backfill; Repo-Secret
     `HF_TOKEN`. Nicht ins Git-Repo committen (zu gross).
+- **Gelaende (DGM1, `inundation.py`):** Methodik/Ergebnisse in
+  `docs/INUNDATION.md`. Over-PNP ist **-5,098 m NHN** (`config.OVER_PNP_NHN_M`),
+  nicht -5,00. Das DGM1 fuellt Wasserflaechen mit Platzhaltern (Elbe 2,00 m,
+  See 1,00 m) -> `water_fill_mask`, sonst wirkt die Elbe als 2-m-Schwelle.
+  Download-ZIP liegt auf `archiv.transparenz.hamburg.de` (alte
+  daten-hamburg.de-Links 404); Kacheln per HTTP-Range, Cache `out/dgm1/`.
+  Extra `gelaende` ist optional und wird lazy importiert.
 - Sprache: Doku/CLI-Ausgaben auf Deutsch, Bezeichner im Code auf Englisch.
 
 ## Tests vor dem Commit

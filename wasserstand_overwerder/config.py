@@ -116,3 +116,25 @@ STURMFLUT_SCHEITEL_CM = {
 
 HTTP_TIMEOUT = 30  # Sekunden
 USER_AGENT = "wasserstandvorhersage-overwerder/0.1 (github.com/aaronspring)"
+
+# --- Gelaende / Ueberflutungs-Zeitpunkte (inundation.py) --------------------
+# PNP des Pegels Over in m ueber NHN (PEGELONLINE gaugeZero, gueltig ab
+# 2019-11-01). Nicht -5,00 wie die generische Tideelbe-Konvention: die 9,8 cm
+# Unterschied verschieben den Ueberflutungsbeginn um mehrere Minuten.
+OVER_PNP_NHN_M = -5.098
+# DGM1 2022 (LGV Hamburg, 1-m-Raster, GeoTIFF-Kacheln 1x1 km im ZIP, 1,3 GB).
+# Die alten daten-hamburg.de-Links liefern 404; das Transparenzportal verweist
+# auf diese Archiv-Kopie. Datenlizenz Deutschland - Namensnennung 2.0.
+DGM1_URL = (
+    "https://archiv.transparenz.hamburg.de/hmbtgarchive/HMDK/"
+    "dgm1_hh_2022-04-30_258334_snap_1.zip"
+)
+# Modellausschnitt (EPSG:25832): Overwerder Vorland zwischen Hauptdeich und
+# Elbe samt Strom als Wasserquelle.
+INUNDATION_BBOX = (572400.0, 5919900.0, 574800.0, 5922200.0)
+# Auswerteflaeche Kleingarten Overhaken / Siedlung Overwerder (Vorland
+# stromseitig des Overwerder Hauptdeichs; grob, per --area-bbox anpassbar).
+OVERHAKEN_BBOX = (572900.0, 5920400.0, 574300.0, 5921800.0)
+# Zellen mit Ueberlaufhoehe darunter liegen stromseitig des Overwerder
+# Hauptdeichs (Kronenhoehe im DGM1 >= 8 m NHN); dahinter gilt als geschuetzt.
+VORLAND_MAX_SPILL_M = 7.0
