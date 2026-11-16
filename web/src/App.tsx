@@ -7,6 +7,10 @@ import { useTheme } from "./theme";
 import type { Payload, SeriesKey } from "./types";
 
 const DATA_URL = `${import.meta.env.BASE_URL}data.json`;
+// Google GEM-15 Hoehenmodell (Earth Engine App). Die App speichert Ort und
+// Slider nicht in der URL -> Suche/Zyklus-Laenge stehen im Tooltip.
+const HOEHENPROFIL_URL =
+  "https://climate-and-sustainability.projects.earthengine.app/view/gem-15";
 
 // Die Seite ist statisch: faellt der stuendliche Deploy laenger aus (API- oder
 // Schema-Aenderung bei BSH/PEGELONLINE), zeigt sie sonst kommentarlos veraltete
@@ -263,6 +267,15 @@ export default function App() {
               Sturmflut-Analyse ↗
             </a>
           )}
+          <a
+            className="leg-item leg-link"
+            href={HOEHENPROFIL_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Höhenmodell (Google GEM-15) in Earth Engine: dort nach „Overhaken, Bergedorf, Hamburg, Germany“ suchen und „Elevation Cycle Length (m)“ auf 10 stellen"
+          >
+            Höhenprofil zeigen ↗
+          </a>
           <p className="leg-hint">
             Legende antippen blendet Linien aus · „Top-10 Sturmfluten" zeigt die
             historischen Scheitel, „Sturmflut-Stufen" die BSH-Klassen · ins
