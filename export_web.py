@@ -43,6 +43,12 @@ def main() -> None:
         action="store_true",
         help="synthetische Offline-Daten erzeugen (kein Netz; fuer lokalen Dev)",
     )
+    ap.add_argument(
+        "--demo-surge-cm",
+        type=float,
+        default=0.0,
+        help="--demo: Windstau in cm ~18 h nach jetzt (z. B. 220 fuer Overhaken)",
+    )
     args = ap.parse_args()
 
     params = model.load_params(args.params)
@@ -51,7 +57,9 @@ def main() -> None:
     now = pd.Timestamp.now(tz="UTC")
     if args.demo:
         print("Demo-Modus: synthetische Offline-Daten (kein Netz).")
-        up, down, over = webexport.demo_inputs(now, params.frac)
+        up, down, over = webexport.demo_inputs(
+            now, params.frac, surge_cm=args.demo_surge_cm
+        )
         refs: dict[str, float] = {"MThw": 746.0, "MTnw": 429.0}
         gauge_zero: float | None = -5.0
     else:

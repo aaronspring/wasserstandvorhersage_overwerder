@@ -21,6 +21,7 @@ import {
   fmtTime,
   fmtWeekday,
 } from "./format";
+import { setCursor } from "./cursor";
 import { moonPhase } from "./moon";
 import type { Colors } from "./theme";
 import { useNarrow } from "./theme";
@@ -209,6 +210,8 @@ export default function Chart({
   const [selRight, setSelRight] = useState<number | null>(null);
   // Angeklickter Zeitpunkt: fixiert eine Ablese-Linie mit Werten je Serie.
   const [pinned, setPinned] = useState<number | null>(null);
+  // Fixierte Ablese-Linie auch fuer die Overhaken-Karte bereitstellen.
+  useEffect(() => setCursor({ pinned }), [pinned]);
 
   // „jetzt" = echte Uhrzeit im Browser des Nutzers, nicht der Build-Zeitpunkt
   // aus data.json (data.now). Die Seite ist zwar statisch (GitHub Pages), aber
@@ -401,6 +404,7 @@ export default function Chart({
   };
   const onMove = (e: { activeLabel?: string | number } | null) => {
     const t = labelAt(e);
+    setCursor({ hover: t });
     if (selLeft != null && t != null) setSelRight(t);
   };
   const onUp = () => {
@@ -491,7 +495,10 @@ export default function Chart({
           onMouseDown={onDown}
           onMouseMove={onMove}
           onMouseUp={onUp}
-          onMouseLeave={onUp}
+          onMouseLeave={() => {
+            setCursor({ hover: null });
+            onUp();
+          }}
           onDoubleClick={() => {
             setZoom(null);
             setPinned(null);

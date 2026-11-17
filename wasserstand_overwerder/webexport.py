@@ -44,12 +44,19 @@ def sturmflut_lines() -> list[dict]:
 
 
 def demo_inputs(
-    now: pd.Timestamp, frac: float, *, days_past: int = 2, days_future: int = 5
+    now: pd.Timestamp,
+    frac: float,
+    *,
+    days_past: int = 2,
+    days_future: int = 5,
+    surge_cm: float = 0.0,
 ) -> tuple[pd.Series, pd.Series, pd.Series]:
     """Synthetische Tidekurven (Zollenspieker, St. Pauli, Over) fuer Offline-Dev.
 
     Kein Netz noetig: erzeugt eine asymmetrische M2-Tide (mit Obertiden), damit
     `export_web.py --demo` ohne BSH/PEGELONLINE ein realistisches data.json baut.
+    ``surge_cm`` > 0 legt einen Windstau (Gauss, sigma 6 h) ~18 h nach "jetzt"
+    darueber, damit die Overhaken-Karte lokal Wasser zeigt.
     """
     m2 = 12.42 * 60.0  # M2-Periode in Minuten
     t0 = (now - pd.Timedelta(days=days_past)).floor("h")
@@ -65,7 +72,9 @@ def demo_inputs(
             + 0.10 * np.cos(3.0 * phase + 0.5)
         )
         spring = 1.0 + 0.15 * np.sin(2.0 * np.pi * minutes / (14.77 * 24 * 60))
-        return pd.Series(mean + amp * spring * shape, index=idx)
+        hrs = (idx - (now + pd.Timedelta(hours=18))).total_seconds().to_numpy() / 3600
+        surge = surge_cm * np.exp(-0.5 * (hrs / 6.0) ** 2)
+        return pd.Series(mean + amp * spring * shape + surge, index=idx)
 
     down = tide(0.0, 510, 180)  # St. Pauli fuehrt
     up = tide(70.0, 500, 150)  # Zollenspieker laeuft nach

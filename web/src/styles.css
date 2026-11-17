@@ -36,7 +36,7 @@ body {
 }
 
 .app {
-  max-width: 900px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: clamp(16px, 4vw, 32px) clamp(12px, 3vw, 24px);
   display: flex;
@@ -262,4 +262,155 @@ body {
 
 .foot p {
   margin: 4px 0;
+}
+
+/* Overhaken-Karte zum Chart-Zeitpunkt */
+.map-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.map-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px 20px;
+}
+
+.map-head h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.map-when {
+  margin: 4px 0 0;
+  color: var(--secondary);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.map-src {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.map-src-now {
+  color: #eb6834;
+  border-color: #eb683466;
+}
+
+.map-src-hover,
+.map-src-pinned {
+  color: #2a78d6;
+  border-color: #2a78d666;
+}
+
+.map-stats {
+  display: flex;
+  gap: 18px;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.map-stats dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.map-stats dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.map-frame {
+  position: relative;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.map-frame canvas,
+.map-frame svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.map-frame canvas {
+  image-rendering: auto;
+}
+
+.bldg {
+  stroke: #1b1b1b;
+  stroke-width: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.bldg.dry {
+  fill: #f4f3ee;
+}
+
+.bldg:hover {
+  stroke-width: 2;
+}
+
+.map-label {
+  font-size: 13px;
+  font-weight: 650;
+  fill: #1b1b1b;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.75);
+  stroke-width: 3px;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.map-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 0.8rem;
+  color: var(--secondary);
+}
+
+.map-ramp {
+  display: inline-flex;
+}
+
+.map-ramp i {
+  width: 18px;
+  height: 10px;
+}
+
+/* Chart und Karte nebeneinander, damit die Karte beim Hovern sichtbar bleibt */
+.chart-map {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (min-width: 1100px) {
+  .chart-map {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  }
 }

@@ -23,7 +23,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from wasserstand_overwerder import buildings, config, inundation, inundation_plot
+from wasserstand_overwerder import (
+    buildings,
+    config,
+    inundation,
+    inundation_plot,
+    inundation_web,
+)
 
 
 def level_from_data_json(path: str) -> tuple[pd.Series, float]:
@@ -106,6 +112,11 @@ def main() -> None:
         help="Ablauf von Stauwasser aus Senken in cm/h (Default 0: bleibt stehen)",
     )
     ap.add_argument("--animate", action="store_true", help="zusaetzlich animation.gif")
+    ap.add_argument(
+        "--web-asset",
+        default=None,
+        help="Gelaende-Asset fuer die Web-Karte (web/public/overhaken.json)",
+    )
     ap.add_argument(
         "--area-bbox",
         type=float,
@@ -210,6 +221,20 @@ def main() -> None:
             f"erreicht, {(bldg['depth_m'] > 0).sum()} mit Wasser ueber Bodenhoehe; "
             f"{(bldg['number'] != '').sum()} mit ALKIS-Hausnummer"
         )
+
+    if args.web_asset:
+        asset = inundation_web.build_asset(
+            terrain,
+            river,
+            spill,
+            config.INUNDATION_VIEW,
+            gauge_zero_m_nhn=config.OVER_PNP_NHN_M,
+            area_bbox=args.area_bbox,
+            bldg=bldg,
+            labels=config.INUNDATION_MAP_LABELS,
+        )
+        p = inundation_web.write_asset(args.web_asset, asset)
+        print(f"-> {p} ({p.stat().st_size / 1e3:.0f} kB)")
 
     gelaende_m = config.WASSER_AUF_GELAENDE_OVER_CM / 100.0 + gauge_zero
     plots = [
