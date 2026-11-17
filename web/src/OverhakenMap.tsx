@@ -686,7 +686,7 @@ export default function OverhakenMap({
                   style={d == null ? undefined : { fill: css(depthRgb(d + 60)) }}
                 >
                   <title>
-                    {`${b.parzelle ? `Parzelle ${b.parzelle}` : `Gebäude ${b.nr}`}` +
+                    {`${!b.parzelle ? `Gebäude ${b.nr}` : /^\d/.test(b.parzelle) ? `Parzelle ${b.parzelle}` : b.parzelle}` +
                       `${b.address ? ` (${b.address})` : ""}\n` +
                       `Boden ${b.base_m.toFixed(2)} m NHN\n` +
                       (d == null

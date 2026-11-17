@@ -170,7 +170,7 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   keine Gebaeude eine ALKIS-Hausnummer -> laufende Nummer `nr` (NW->SO) +
   `alkis_id`; Nummern aendern sich, wenn Gebaeude hinzukommen. Die Web-Karte
   zeigt nur Gebaeude aus `config.OVERHAKEN_PARZELLEN` (ALKIS-Kennung ->
-  Parzellen-Nummer laut Lageplan-Schild der Kolonie, 39 Gebaeude); neue
+  Parzellen-Nummer laut Lageplan-Schild der Kolonie, 37 Gebaeude); neue
   Gebaeude dort per `alkis_id` eintragen.
 - **Overhaken-Karte (Web):** `web/src/OverhakenMap.tsx` zeigt die Kolonie zum
   Zeitpunkt der per Klick fixierten Ablese-Linie (sonst Hover im Chart, sonst

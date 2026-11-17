@@ -97,10 +97,11 @@ SO). Über die ALKIS-Kennung (`alkis_id`) sind die Gebäude den
 **Parzellen-Nummern** (100–141) des Lageplans am Vereinsgelände zugeordnet
 (`config.OVERHAKEN_PARZELLEN`): rosa Häuser des Plans per Farbe erkannt, affin
 und per Thin-Plate-Spline auf die LoD2-Schwerpunkte gelegt (Median-Abstand
-~2 m) und am Luftbild geprüft. Die Karte zeigt nur diese **39 Gebäude**
-(Schuppen, Overwerder Bogen 78 und Häuser außerhalb der Kolonie entfallen); im
-Plan eingezeichnete Häuser ohne LoD2-Gebäude (130, 133, je ein zweites auf 119
-und 126, Pumpenhaus) fehlen. Je Gebäude stehen Bodenhöhe `base_m` und
+~2 m) und am Luftbild geprüft. Die Karte zeigt nur diese **37 Gebäude**
+(Schuppen samt zweitem Gebäude auf 114 und Garage, Overwerder Bogen 78 und
+Häuser außerhalb der Kolonie entfallen), darunter das Pumpenhaus; je ein
+Gebäude trägt die Parzellen 102/103 und 130–132. Im Plan eingezeichnete Häuser
+ohne LoD2-Gebäude (133, je ein zweites auf 119 und 126) fehlen. Je Gebäude stehen Bodenhöhe `base_m` und
 Überlaufhöhe `spill_m` (niedrigste im Grundriss) im Asset. Die Karte färbt es
 nach der Wassertiefe über der Bodenhöhe ein.
 

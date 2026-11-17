@@ -155,12 +155,13 @@ OVERHAKEN_BBOX = (573390.0, 5921160.0, 573600.0, 5921420.0)
 # Haeuser des Plans per Farbe erkannt, affin + Thin-Plate-Spline auf die
 # LoD2-Schwerpunkte gelegt (Median-Abstand ~2 m), am Luftbild geprueft. Nur
 # diese Gebaeude zeigt die Web-Karte. Ohne LoD2-Gebaeude (Rasen im DOP 2024 /
-# nur Schuppen): 103, 116, 130, 132, 133, 136 (Wohnwagen), Pumpenhaus und je
-# ein zweites Haus auf 119 und 126.
+# nur Schuppen): 116, 133, 136 (Wohnwagen) und je ein zweites Haus auf
+# 119 und 126. Ein Gebaeude kann mehrere Parzellen tragen (102/103, 130-132);
+# Schuppen (zweites Gebaeude auf 114, Garage) sind bewusst nicht eingetragen.
 OVERHAKEN_PARZELLEN = {
-    "DEHHALKAn0006IVU": "100",
+    "DEHHALKAn0006IVU": "Pumpenhaus",
     "DEHHALKAn0006IAL": "101",
-    "DEHHALKAn0006JGI": "102",
+    "DEHHALKAn0006JGI": "102/103",
     "DEHHALKAn0006IjI": "104",
     "DEHHALKAn0006I87": "105",
     "DEHHALKAn0006HzK": "106",
@@ -172,7 +173,6 @@ OVERHAKEN_PARZELLEN = {
     "DEHHALKAn0006JBq": "112",
     "DEHHALKAn0006J0u": "113",
     "DEHHALKAn0006I8G": "114",
-    "DEHHALKAn0006IxS": "114",
     "DEHHALKAn0006IFR": "115",
     "DEHHALKAn0006IuD": "117",
     "DEHHALKAn0006JAw": "118",
@@ -185,10 +185,10 @@ OVERHAKEN_PARZELLEN = {
     "DEHHALKAn0006ItW": "124",
     "DEHHALKAn0006JGG": "125",
     "DEHHALKAn0006IvS": "126",
-    "DEHHALKAn0006IGC": "127",
+    "DEHHALKAn0006IGC": "100",
     "DEHHALKAn0006J7b": "128",
     "DEHHALKAn0006JHu": "129",
-    "DEHHALKAn0006Igh": "131",
+    "DEHHALKAn0006Igh": "130-132",
     "DEHHALKAn0006J50": "134",
     "DEHHALKAn0006I8U": "135",
     "DEHHALKAn0006I22": "137",
@@ -196,7 +196,6 @@ OVERHAKEN_PARZELLEN = {
     "DEHHALKAn0006Idn": "139",
     "DEHHALKAn0006JBD": "140",
     "DEHHALKAn0006Ip9": "141",
-    "DEHHALKAn0006Ir9": "Garage",
 }
 # Zellen mit Ueberlaufhoehe darunter liegen stromseitig des Overwerder
 # Hauptdeichs (Kronenhoehe im DGM1 >= 8 m NHN); dahinter gilt als geschuetzt.
