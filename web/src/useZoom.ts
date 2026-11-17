@@ -3,9 +3,10 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 // Zoom/Verschieben fuer die Overhaken-Karte ohne Bibliothek: Die Ebenen
 // (Luftbild, Canvas, SVG) liegen in einem Container mit
 // `translate(x, y) scale(k)` (Ursprung oben links, Pixel des Rahmens).
-// - Strg/Cmd + Mausrad bzw. Trackpad-Pinch (sendet ctrlKey) zoomt um den Zeiger,
-//   normales Mausrad scrollt weiter die Seite.
-// - Zwei Finger: Pinch-Zoom; ein Finger/Maus ziehen verschiebt, sobald gezoomt.
+// - Mausrad bzw. Trackpad-Pinch (sendet ctrlKey) zoomt um den Zeiger; ganz
+//   herausgezoomt scrollt weiteres Herausdrehen die Seite (keine Scroll-Falle).
+// - Zwei Finger: Pinch-Zoom (Browser-Seitenzoom auf der Karte unterdrueckt);
+//   ein Finger/Maus ziehen verschiebt, sobald gezoomt, sonst scrollt die Seite.
 export interface View {
   k: number;
   x: number;
@@ -49,20 +50,46 @@ export function useZoom(frame: RefObject<HTMLDivElement | null>, ready: boolean)
     return () => ro.disconnect();
   }, [frame, ready]);
 
-  // Wheel muss nicht-passiv sein, sonst laesst sich das Seiten-Zoomen nicht
-  // unterdruecken (React registriert wheel passiv).
+  // Aktueller Zoom fuer die nativen Listener (ohne sie neu zu registrieren).
+  const viewRef = useRef(view);
+  viewRef.current = view;
+
+  // Wheel/Touch muessen nicht-passiv sein, sonst laesst sich Seiten-Scrollen
+  // bzw. -Zoomen nicht unterdruecken (React registriert sie passiv).
   useEffect(() => {
     const el = frame.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
+      // Zeilen/Seiten-Modus (Firefox) grob in Pixel umrechnen.
+      const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
+      // Trackpad-Pinch (ctrlKey) liefert kleine Deltas -> staerker gewichten.
+      const f = Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.002));
+      const k = viewRef.current.k;
+      // An der Grenze nichts abfangen: Seite scrollt bzw. Browser zoomt.
+      if ((f < 1 && k <= 1) || (f > 1 && k >= MAX_ZOOM)) return;
       e.preventDefault();
       const r = el.getBoundingClientRect();
-      const f = Math.exp(-e.deltaY * 0.01);
       setView((v) => zoomAt(v, f, e.clientX - r.left, e.clientY - r.top, r.width, r.height));
     };
+    // Zwei Finger auf der Karte: Pinch gehoert der Karte, nicht dem Seitenzoom.
+    // Pointer-Events (fuer den Pinch selbst) kommen trotzdem an.
+    const onTouch = (e: TouchEvent) => {
+      if (e.touches.length >= 2) e.preventDefault();
+    };
+    // Safari: eigene Gesture-Events fuer den Seitenzoom.
+    const onGesture = (e: Event) => e.preventDefault();
     el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
+    el.addEventListener("touchstart", onTouch, { passive: false });
+    el.addEventListener("touchmove", onTouch, { passive: false });
+    el.addEventListener("gesturestart", onGesture);
+    el.addEventListener("gesturechange", onGesture);
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchstart", onTouch);
+      el.removeEventListener("touchmove", onTouch);
+      el.removeEventListener("gesturestart", onGesture);
+      el.removeEventListener("gesturechange", onGesture);
+    };
   }, [frame, ready]);
 
   const local = (e: React.PointerEvent) => {
