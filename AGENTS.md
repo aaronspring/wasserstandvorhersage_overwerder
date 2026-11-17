@@ -42,6 +42,7 @@ tests/test_sturmflut.py  Synthetik-Tests fuer Thw/Klassifikation/Trend (netzwerk
 tests/test_webexport.py  Struktur-Tests fuer data.json (netzwerkfrei)
 tests/test_history.py    Parsing/Parquet-Tests fuers Archiv (netzwerkfrei)
 tests/test_hfhub.py      Dataset-Card/Upload-Pattern-Tests (netzwerkfrei)
+tests/test_surge_events.py Ereignis-Kurven fuer die Karte (netzwerkfrei)
 tests/test_alerts.py     Event-Erkennung + Issue-Abgleich (plan), netzwerkfrei
 ```
 
@@ -85,6 +86,7 @@ HF_TOKEN=... uv run python update_history.py  # inkrementelles Monatsupdate -> H
 uv sync --extra gelaende                  # rasterio/remotezip/scikit-image fuers DGM1
 uv run python inundation.py               # Karten-Asset + Luftbild (eingecheckt; Netz: LGV)
 uv run python export_web.py --demo --demo-surge-cm 220 --out web/public  # Demo mit Sturmflut fuer die Karte
+uv run python export_surge_events.py      # Top-Sturmflut-Kurven -> web/public/surge_events.json (Netz/HF, Extra hf)
 cd web && npm ci && npm run build        # Frontend bauen (Typecheck + Vite)
 cd web && npm run dev                    # Frontend lokal (data.json vorher erzeugen)
 ```
@@ -175,6 +177,11 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   jetzt); Hover auf der Karte zeigt Wassertiefe/Gelaende an der Stelle;
   Zoom/Verschieben ueber `web/src/useZoom.ts` (CSS-Transform auf `.map-layers`;
   +/-, Strg+Mausrad, Pinch), Parzellen-Nummern erst ab 1,4 px/m;
+  Klick auf eine Top-10-/Sturmflut-Stufen-Linie im Chart setzt
+  `cursor.scenario` -> Karte zeigt den Scheitel aus
+  `web/public/surge_events.json` (eingecheckt, `export_surge_events.py`, Extra
+  `hf`; Stufen: Kurve der naechstgelegenen Top-Sturmflut, auf die Stufe
+  verschoben); erneuter Klick oder "Zurueck zur Vorhersage" loest es;
   Kopplung ueber `web/src/cursor.ts` (kein App-Re-Render pro Mausbewegung).
   Tiefe wird im Browser gerechnet (Badewanne mit Verbindung, Stauwasser
   versickert, Fliesszeit je Zelle) aus dem statischen, eingecheckten

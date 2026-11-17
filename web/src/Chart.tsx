@@ -21,7 +21,7 @@ import {
   fmtTime,
   fmtWeekday,
 } from "./format";
-import { setCursor } from "./cursor";
+import { sameScenario, setCursor, toggleScenario, useScenario, type Scenario } from "./cursor";
 import { moonPhase } from "./moon";
 import type { Colors } from "./theme";
 import { useNarrow } from "./theme";
@@ -210,6 +210,8 @@ export default function Chart({
   const [selRight, setSelRight] = useState<number | null>(null);
   // Angeklickter Zeitpunkt: fixiert eine Ablese-Linie mit Werten je Serie.
   const [pinned, setPinned] = useState<number | null>(null);
+  // Aktive Sturmflut-Linie (Ereignis/Szenario der Karte) hervorheben.
+  const scenario = useScenario();
   // Zeigertyp der letzten Eingabe: Nur echte Maus-Bewegungen setzen den
   // Hover-Zeitpunkt der Karte. Auf Touch fehlt ein mouseleave, ein Tippen
   // wuerde den Hover sonst dauerhaft festhalten (Tippen fixiert per pinned).
@@ -395,6 +397,45 @@ export default function Chart({
     }, [data, narrow, hidden, zoom, showSurges, showSturmflut, clock]);
 
   const fcStart = Date.parse(data.forecast_start);
+
+  // Sturmflut-Linien anklickbar: Karte springt zum Scheitel (Top-Sturmflut) bzw.
+  // zum Szenario (Stufe); erneuter Klick loest es. mousedown/touchstart nicht
+  // an den Chart weiterreichen, sonst setzt derselbe Klick die Ablese-Linie.
+  const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
+  const clickProps = (s: Scenario) => ({
+    onMouseDown: stop,
+    onTouchStart: stop,
+    onClick: (e: { stopPropagation: () => void }) => {
+      e.stopPropagation();
+      toggleScenario(s);
+    },
+    style: { cursor: "pointer" },
+  });
+  // Breite, unsichtbare Trefferflaeche um die duenne Linie.
+  const hitShape =
+    (s: Scenario, active: boolean) =>
+    (p: {
+      x1?: number;
+      y1?: number;
+      x2?: number;
+      y2?: number;
+      stroke?: string;
+      strokeWidth?: number | string;
+      strokeDasharray?: string;
+    }) => (
+      <g {...clickProps(s)}>
+        <line x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2} stroke="transparent" strokeWidth={14} />
+        <line
+          x1={p.x1}
+          y1={p.y1}
+          x2={p.x2}
+          y2={p.y2}
+          stroke={p.stroke}
+          strokeWidth={active ? 3 : p.strokeWidth}
+          strokeDasharray={p.strokeDasharray}
+        />
+      </g>
+    );
 
   // Drag-to-Zoom: activeLabel ist der t-Wert (ms) am Cursor, am nächsten
   // Datenpunkt eingerastet (Recharts typisiert ihn als string -> Number()).
@@ -620,42 +661,56 @@ export default function Chart({
           />
         )}
 
-        {surgeLines.map((s, i) => (
-          <ReferenceLine
-            key={`surge-${s.rank}`}
-            y={s.cm}
-            stroke={colors.surge}
-            strokeWidth={1}
-            ifOverflow={zoomed ? "hidden" : "extendDomain"}
-            label={{
-              value: `#${s.rank} ${s.label} ${Math.round(s.cm)}`,
-              // dicht beieinanderliegende Marken abwechselnd links/rechts, damit
-              // sich die Beschriftungen nicht ueberlagern.
-              position: i % 2 === 0 ? "insideBottomRight" : "insideBottomLeft",
-              fill: colors.surge,
-              fontSize: 10,
-            }}
-          />
-        ))}
+        {surgeLines.map((s, i) => {
+          const sc: Scenario = { kind: "event", rank: s.rank };
+          const on = sameScenario(scenario, sc);
+          return (
+            <ReferenceLine
+              key={`surge-${s.rank}`}
+              y={s.cm}
+              stroke={colors.surge}
+              strokeWidth={1}
+              ifOverflow={zoomed ? "hidden" : "extendDomain"}
+              shape={hitShape(sc, on)}
+              label={{
+                ...clickProps(sc),
+                fontWeight: on ? 700 : 400,
+                value: `#${s.rank} ${s.label} ${Math.round(s.cm)}`,
+                // dicht beieinanderliegende Marken abwechselnd links/rechts, damit
+                // sich die Beschriftungen nicht ueberlagern.
+                position: i % 2 === 0 ? "insideBottomRight" : "insideBottomLeft",
+                fill: colors.surge,
+                fontSize: 10,
+              }}
+            />
+          );
+        })}
 
-        {sturmflutLines.map((s) => (
-          <ReferenceLine
-            key={`stufe-${s.stufe}`}
-            y={s.cm}
-            stroke={colors.sturmflut}
-            strokeWidth={1.5}
-            strokeDasharray="6 3"
-            ifOverflow={zoomed ? "hidden" : "extendDomain"}
-            label={{
-              value: `${s.stufe} ${Math.round(s.cm)}`,
-              // oberhalb der Linie (insideBottom = ueber der Linie bei
-              // horizontaler ReferenceLine, viewBox-Hoehe 0), linksbuendig.
-              position: "insideBottomLeft",
-              fill: colors.sturmflut,
-              fontSize: 10,
-            }}
-          />
-        ))}
+        {sturmflutLines.map((s) => {
+          const sc: Scenario = { kind: "level", stufe: s.stufe, cm: s.cm };
+          const on = sameScenario(scenario, sc);
+          return (
+            <ReferenceLine
+              key={`stufe-${s.stufe}`}
+              y={s.cm}
+              stroke={colors.sturmflut}
+              strokeWidth={1.5}
+              strokeDasharray="6 3"
+              ifOverflow={zoomed ? "hidden" : "extendDomain"}
+              shape={hitShape(sc, on)}
+              label={{
+                ...clickProps(sc),
+                fontWeight: on ? 700 : 400,
+                value: `${s.stufe} ${Math.round(s.cm)}`,
+                // oberhalb der Linie (insideBottom = ueber der Linie bei
+                // horizontaler ReferenceLine, viewBox-Hoehe 0), linksbuendig.
+                position: "insideBottomLeft",
+                fill: colors.sturmflut,
+                fontSize: 10,
+              }}
+            />
+          );
+        })}
 
         <ReferenceLine
           x={fcStart}

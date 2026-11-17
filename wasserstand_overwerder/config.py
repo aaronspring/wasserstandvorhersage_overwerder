@@ -113,6 +113,19 @@ STURMFLUT_SCHEITEL_CM = {
     5: (1060, "Dez. 2023"),
     10: (1008, "Emma 2008"),
 }
+# Scheitelzeitpunkte dazu (gesetzliche Zeit Europe/Berlin, aus
+# docs/TOP_10_STURMFLUTEN.md); fuer die Ereignis-Kurven der Overhaken-Karte
+# (export_surge_events.py -> web/public/surge_events.json).
+STURMFLUT_SCHEITEL_ZEIT = {
+    1: "2013-12-06 06:31",
+    3: "2007-11-09 15:51",
+    5: "2023-12-22 11:05",
+    10: "2008-03-01 19:50",
+}
+# Ausschnitt je Ereignis: so lange vor dem Scheitel, dass Vortiden und
+# Versickerung in der Karte stimmen, und kurz danach.
+SURGE_EVENT_BEFORE_H = 72
+SURGE_EVENT_AFTER_H = 6
 
 HTTP_TIMEOUT = 30  # Sekunden
 USER_AGENT = "wasserstandvorhersage-overwerder/0.1 (github.com/aaronspring)"

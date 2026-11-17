@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { useCursor } from "./cursor";
+import { setCursor, useCursor, type Scenario } from "./cursor";
 import { MAX_ZOOM, useZoom } from "./useZoom";
 import { fmtDateShort, fmtTime, fmtWeekday } from "./format";
 import type { Payload, Point } from "./types";
@@ -14,6 +14,17 @@ import type { Payload, Point } from "./types";
 // Methodik in docs/INUNDATION.md.
 
 const ASSET_URL = `${import.meta.env.BASE_URL}overhaken.json`;
+// Over-Kurven der Top-Sturmfluten (export_surge_events.py), cm ueber PNP.
+const EVENTS_URL = `${import.meta.env.BASE_URL}surge_events.json`;
+
+interface SurgeEvent {
+  rank: number;
+  label: string;
+  cm: number;
+  peak: string;
+  peak_cm: number;
+  series: Point[];
+}
 const LAND = 0;
 const RIVER = 1;
 const MAX_DEPTH_CM = 250;
@@ -91,7 +102,21 @@ function buildLevel(data: Payload, gaugeZero: number): Level | null {
   const obs = (data.series.over ?? []).map(toCm);
   const obsEnd = obs.length ? obs[obs.length - 1][0] : -Infinity;
   const fc = (data.series.overwerder ?? []).map(toCm).filter(([t]) => t > obsEnd);
-  const all = [...obs, ...fc].sort((x, y) => x[0] - y[0]);
+  return levelFrom([...obs, ...fc], obsEnd);
+}
+
+// Szenario-Kurve: Ereignis (cm ueber PNP), optional um `shiftCm` verschoben;
+// alles gilt als Messung.
+function buildEventLevel(ev: SurgeEvent, gaugeZero: number, shiftCm = 0): Level | null {
+  const pts = ev.series.map((p): [number, number] => [
+    Date.parse(p[0]),
+    p[1] + shiftCm + gaugeZero * 100,
+  ]);
+  return levelFrom(pts, Infinity);
+}
+
+function levelFrom(pts: [number, number][], obsEnd: number): Level | null {
+  const all = [...pts].sort((x, y) => x[0] - y[0]);
   if (!all.length) return null;
   const t = all.map((p) => p[0]);
   const v = all.map((p) => p[1]);
@@ -331,6 +356,63 @@ function paint(
   ctx.putImageData(img, 0, 0);
 }
 
+const fmtDateYear = (ms: number) =>
+  new Intl.DateTimeFormat("de-DE", {
+    timeZone: "Europe/Berlin",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+    .format(ms)
+    .replace(",", "");
+
+interface ScenarioLevel {
+  level: Level;
+  peak: number;
+  badge: string;
+  text: string;
+}
+
+// Top-Sturmflut: echte Over-Kurve bis zum Scheitel. Sturmflut-Stufe: Kurve des
+// Ereignisses mit dem naechstgelegenen Scheitel, so verschoben, dass der
+// Scheitel genau auf der Stufe liegt (Szenario, keine Messung).
+function scenarioLevel(
+  s: Scenario | null,
+  events: SurgeEvent[],
+  gaugeZero: number,
+): ScenarioLevel | null {
+  if (!s || !events.length) return null;
+  if (s.kind === "event") {
+    const ev = events.find((e) => e.rank === s.rank);
+    const level = ev && buildEventLevel(ev, gaugeZero);
+    if (!ev || !level) return null;
+    const peak = Date.parse(ev.peak);
+    return {
+      level,
+      peak,
+      badge: `#${ev.rank} ${ev.label}`,
+      text: `Scheitel ${fmtDateYear(peak)} Uhr · ${Math.round(ev.peak_cm)} cm · Messung`,
+    };
+  }
+  const ev = events.reduce((b, e) =>
+    Math.abs(e.peak_cm - s.cm) < Math.abs(b.peak_cm - s.cm) ? e : b,
+  );
+  const shift = s.cm - ev.peak_cm;
+  const level = buildEventLevel(ev, gaugeZero, shift);
+  if (!level) return null;
+  const sign = shift < 0 ? "−" : "+";
+  return {
+    level,
+    peak: Date.parse(ev.peak),
+    badge: "Szenario",
+    text:
+      `${s.stufe} ${Math.round(s.cm)} cm am Scheitel · Verlauf wie ${ev.label}, ` +
+      `um ${sign}${Math.abs(Math.round(shift))} cm verschoben`,
+  };
+}
+
 export default function OverhakenMap({
   data,
   dark,
@@ -371,10 +453,25 @@ export default function OverhakenMap({
       .catch(() => setMissing(true));
   }, []);
 
-  const level = useMemo(
+  const [events, setEvents] = useState<SurgeEvent[]>([]);
+  useEffect(() => {
+    fetch(EVENTS_URL)
+      .then((r) => (r.ok ? r.json() : { events: [] }))
+      .then((j: { events?: SurgeEvent[] }) => setEvents(j.events ?? []))
+      .catch(() => setEvents([]));
+  }, []);
+
+  // Klick auf eine Sturmflut-Linie im Chart: Ereignis-/Szenario-Kurve statt der
+  // Vorhersage, Zeitpunkt = Scheitel.
+  const scen = useMemo(
+    () => (grid ? scenarioLevel(cursor.scenario, events, grid.a.gauge_zero_m_nhn) : null),
+    [cursor.scenario, events, grid],
+  );
+  const forecastLevel = useMemo(
     () => (grid ? buildLevel(data, grid.a.gauge_zero_m_nhn) : null),
     [data, grid],
   );
+  const level = scen?.level ?? forecastLevel;
 
   const [clock, setClock] = useState(() => Date.now());
   useEffect(() => {
@@ -384,9 +481,14 @@ export default function OverhakenMap({
 
   // Ein Klick ins Diagramm fixiert den Zeitpunkt; Hover im Diagramm aendert ihn
   // dann nicht mehr, damit man auf der Karte in Ruhe die Tiefen abfahren kann.
-  const source: "hover" | "pinned" | "now" =
-    cursor.pinned != null ? "pinned" : cursor.hover != null ? "hover" : "now";
-  const when = cursor.pinned ?? cursor.hover ?? clock;
+  const source: "hover" | "pinned" | "now" | "scenario" = scen
+    ? "scenario"
+    : cursor.pinned != null
+      ? "pinned"
+      : cursor.hover != null
+        ? "hover"
+        : "now";
+  const when = scen ? scen.peak : (cursor.pinned ?? cursor.hover ?? clock);
 
   // Mauszeiger ueber der Karte: Position in % des Rahmens (fuer die Anzeige)
   // und in % der (gezoomten) Karte (ax/ay, fuer die Rasterzelle).
@@ -454,8 +556,13 @@ export default function OverhakenMap({
     const d = wa.surface(b.spill_m * 100) - b.base_m * 100;
     return d >= 1 ? d : null;
   });
-  const label =
-    source === "hover" ? "Mauszeiger" : source === "pinned" ? "fixiert" : "jetzt";
+  const label = scen
+    ? scen.badge
+    : source === "hover"
+      ? "Mauszeiger"
+      : source === "pinned"
+        ? "fixiert"
+        : "jetzt";
 
   // Zoom: Beschriftungen behalten ihre Bildschirmgroesse. Parzellen-Nummern
   // erst, wenn sie sich nicht mehr ueberdecken (>= 1,4 Pixel je Meter).
@@ -495,8 +602,23 @@ export default function OverhakenMap({
           <h2>Overhaken zum gewählten Zeitpunkt</h2>
           <p className="map-when">
             <span className={`map-src map-src-${source}`}>{label}</span>
-            {fmtWeekday(lv.at)} {fmtDateShort(lv.at)} {fmtTime(lv.at)} Uhr ·{" "}
-            {forecast ? "Vorhersage" : "Messung"}
+            {scen ? (
+              <>
+                {scen.text}{" "}
+                <button
+                  type="button"
+                  className="chart-btn map-back"
+                  onClick={() => setCursor({ scenario: null })}
+                >
+                  Zurück zur Vorhersage
+                </button>
+              </>
+            ) : (
+              <>
+                {fmtWeekday(lv.at)} {fmtDateShort(lv.at)} {fmtTime(lv.at)} Uhr ·{" "}
+                {forecast ? "Vorhersage" : "Messung"}
+              </>
+            )}
           </p>
         </div>
         <div className="map-styles" role="group" aria-label="Kartenstil">
@@ -664,7 +786,9 @@ export default function OverhakenMap({
           Mit der Maus über das Diagramm fahren; ein Klick fixiert den
           Zeitpunkt (nächster Klick löst ihn), dann zeigt die Maus auf der Karte die
           Wassertiefe. Zoomen mit +/−, Strg + Mausrad oder zwei Fingern; gezoomt
-          lässt sich die Karte ziehen. Nummern: Parzellen laut Lageplan der
+          lässt sich die Karte ziehen. Klick auf eine Top-10- oder
+          Sturmflut-Stufen-Linie zeigt die Karte zum Scheitel (Stufe: Szenario mit
+          dem Verlauf der nächstgelegenen Top-Sturmflut). Nummern: Parzellen laut Lageplan der
           Kolonie. Wasser
           fließt mit {String(a.flow_m_s ?? 0).replace(".", ",")} m/s vom Strom über schon
           nasse Flächen;
