@@ -311,6 +311,17 @@ body {
   border-color: #eb683466;
 }
 
+.map-src-scenario {
+  color: #c0392b;
+  border-color: #c0392b66;
+}
+
+.map-back {
+  margin-left: 6px;
+  padding: 1px 8px;
+  font-size: 0.75rem;
+}
+
 .map-src-hover,
 .map-src-pinned {
   color: #2a78d6;
