@@ -126,7 +126,7 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
 - PEGELONLINE-REST-API (`pegelonline.py`) liefert max. die letzten **31 Tage**
   (`--days` entsprechend). Fuer aeltere Daten das **Langzeitarchiv** nutzen:
   `history.fetch_history` / `build_history.py` (minuetliche Rohdaten ab
-  2000-01-01, ZIP+CSV ueber `historische-zeitreihen/prepare-download`).
+  2000-01-01, ZIP+CSV ueber `/gast/download/prepare` -> JSON `downloadUrl`; Tage inkl. Ende).
 - **Langzeitarchiv nur fuer WSV-Pegel:** Over und Zollenspieker haben das
   "Download langfristiger Wasserstaende"-Archiv, der HPA-Pegel **Hamburg
   St. Pauli nicht** (Server-Fehlerseite -> `ArchiveNotAvailable`).
