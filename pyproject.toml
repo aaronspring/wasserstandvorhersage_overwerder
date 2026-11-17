@@ -18,7 +18,7 @@ dependencies = [
 [project.optional-dependencies]
 # Nur fuer den Upload des Parquet-Archivs zu Hugging Face (build_history.py --hf-repo).
 hf = ["huggingface-hub>=0.24"]
-# DGM1-Download + Ueberflutungs-Zeitpunkte (inundation.py).
+# Gelaende-Asset der Overhaken-Karte erzeugen (inundation.py: DGM1, LoD2).
 gelaende = ["rasterio>=1.3", "remotezip>=0.12", "scikit-image>=0.22", "scipy>=1.11"]
 
 [project.urls]

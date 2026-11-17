@@ -1,6 +1,6 @@
 """Gebaeude aus dem 3D-Gebaeudemodell LoD2-DE Hamburg (LGV) fuer die
-Ueberflutungs-Grafiken: Grundriss, Bodenhoehe, Hausnummer und je Gebaeude
-der Zeitpunkt, an dem Wasser es erreicht.
+Overhaken-Karte: Grundriss, Bodenhoehe, Hausnummer und je Gebaeude die
+Ueberlaufhoehe, ab der Wasser es erreicht.
 
 Quelle: CityGML-Kacheln 1x1 km (``LoD2_32_<E km>_<N km>_1_HH.gml``) im
 Hamburg-ZIP, per HTTP-Range geladen wie das DGM1. Datenlizenz Deutschland -
@@ -118,30 +118,14 @@ def footprint_cells(terrain: Terrain, footprint: np.ndarray) -> tuple:
     return rr.ravel()[inside], cc.ravel()[inside]
 
 
-def flood_table(
-    df: pd.DataFrame,
-    terrain: Terrain,
-    spill: np.ndarray,
-    timing: dict[str, np.ndarray],
-    level_max_m: float,
-) -> pd.DataFrame:
-    """Je Gebaeude: ``spill_m`` (niedrigste Ueberlaufhoehe im Grundriss),
-    ``onset`` (Wasser erreicht das Gebaeude), ``hours_wet`` (laengste nasse
-    Dauer im Grundriss), ``depth_m`` (Scheitel ueber Bodenhoehe ``base_m``;
-    <= 0 = trocken)."""
+def add_spill(df: pd.DataFrame, terrain: Terrain, spill: np.ndarray) -> pd.DataFrame:
+    """Je Gebaeude ``spill_m``: niedrigste Ueberlaufhoehe im Grundriss (ab
+    diesem Elbe-Wasserstand erreicht Wasser das Gebaeude)."""
     out = df.copy()
-    spills, onsets, hours = [], [], []
+    spills = []
     for fp in df["footprint"]:
         r, c = footprint_cells(terrain, fp)
         sp = spill[r, c]
         spills.append(np.nanmin(sp) if np.isfinite(sp).any() else np.nan)
-        on = timing["onset"][r, c]
-        onsets.append(on[~np.isnat(on)].min() if (~np.isnat(on)).any() else np.nan)
-        hw = timing["hours_wet"][r, c]
-        hours.append(np.nanmax(hw) if np.isfinite(hw).any() else np.nan)
     out["spill_m"] = spills
-    out["onset"] = pd.to_datetime(onsets).tz_localize("UTC")
-    out["hours_wet"] = hours
-    reached = out["onset"].notna()
-    out["depth_m"] = np.where(reached, level_max_m - out["base_m"], np.nan)
     return out

@@ -1,12 +1,12 @@
 """Statisches Gelaende-Asset fuer die Overhaken-Karte der Web-App (netzfrei).
 
-Die Web-App rechnet die Wassertiefe zum Hover-Zeitpunkt selbst (wie
-``inundation.depth_at``): Zelle nass, sobald das laufende Maximum des
-Wasserstands ihre Ueberlaufhoehe erreicht; Spiegel = max(Wasserstand,
-Ueberlaufhoehe - Versickerung seit dem letzten Kontakt), Tiefe = Spiegel -
-Gelaende. Dafuer braucht sie nur Gelaende,
-Ueberlaufhoehe, Klassen (Land/Elbe/sonstiges Wasser), eine Schummerung und die
-Gebaeude - alles zeitunabhaengig, daher einmal erzeugt und eingecheckt.
+Die Web-App rechnet die Wassertiefe zum gewaehlten Zeitpunkt selbst: Zelle
+nass, sobald das laufende Maximum des Wasserstands ihre Ueberlaufhoehe
+erreicht; Spiegel = max(Wasserstand, Ueberlaufhoehe - Versickerung seit dem
+letzten Kontakt), Tiefe = Spiegel - Gelaende, jeweils um die Fliesszeit der
+Zelle verzoegert. Dafuer braucht sie nur Gelaende, Ueberlaufhoehe, Klassen
+(Land/Elbe/sonstiges Wasser), Schummerung, Fliesszeit und die Gebaeude -
+alles zeitunabhaengig, daher einmal erzeugt und eingecheckt.
 
 Raster: zeilenweise von Nord nach Sued, Int16 (cm NHN, ``NODATA`` = keine
 Angabe) bzw. Uint8, little-endian, base64.

@@ -134,47 +134,37 @@ DGM1_URL = (
 INUNDATION_BBOX = (572400.0, 5919900.0, 574800.0, 5922200.0)
 # Auswerteflaeche: Huetten 101-141 des Freizeit-, Sport- und Gartenvereins
 # Overhaken e. V. (zwischen Priel und Overwerder Hauptdeich, um 53.4356 N /
-# 10.1067 E); per --area-bbox anpassbar. Gebaeude werden nur hier ausgewertet.
+# 10.1067 E). Gebaeude der Web-Karte werden nur hier ausgewertet.
 OVERHAKEN_BBOX = (573390.0, 5921160.0, 573600.0, 5921420.0)
 # Zellen mit Ueberlaufhoehe darunter liegen stromseitig des Overwerder
 # Hauptdeichs (Kronenhoehe im DGM1 >= 8 m NHN); dahinter gilt als geschuetzt.
 VORLAND_MAX_SPILL_M = 7.0
-# Kartenausschnitt der Grafiken (EPSG:25832): Kolonie plus Elbe im Westen. Der
+# Ausschnitt der Web-Karte (EPSG:25832): Kolonie plus Elbe im Westen. Der
 # Modellausschnitt (INUNDATION_BBOX) bleibt gross, damit die Wasserwege stimmen.
-# Querprofil A -> B: Elbe -> Priel -> Parzellen -> Hauptdeich -> Hohendeicher See.
 INUNDATION_VIEW = (573180.0, 5921080.0, 573720.0, 5921500.0)
-INUNDATION_PROFILE = ((573250.0, 5921180.0), (573720.0, 5921460.0))
-# Beschriftungen: Karte (Text, x, y) und Profil (Text, Distanz ab A in m).
+# Beschriftungen der Web-Karte (Text, x, y).
 INUNDATION_MAP_LABELS = (
     ("Elbe", 573215.0, 5921300.0),
     ("Priel", 573400.0, 5921140.0),
     ("Overhaken", 573420.0, 5921440.0),
     ("Hauptdeich", 573660.0, 5921330.0),
 )
-INUNDATION_PROFILE_LABELS = (
-    ("Elbe", 40),
-    ("Priel", 135),
-    ("Parzellen\nOverhaken", 330),
-    ("Hauptdeich", 385),
-    ("Hohendeicher\nSee", 495),
-)
-# Ablauf von Stauwasser aus Senken (Siele/Versickerung), m/h. 0 = Wasser bleibt
-# bis zur Ueberlaufhoehe stehen; unbekannt, per --drain-cm-h variierbar.
-# Default 10 cm/h: Versickerung im sandigen Vorland (untere Spanne fuer Sand, da
-# das Grundwasser im Vorland hoch steht); keine Messung, per --drain-cm-h aendern.
+# Versickerung von Stauwasser aus Senken, m/h (0 = bleibt bis zur
+# Ueberlaufhoehe stehen). 10 cm/h: sandiges Vorland, untere Spanne fuer Sand,
+# da das Grundwasser hoch steht; angenommen, keine Messung.
 INUNDATION_DRAIN_M_PER_H = 0.10
 # Fliessgeschwindigkeit beim flachen Ueberstroemen von Wiese/Parzellen (Manning:
 # h 0,3 m, n 0,05, Gefaelle 1 promille -> ~0,3 m/s). Verzoegerung je Zelle =
-# Fliessweg vom Strom / v (inundation.travel_distance); genutzt von der Web-Karte.
+# Fliessweg vom Strom / v (inundation.travel_distance).
 INUNDATION_FLOW_M_S = 0.3
-# 3D-Gebaeudemodell LoD2-DE Hamburg 2026 (CityGML-Kacheln 1x1 km, 630 MB ZIP),
-# fuer Grundrisse, Bodenhoehen und (wo vorhanden) Hausnummern der Gebaeude.
 # Luftbild (DOP, belaubt) fuer den Satelliten-Stil der Web-Karte: LGV-WMS
 # Zeitreihe, Jahr per TIME. 2022 stammt von Pleiades (geschlossene Lizenz) ->
 # nur LGV-Befliegungen verwenden. Datenlizenz Deutschland - Namensnennung 2.0.
 DOP_WMS_URL = "https://geodienste.hamburg.de/wms_dop_zeitreihe_belaubt"
 DOP_WMS_LAYER = "dop_zeitreihe_belaubt"
 DOP_YEAR = 2024
+# 3D-Gebaeudemodell LoD2-DE Hamburg 2026 (CityGML-Kacheln 1x1 km, 630 MB ZIP),
+# fuer Grundrisse, Bodenhoehen und (wo vorhanden) Hausnummern der Gebaeude.
 LOD2_URL = (
     "https://www.daten-hamburg.de/opendata/3d_stadtmodell_lod2/"
     "LoD2-DE_HH_2026-04-28.zip"

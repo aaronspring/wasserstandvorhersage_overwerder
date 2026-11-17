@@ -4,14 +4,13 @@ import { useCursor } from "./cursor";
 import { fmtDateShort, fmtTime, fmtWeekday } from "./format";
 import type { Payload, Point } from "./types";
 
-// Karte der Kolonie Overhaken zum Zeitpunkt unter dem Mauszeiger im Chart
-// (sonst fixierte Ablese-Linie, sonst "jetzt"). Rechnung wie
-// inundation.depth_at: Zelle nass, sobald das laufende Maximum des
+// Karte der Kolonie Overhaken zum per Klick fixierten Zeitpunkt (sonst
+// Mauszeiger im Chart, sonst "jetzt"). Zelle nass, sobald das laufende Maximum des
 // Wasserstands ihre Ueberlaufhoehe erreicht; Spiegel = max(Wasserstand,
 // Ueberlaufhoehe - Versickerung seit dem letzten Kontakt zum Strom), Tiefe =
 // Spiegel - Gelaende. Stauwasser in Senken versickert also (Sandboden).
-// Gelaende-Asset aus
-// `inundation.py --web-asset web/public/overhaken.json`.
+// Gelaende-Asset aus `inundation.py` (web/public/overhaken.json),
+// Methodik in docs/INUNDATION.md.
 
 const ASSET_URL = `${import.meta.env.BASE_URL}overhaken.json`;
 const LAND = 0;
