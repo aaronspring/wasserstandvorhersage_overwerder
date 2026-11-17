@@ -32,6 +32,13 @@ def main() -> None:
     params.save(args.out)
 
     print(f"\nKalibrierung -> {args.out}")
+    if metrics.get("restricted"):
+        print(
+            "  ACHTUNG: kein plausibler freier Fit — eingeschraenkt kalibriert "
+            "(Gewichte auf Entfernungsanteilen, nur tau/Offset aus den Daten)."
+        )
+    elif metrics.get("rejected"):
+        print(f"  {metrics['rejected']} entartete Kandidaten verworfen")
     print(f"  tau (St. Pauli -> Zollenspieker): {params.tau_minutes:.0f} min")
     print(
         f"  Gewichte: a_up={params.a_up:.3f}  a_down={params.a_down:.3f}  "

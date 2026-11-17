@@ -22,6 +22,8 @@ direkt gegenüber Overwerder) aus dem Langzeitarchiv. Einheiten: cm über PNP
 > **Siehe auch:** [`STURMFLUT_EDA.md`](STURMFLUT_EDA.md) — Häufigkeit,
 > Saisonalität und Trend *aller* Sturmfluten, die BSH-Klassifikation
 > (Sturmflut / schwere / sehr schwere) sowie „Wasser auf dem Gelände".
+> [`OVER_ZOLLENSPIEKER.md`](OVER_ZOLLENSPIEKER.md) — wie sich der Stützpegel
+> Zollenspieker bei genau diesen Ereignissen gegenüber Over verhält.
 
 ## Ergebnis
 
