@@ -429,14 +429,11 @@ function scenarioLevel(
   const shift = s.cm - ev.peak_cm;
   const level = buildEventLevel(ev, gaugeZero, shift);
   if (!level) return null;
-  const sign = shift < 0 ? "−" : "+";
   return {
     level,
     peak: Date.parse(ev.peak),
     badge: "Szenario",
-    text:
-      `${s.stufe} ${Math.round(s.cm)} cm am Scheitel · Verlauf wie ${ev.label}, ` +
-      `um ${sign}${Math.abs(Math.round(shift))} cm verschoben`,
+    text: `${s.stufe} ${Math.round(s.cm)} cm am Scheitel`,
   };
 }
 
