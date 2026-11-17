@@ -4,17 +4,23 @@ Das oeffentliche Formular "Download langfristiger Wasserstaende (Rohdaten) ab
 dem 1.1.2000" auf den Stammdatenseiten von PEGELONLINE laeuft ueber zwei
 Schritte:
 
-1. POST an ``/gast/historische-zeitreihen/prepare-download`` (uuid, parameter,
-   start, end, format) -> 303-Redirect auf eine generierte Download-URL.
+1. POST an ``/gast/download/prepare`` (uuid, parameter="W", start/end als
+   Kalendertage YYYY-MM-DD, Ende inklusive, progressId, format) -> JSON
+   ``{"downloadUrl": "/gast/download?filename=..."}``; bei Fehlern 303-Redirect
+   auf ``/errorpages/...``.
 2. GET dieser URL liefert ein ZIP mit ``*.csv`` (Kopf ``timestamp;value``),
    ``zeitreiheninformation.txt`` und ``nutzungsbedingungen.txt``.
+
+(Bis Nov. 2026 lief das ueber ``/gast/historische-zeitreihen/prepare-download``
+mit Zeitstempeln und Location-Redirect; dieser Endpunkt liefert jetzt 404.)
 
 Die Zeitstempel stehen in gesetzlicher Zeit (MEZ/MESZ, mit Sommerzeit); wir
 lokalisieren sie nach ``Europe/Berlin`` und geben tz-aware UTC zurueck. Werte
 sind cm ueber PNP.
 
-Nur WSV-Pegel haben dieses Archiv. HPA-Pegel wie HAMBURG ST. PAULI liefern nur
-die rollierenden 31 Tage der REST-API (siehe :mod:`pegelonline`).
+Nur WSV-Pegel haben dieses Archiv. HPA-Pegel wie HAMBURG ST. PAULI liefern eine
+leere CSV (nur Kopfzeile) bzw. nur die rollierenden 31 Tage der REST-API (siehe
+:mod:`pegelonline`).
 """
 
 from __future__ import annotations
@@ -38,7 +44,7 @@ from .config import (
     USER_AGENT,
 )
 
-_PREPARE_URL = f"{PEGELONLINE_WEB_BASE}/historische-zeitreihen/prepare-download"
+_PREPARE_URL = f"{PEGELONLINE_WEB_BASE}/download/prepare"
 _ERROR_MARKER = "errorpages"
 
 
@@ -52,10 +58,9 @@ def _aware(value: str | pd.Timestamp) -> pd.Timestamp:
     return ts.tz_localize(PEGELONLINE_HISTORY_TZ) if ts.tzinfo is None else ts
 
 
-def _to_berlin_iso(value: str | pd.Timestamp) -> str:
-    """Zeitangabe nach Europe/Berlin in ISO-8601 mit Offset (z. B. +01:00)."""
-    berlin = _aware(value).tz_convert(PEGELONLINE_HISTORY_TZ)
-    return berlin.strftime("%Y-%m-%dT%H:%M:%S%z")
+def _berlin_day(value: str | pd.Timestamp) -> str:
+    """Kalendertag (YYYY-MM-DD) der Zeitangabe in gesetzlicher Zeit."""
+    return _aware(value).tz_convert(PEGELONLINE_HISTORY_TZ).strftime("%Y-%m-%d")
 
 
 def _session(session: requests.Session | None) -> requests.Session:
@@ -70,32 +75,43 @@ def prepare_download_url(
     end: str | pd.Timestamp,
     session: requests.Session | None = None,
 ) -> str:
-    """Schritt 1: Download vorbereiten, absolute Download-URL zurueckgeben."""
+    """Schritt 1: Download vorbereiten, absolute Download-URL zurueckgeben.
+
+    Der Server arbeitet tageweise mit inklusivem Ende; ``[start, end)`` wird
+    daher auf die ueberdeckenden Kalendertage (gesetzliche Zeit) gerundet und
+    erst in :func:`fetch_history` exakt zugeschnitten.
+    """
     s = _session(session)
     r = s.post(
         _PREPARE_URL,
         data={
             "uuid": uuid,
             "parameter": PEGELONLINE_HISTORY_PARAMETER,
-            "start": _to_berlin_iso(start),
-            "end": _to_berlin_iso(end),
+            "start": _berlin_day(start),
+            "end": _berlin_day(_aware(end) - pd.Timedelta(minutes=1)),
+            "progressId": str(_uuid.uuid4()),
             "format": "csv",
         },
         timeout=HTTP_TIMEOUT,
         allow_redirects=False,
     )
     location = r.headers.get("Location", "")
-    if r.status_code not in (301, 302, 303) or not location:
-        raise RuntimeError(
-            f"prepare-download unerwartete Antwort (HTTP {r.status_code}): {location!r}"
-        )
     if _ERROR_MARKER in location:
         raise ArchiveNotAvailable(
             f"Kein Langzeitarchiv fuer uuid={uuid} (Server-Fehlerseite: {location})"
         )
-    if location.startswith("http"):
-        return location
-    return f"{PEGELONLINE_WEB_BASE.rsplit('/gast', 1)[0]}{location}"
+    ctype = r.headers.get("Content-Type", "")
+    if r.status_code != 200 or not ctype.startswith("application/json"):
+        raise RuntimeError(
+            f"download/prepare unerwartete Antwort (HTTP {r.status_code}, "
+            f"{ctype!r}, Location={location!r})"
+        )
+    url = r.json().get("downloadUrl", "")
+    if not url:
+        raise RuntimeError(f"download/prepare ohne downloadUrl: {r.text[:200]!r}")
+    if url.startswith("http"):
+        return url
+    return f"{PEGELONLINE_WEB_BASE.rsplit('/gast', 1)[0]}{url}"
 
 
 def _parse_csv_bytes(raw: bytes) -> pd.Series:
@@ -147,6 +163,10 @@ def fetch_history(
     r = s.get(url, timeout=HTTP_TIMEOUT)
     r.raise_for_status()
     series = _parse_csv_bytes(_extract_csv(r.content))
+    if series.empty:
+        # HPA-Pegel (St. Pauli) liefern statt Fehler eine leere CSV.
+        raise ArchiveNotAvailable(f"Keine Archivwerte fuer {key!r} im Zeitraum")
+    series = series[(series.index >= _to_utc(start)) & (series.index < _to_utc(end))]
     series.name = key
     return series
 

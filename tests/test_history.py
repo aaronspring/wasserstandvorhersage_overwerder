@@ -95,17 +95,28 @@ def test_extract_csv_picks_csv_member():
 
 
 class _FakeResp:
-    def __init__(self, status_code, location):
+    def __init__(self, status_code, location=None, payload=None):
         self.status_code = status_code
-        self.headers = {"Location": location} if location else {}
+        self.headers = {}
+        if location:
+            self.headers["Location"] = location
+        self._payload = payload
+        if payload is not None:
+            self.headers["Content-Type"] = "application/json"
+        self.text = str(payload)
+
+    def json(self):
+        return self._payload
 
 
 class _FakeSession:
     def __init__(self, resp):
         self._resp = resp
         self.headers = {}
+        self.posted = None
 
-    def post(self, *a, **k):
+    def post(self, url, data=None, **k):
+        self.posted = data
         return self._resp
 
 
@@ -118,10 +129,34 @@ def test_prepare_download_url_raises_on_error_redirect():
     raise AssertionError("Fehler-Redirect sollte ArchiveNotAvailable ausloesen")
 
 
-def test_prepare_download_url_returns_absolute():
-    sess = _FakeSession(_FakeResp(303, "https://host/gast/.../download?filename=x.zip"))
+def test_prepare_download_url_makes_relative_absolute():
+    sess = _FakeSession(
+        _FakeResp(200, payload={"downloadUrl": "/gast/download?filename=x.zip-ab"})
+    )
     url = history.prepare_download_url("u", "2000-01-01", "2000-01-02", session=sess)
-    assert url == "https://host/gast/.../download?filename=x.zip"
+    assert url == "https://pegelonline.wsv.de/gast/download?filename=x.zip-ab"
+
+
+def test_prepare_download_url_sends_inclusive_berlin_days():
+    sess = _FakeSession(_FakeResp(200, payload={"downloadUrl": "https://h/x.zip"}))
+    # [2025-01-01, 2026-11-15) gesetzlich -> Tage 2025-01-01 .. 2026-11-14.
+    history.prepare_download_url("u", "2025-01-01", "2026-11-15", session=sess)
+    assert sess.posted["start"] == "2025-01-01"
+    assert sess.posted["end"] == "2026-11-14"
+    assert sess.posted["parameter"] == "W"
+    assert sess.posted["format"] == "csv"
+    assert sess.posted["progressId"]
+
+
+def test_prepare_download_url_rejects_unexpected_response():
+    sess = _FakeSession(_FakeResp(404))
+    try:
+        history.prepare_download_url("u", "2000-01-01", "2000-01-02", session=sess)
+    except history.ArchiveNotAvailable:
+        raise AssertionError("404 ist kein fehlendes Archiv") from None
+    except RuntimeError:
+        return
+    raise AssertionError("404 sollte RuntimeError ausloesen")
 
 
 if __name__ == "__main__":

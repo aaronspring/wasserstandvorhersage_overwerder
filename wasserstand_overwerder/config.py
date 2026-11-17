@@ -21,8 +21,8 @@ PEGELONLINE_STATIONS = {
 # ZIP mit CSV (timestamp;value). Zeitstempel in gesetzlicher Zeit (MEZ/MESZ),
 # Werte in cm ueber PNP. Nur fuer WSV-Pegel verfuegbar; HPA-Pegel wie
 # HAMBURG ST. PAULI sind NICHT im Archiv (nur rollierende 31 Tage per REST).
-PEGELONLINE_WEB_BASE = "https://www.pegelonline.wsv.de/gast"
-PEGELONLINE_HISTORY_PARAMETER = "WASSERSTAND ROHDATEN"
+PEGELONLINE_WEB_BASE = "https://pegelonline.wsv.de/gast"
+PEGELONLINE_HISTORY_PARAMETER = "W"
 # Stations-UUIDs (identisch mit REST-API-v2-"uuid") fuer das Langzeitarchiv.
 PEGELONLINE_STATION_UUIDS = {
     "zollenspieker": "3de8ea26-ab29-4e46-adad-06198ba2e0b7",
