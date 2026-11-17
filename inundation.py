@@ -109,7 +109,7 @@ def main() -> None:
         "--drain-cm-h",
         type=float,
         default=config.INUNDATION_DRAIN_M_PER_H * 100.0,
-        help="Ablauf von Stauwasser aus Senken in cm/h (Default 0: bleibt stehen)",
+        help="Versickerung von Stauwasser aus Senken in cm/h (0: bleibt stehen)",
     )
     ap.add_argument("--animate", action="store_true", help="zusaetzlich animation.gif")
     ap.add_argument(
@@ -229,10 +229,21 @@ def main() -> None:
             spill,
             config.INUNDATION_VIEW,
             gauge_zero_m_nhn=config.OVER_PNP_NHN_M,
+            drain_m_per_h=drain,
             area_bbox=args.area_bbox,
             bldg=bldg,
             labels=config.INUNDATION_MAP_LABELS,
         )
+        photo = Path(args.web_asset).with_name("overhaken_dop.jpg")
+        try:
+            inundation_web.fetch_dop(photo, config.INUNDATION_VIEW, config.DOP_YEAR)
+            asset["photo"] = {
+                "file": photo.name,
+                "credit": f"Luftbild DOP {config.DOP_YEAR} (c) LGV, dl-de/by-2.0",
+            }
+            print(f"-> {photo}")
+        except Exception as e:  # Luftbild ist optional
+            print(f"Hinweis: Luftbild nicht geladen ({e})")
         p = inundation_web.write_asset(args.web_asset, asset)
         print(f"-> {p} ({p.stat().st_size / 1e3:.0f} kB)")
 

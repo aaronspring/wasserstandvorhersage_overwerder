@@ -165,7 +165,8 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   Download-ZIP liegt auf `archiv.transparenz.hamburg.de` (alte
   daten-hamburg.de-Links 404); Kacheln per HTTP-Range, Cache `out/dgm1/`.
   Extra `gelaende` ist optional und wird lazy importiert. Ablauf: Spiegel faellt
-  nur bis zur Ueberlaufhoehe (Stauwasser in abflusslosen Mulden, `--drain-cm-h`);
+  nur bis zur Ueberlaufhoehe (Stauwasser in abflusslosen Mulden versickert mit
+  `--drain-cm-h`, Default 10 cm/h Sandboden);
   Profil/Kartenausschnitt/Beschriftungen in `config.INUNDATION_*`.
   Gebaeude: LoD2-DE (CityGML 1.0, `config.LOD2_URL`); im Vorland haben fast
   keine Gebaeude eine ALKIS-Hausnummer -> laufende Nummer `nr` (NW->SO) +
@@ -173,7 +174,8 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
 - **Overhaken-Karte (Web):** `web/src/OverhakenMap.tsx` zeigt die Kolonie zum
   Zeitpunkt unter dem Mauszeiger im Chart (sonst Ablese-Linie, sonst jetzt);
   Kopplung ueber `web/src/cursor.ts` (kein App-Re-Render pro Mausbewegung).
-  Tiefe wird im Browser gerechnet wie `inundation.depth_at` (Ablauf 0) aus dem
+  Tiefe wird im Browser gerechnet wie `inundation.depth_at` (Versickerung aus
+  `config.INUNDATION_DRAIN_M_PER_H`, 10 cm/h Sand) aus dem
   statischen, eingecheckten `web/public/overhaken.json` (2-m-Raster, Over-PNP
   -5,098 m). Nach Aenderung von `config.INUNDATION_VIEW`/`OVERHAKEN_BBOX` das
   Asset neu erzeugen.

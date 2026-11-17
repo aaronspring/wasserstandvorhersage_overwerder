@@ -1,9 +1,10 @@
 """Statisches Gelaende-Asset fuer die Overhaken-Karte der Web-App (netzfrei).
 
 Die Web-App rechnet die Wassertiefe zum Hover-Zeitpunkt selbst (wie
-``inundation.depth_at`` mit Ablauf 0): Zelle nass, sobald das laufende Maximum
-des Wasserstands ihre Ueberlaufhoehe erreicht; Spiegel = max(Wasserstand,
-Ueberlaufhoehe), Tiefe = Spiegel - Gelaende. Dafuer braucht sie nur Gelaende,
+``inundation.depth_at``): Zelle nass, sobald das laufende Maximum des
+Wasserstands ihre Ueberlaufhoehe erreicht; Spiegel = max(Wasserstand,
+Ueberlaufhoehe - Versickerung seit dem letzten Kontakt), Tiefe = Spiegel -
+Gelaende. Dafuer braucht sie nur Gelaende,
 Ueberlaufhoehe, Klassen (Land/Elbe/sonstiges Wasser), eine Schummerung und die
 Gebaeude - alles zeitunabhaengig, daher einmal erzeugt und eingecheckt.
 
@@ -56,6 +57,7 @@ def build_asset(
     *,
     step: int = 2,
     gauge_zero_m_nhn: float,
+    drain_m_per_h: float = 0.0,
     area_bbox: tuple[float, float, float, float] | None = None,
     bldg: pd.DataFrame | None = None,
     labels: tuple = (),
@@ -80,12 +82,14 @@ def build_asset(
         "width": w,
         "height": h,
         "gauge_zero_m_nhn": gauge_zero_m_nhn,
+        "drain_m_per_h": drain_m_per_h,
         "nodata": NODATA,
         "z_cm": _b64(_cm(z)),
         "spill_cm": _b64(_cm(sp)),
         "cls": _b64(cls),
         "shade": _b64(hillshade(z, cell)),
         "area": list(area_bbox) if area_bbox else None,
+        "photo": None,
         "labels": [
             [txt, round(x - ext[0], 1), round(y - ext[1], 1)] for txt, x, y in labels
         ],
@@ -107,6 +111,41 @@ def build_asset(
                 }
             )
     return asset
+
+
+def dop_url(view, year: int, m_per_px: float = 0.5) -> str:
+    """WMS-GetMap-URL fuer das Luftbild (JPEG) passend zu ``view``."""
+    from urllib.parse import urlencode
+
+    from .config import DOP_WMS_LAYER, DOP_WMS_URL
+
+    xmin, ymin, xmax, ymax = view
+    q = {
+        "SERVICE": "WMS",
+        "VERSION": "1.3.0",
+        "REQUEST": "GetMap",
+        "LAYERS": DOP_WMS_LAYER,
+        "STYLES": "",
+        "CRS": "EPSG:25832",
+        "BBOX": f"{xmin},{ymin},{xmax},{ymax}",
+        "WIDTH": round((xmax - xmin) / m_per_px),
+        "HEIGHT": round((ymax - ymin) / m_per_px),
+        "FORMAT": "image/jpeg",
+        "TIME": str(year),
+    }
+    return f"{DOP_WMS_URL}?{urlencode(q)}"
+
+
+def fetch_dop(path: str | Path, view, year: int) -> Path:
+    """Luftbild fuer ``view`` als JPEG speichern (braucht Netz)."""
+    import urllib.request
+
+    p = Path(path)
+    with urllib.request.urlopen(dop_url(view, year), timeout=60) as r:
+        if not r.headers.get("Content-Type", "").startswith("image/"):
+            raise RuntimeError(f"WMS lieferte kein Bild: {r.read(300)!r}")
+        p.write_bytes(r.read())
+    return p
 
 
 def write_asset(path: str | Path, asset: dict) -> Path:

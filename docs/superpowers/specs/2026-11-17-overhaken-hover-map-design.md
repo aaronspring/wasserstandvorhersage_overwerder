@@ -21,16 +21,17 @@ Kein Slider.
   (Grundriss, `nr`, `base_m`, `spill_m`, Adresse), Over-PNP (-5,098 m NHN).
   Erzeugt von `inundation.py --web-asset ...` (netzfreie Funktion
   `inundation_web.build_asset`, getestet).
-- **Rechnung im Browser** (wie `inundation.depth_at`, Ablauf 0 cm/h): Wasserstand
+- **Rechnung im Browser** (wie `inundation.depth_at`, Versickerung 10 cm/h): Wasserstand
   L(t) aus Over-Messung, danach Overwerder-Vorhersage; laufendes Maximum R(t).
-  Zelle nass, wenn `spill <= R`; Spiegel `max(L, spill)` (Stauwasser bleibt auf
-  Schwellenhoehe), Tiefe = Spiegel - z.
+  Zelle nass, wenn `spill <= R`; Spiegel `max(L, spill - v * h)` mit
+  Versickerung v und h = Stunden seit dem letzten Kontakt zum Strom (Stauwasser
+  in Senken versickert), Tiefe = Spiegel - z.
 - **Kopplung:** kleiner Store `cursor.ts`; der Chart meldet Hover-Zeit und
   fixierte Ablese-Linie, die Karte liest `hover ?? pinned ?? jetzt`. Die App
   rendert dadurch nicht bei jeder Mausbewegung neu.
 - **Anzeige:** Canvas (Schummerung, Elbe, Tiefe in Blaustufen) + SVG (Gebaeude,
   eingefaerbt nach Tiefe am Gebaeude; Titel mit Nr., Bodenhoehe, "nass ab").
-  Kopfzeile: Zeitpunkt, Messung/Vorhersage, Over-Stand, "N von M Gebaeuden nass".
+  Kopfzeile: Zeitpunkt, Messung/Vorhersage, Over-Stand.
 - **Lokal pruefen:** `export_web.py --demo --demo-surge-cm 220` erzeugt eine
   Sturmflut in den Demo-Daten.
 

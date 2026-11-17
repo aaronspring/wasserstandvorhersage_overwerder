@@ -347,6 +347,7 @@ body {
 }
 
 .map-frame canvas,
+.map-frame img,
 .map-frame svg {
   position: absolute;
   inset: 0;
@@ -356,6 +357,10 @@ body {
 
 .map-frame canvas {
   image-rendering: auto;
+}
+
+.map-frame img {
+  object-fit: fill;
 }
 
 .bldg {
@@ -413,4 +418,14 @@ body {
   .chart-map {
     grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   }
+}
+
+.map-styles {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.map-styles .chart-btn.on {
+  border-color: #2a78d6;
+  color: #2a78d6;
 }

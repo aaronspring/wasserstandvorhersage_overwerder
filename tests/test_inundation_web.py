@@ -58,3 +58,9 @@ def test_build_asset_roundtrip():
     assert inundation_web.decode(a, "shade").shape == (10, 20)
     assert a["buildings"][0]["ring"][0] == [22.0, 10.0]
     assert a["buildings"][0]["spill_m"] == 3.0
+
+
+def test_dop_url_matches_view():
+    url = inundation_web.dop_url((0, 0, 540, 420), 2024)
+    assert "BBOX=0%2C0%2C540%2C420" in url
+    assert "WIDTH=1080" in url and "HEIGHT=840" in url and "TIME=2024" in url

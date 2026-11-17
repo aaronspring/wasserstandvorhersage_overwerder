@@ -27,7 +27,7 @@ are cached and gitignored. After that a run takes about 15 s, or about 1 min wit
 | `--demo --peak-cm 960` | synthetic storm tide, no network for the water level |
 
 Useful flags:
-- `--drain-cm-h 10`: trapped water drains at 10 cm/h. The default is 0, which keeps it until the end of the tide.
+- `--drain-cm-h 10`: trapped water seeps away at 10 cm/h (the default, for the sandy foreshore). `0` keeps it until the end of the tide.
 - `--area-bbox XMIN YMIN XMAX YMAX`: the analysis area in EPSG:25832.
 - `--gauge-zero -5.0`: overrides the PNP value.
 - `--no-buildings`: skips the LoD2 buildings.
@@ -145,8 +145,8 @@ Outputs in `out/inundation/`:
    from the colony (26 Oct 2026, Over peak 957 cm).
 2. **Plot numbers:** match the Verein's plot list to `alkis_id` so the figures show real
    numbers.
-3. **Drainage rate:** use real values for the Overwerder sluices instead of
-   `--drain-cm-h 0`.
+3. **Drainage rate:** the default 10 cm/h is an assumed seepage rate for sand;
+   replace it with observed values (how long puddles last after a storm tide).
 4. **Historic events** (Xaver 2013, Tilo 2007): load the data via the HF dataset because the
    archive endpoint is broken, and check the PNP before 2019-11.
 5. **Flow physics:** for real inflow times, a 2D model (LISFLOOD-FP or HEC-RAS 2D) on the

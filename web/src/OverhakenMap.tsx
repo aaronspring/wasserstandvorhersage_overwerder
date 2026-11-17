@@ -6,9 +6,11 @@ import type { Payload, Point } from "./types";
 
 // Karte der Kolonie Overhaken zum Zeitpunkt unter dem Mauszeiger im Chart
 // (sonst fixierte Ablese-Linie, sonst "jetzt"). Rechnung wie
-// inundation.depth_at (Ablauf 0): Zelle nass, sobald das laufende Maximum des
+// inundation.depth_at: Zelle nass, sobald das laufende Maximum des
 // Wasserstands ihre Ueberlaufhoehe erreicht; Spiegel = max(Wasserstand,
-// Ueberlaufhoehe), Tiefe = Spiegel - Gelaende. Gelaende-Asset aus
+// Ueberlaufhoehe - Versickerung seit dem letzten Kontakt zum Strom), Tiefe =
+// Spiegel - Gelaende. Stauwasser in Senken versickert also (Sandboden).
+// Gelaende-Asset aus
 // `inundation.py --web-asset web/public/overhaken.json`.
 
 const ASSET_URL = `${import.meta.env.BASE_URL}overhaken.json`;
@@ -31,11 +33,13 @@ interface Asset {
   width: number;
   height: number;
   gauge_zero_m_nhn: number;
+  drain_m_per_h?: number;
   nodata: number;
   z_cm: string;
   spill_cm: string;
   cls: string;
   shade: string;
+  photo?: { file: string; credit: string } | null;
   labels: [string, number, number][];
   buildings: Building[];
 }
@@ -91,7 +95,14 @@ function buildLevel(data: Payload, gaugeZero: number): Level | null {
 }
 
 // Wasserstand und laufendes Maximum zum Zeitpunkt `ms` (linear interpoliert).
-function levelAt(L: Level, ms: number): { now: number; max: number; at: number } {
+interface LevelAt {
+  now: number;
+  max: number;
+  at: number;
+  lo: number; // letzter Stuetzpunkt <= at
+}
+
+function levelAt(L: Level, ms: number): LevelAt {
   const n = L.t.length;
   const at = Math.min(Math.max(ms, L.t[0]), L.t[n - 1]);
   let lo = 0;
@@ -103,7 +114,38 @@ function levelAt(L: Level, ms: number): { now: number; max: number; at: number }
   }
   const f = L.t[hi] > L.t[lo] ? (at - L.t[lo]) / (L.t[hi] - L.t[lo]) : 0;
   const now = L.v[lo] + f * (L.v[hi] - L.v[lo]);
-  return { now, max: Math.max(L.runMax[lo], now), at };
+  return { now, max: Math.max(L.runMax[lo], now), at, lo };
+}
+
+// Wasserspiegel (cm NHN) einer Zelle mit Ueberlaufhoehe `spill` zum Zeitpunkt
+// lv: verbunden -> Strom; sonst Schwelle minus Versickerung seit dem letzten
+// Zeitpunkt, an dem der Strom die Schwelle noch erreichte. Ergebnis je
+// Schwellenwert gecacht (viele Zellen teilen sich ganze cm).
+function surfaceFn(L: Level, lv: LevelAt, drainCmH: number) {
+  // back[k] = max(v[lo-k .. lo]): nicht fallend in k -> binaere Suche.
+  const back: number[] = [];
+  for (let j = lv.lo, m = -Infinity; j >= 0; j--) {
+    m = Math.max(m, L.v[j]);
+    back.push(m);
+  }
+  const cache = new Map<number, number>();
+  return (spill: number): number => {
+    if (lv.now >= spill || drainCmH <= 0) return Math.max(lv.now, spill);
+    const hit = cache.get(spill);
+    if (hit != null) return hit;
+    let lo = 0;
+    let hi = back.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (back[mid] >= spill) hi = mid;
+      else lo = mid + 1;
+    }
+    const tLast = L.t[lv.lo - lo];
+    const hrs = Math.max(0, (lv.at - tLast) / 3.6e6);
+    const s = Math.max(lv.now, spill - drainCmH * hrs);
+    cache.set(spill, s);
+    return s;
+  };
 }
 
 // Erster Zeitpunkt, an dem der Wasserstand `cm` erreicht (oder null).
@@ -133,46 +175,115 @@ function depthRgb(cm: number): [number, number, number] {
 }
 const css = ([r, g, b]: [number, number, number]) => `rgb(${r},${g},${b})`;
 
+// Kartenstile fuer den Gelaende-Hintergrund (Wasser wird immer darueber gelegt).
+export type MapStyle = "hoehe" | "satellit" | "atlas";
+export const MAP_STYLES: { key: MapStyle; label: string; title: string }[] = [
+  { key: "hoehe", label: "Höhen", title: "Höhenstufen grün → gelb → braun, mit Schummerung" },
+  { key: "satellit", label: "Satellit", title: "Luftbild (DOP, LGV Hamburg)" },
+  { key: "atlas", label: "Atlas", title: "Heller Kartenstil mit 1-m-Höhenlinien" },
+];
+const isStyle = (v: unknown): v is MapStyle => MAP_STYLES.some((m) => m.key === v);
+
+type Rgb = [number, number, number];
+
+function ramp(stops: [number, Rgb][], x: number): Rgb {
+  if (x <= stops[0][0]) return stops[0][1];
+  for (let k = 1; k < stops.length; k++) {
+    const [x1, c1] = stops[k];
+    if (x <= x1) {
+      const [x0, c0] = stops[k - 1];
+      const f = (x - x0) / (x1 - x0);
+      return [0, 1, 2].map((j) => c0[j] + f * (c1[j] - c0[j])) as Rgb;
+    }
+  }
+  return stops[stops.length - 1][1];
+}
+
+// Hoehenstufen in cm NHN (Vorland ~1-4 m, Sommerdeich ~4-5 m, Hauptdeich ~8 m).
+const HYPSO: [number, Rgb][] = [
+  [0, [62, 134, 92]],
+  [200, [118, 176, 104]],
+  [350, [196, 214, 136]],
+  [450, [232, 214, 150]],
+  [600, [196, 150, 100]],
+  [850, [150, 112, 84]],
+];
+const CONTOUR_CM = 100;
+
+function landRgb(style: MapStyle, z: number, s: number, edge: boolean): Rgb {
+  const light = s / 255;
+  if (style === "atlas") {
+    const k = 0.9 + 0.12 * light;
+    const c: Rgb = edge ? [196, 184, 160] : [243, 239, 228];
+    return [c[0] * k, c[1] * k, c[2] * k];
+  }
+  const base = ramp(HYPSO, z);
+  const k = 0.55 + 0.6 * light;
+  return [base[0] * k, base[1] * k, base[2] * k];
+}
+
 function paint(
   ctx: CanvasRenderingContext2D,
   g: Grid,
-  nowCm: number,
   maxCm: number,
+  surface: (spill: number) => number,
   dark: boolean,
-): number {
+  style: MapStyle,
+): void {
   const { width: w, height: h, nodata } = g.a;
   const img = ctx.createImageData(w, h);
   const px = img.data;
-  const river = dark ? [52, 92, 128] : [169, 207, 232];
-  const other = dark ? [70, 78, 86] : [196, 204, 210];
-  let wet = 0;
+  const atlas = style === "atlas";
+  // Satellit: nur das Hochwasser auf das Luftbild legen, Rest transparent.
+  const photo = style === "satellit";
+  const river: number[] = atlas ? [170, 211, 223] : [120, 172, 214];
+  const other: number[] = atlas ? [190, 222, 232] : [150, 190, 220];
+  const dim = dark ? 0.62 : 1;
+  const band = (v: number) => Math.floor(v / CONTOUR_CM);
   for (let i = 0; i < w * h; i++) {
     const o = i * 4;
     let rgb: number[];
-    if (g.cls[i] === RIVER) rgb = river;
+    let alpha = 255;
+    if (photo) {
+      alpha = 0;
+      rgb = [0, 0, 0];
+      const sp = g.spill[i];
+      if (g.cls[i] === LAND && sp !== nodata && sp <= maxCm) {
+        const d = surface(sp) - g.z[i];
+        if (d >= 1) {
+          rgb = depthRgb(d);
+          alpha = 200;
+        }
+      }
+    } else if (g.cls[i] === RIVER) rgb = river;
     else if (g.cls[i] !== LAND) rgb = other;
     else {
       const s = g.shade[i];
-      const base = dark ? 30 + s * 0.45 : 120 + s * 0.5;
-      rgb = [base, base, base * 0.98];
+      const z = g.z[i];
+      let edge = false;
+      if (atlas) {
+        const r = i % w < w - 1 ? g.z[i + 1] : nodata;
+        const d = i + w < w * h ? g.z[i + w] : nodata;
+        edge =
+          (r !== nodata && band(r) !== band(z)) || (d !== nodata && band(d) !== band(z));
+      }
+      rgb = landRgb(style, z, s, edge);
       const sp = g.spill[i];
       if (sp !== nodata && sp <= maxCm) {
-        const d = Math.max(nowCm, sp) - g.z[i];
+        const d = surface(sp) - g.z[i];
         if (d >= 1) {
-          wet++;
           const c = depthRgb(d);
-          const k = 0.82;
-          rgb = [0, 1, 2].map((j) => c[j] * k + rgb[j] * (1 - k) * (s / 255 + 0.5));
+          const k = 0.8;
+          rgb = [0, 1, 2].map((j) => c[j] * k + rgb[j] * (1 - k));
         }
       }
     }
-    px[o] = rgb[0];
-    px[o + 1] = rgb[1];
-    px[o + 2] = rgb[2];
-    px[o + 3] = 255;
+    px[o] = rgb[0] * dim;
+    px[o + 1] = rgb[1] * dim;
+    px[o + 2] = rgb[2] * dim;
+    px[o + 3] = alpha;
   }
   ctx.putImageData(img, 0, 0);
-  return wet;
 }
 
 export default function OverhakenMap({
@@ -186,6 +297,23 @@ export default function OverhakenMap({
   const [missing, setMissing] = useState(false);
   const canvas = useRef<HTMLCanvasElement>(null);
   const cursor = useCursor();
+  const [style, setStyle] = useState<MapStyle>(() => {
+    try {
+      const v = localStorage.getItem("overhaken-style");
+      if (isStyle(v)) return v;
+    } catch {
+      // ohne Speicher: Standardstil
+    }
+    return "hoehe";
+  });
+  const chooseStyle = (v: MapStyle) => {
+    setStyle(v);
+    try {
+      localStorage.setItem("overhaken-style", v);
+    } catch {
+      // ignorieren
+    }
+  };
 
   useEffect(() => {
     fetch(ASSET_URL)
@@ -212,14 +340,18 @@ export default function OverhakenMap({
     cursor.hover != null ? "hover" : cursor.pinned != null ? "pinned" : "now";
   const when = cursor.hover ?? cursor.pinned ?? clock;
   const lv = level ? levelAt(level, when) : null;
+  const drainCmH = (grid?.a.drain_m_per_h ?? 0) * 100;
+  const surface = useMemo(
+    () => (level && lv ? surfaceFn(level, lv, drainCmH) : null),
+    // lv ist aus level/when abgeleitet; at (ms) reicht als Abhaengigkeit.
+    [level, lv?.at, drainCmH],
+  );
 
-  const [wetCells, setWetCells] = useState(0);
   useEffect(() => {
     const ctx = canvas.current?.getContext("2d");
-    if (!ctx || !grid || !lv) return;
-    setWetCells(paint(ctx, grid, lv.now, lv.max, dark));
-    // lv ist aus when/level abgeleitet; die beiden Zahlen reichen als Abhaengigkeit.
-  }, [grid, lv?.now, lv?.max, dark]);
+    if (!ctx || !grid || !lv || !surface) return;
+    paint(ctx, grid, lv.max, surface, dark, style);
+  }, [grid, surface, dark, style]);
 
   const bldg = useMemo(() => {
     if (!grid || !level) return [];
@@ -231,7 +363,7 @@ export default function OverhakenMap({
   }, [grid, level]);
 
   if (missing) return null;
-  if (!grid || !level || !lv) {
+  if (!grid || !level || !lv || !surface) {
     return <section className="map-card status">Lade Overhaken-Karte …</section>;
   }
 
@@ -243,10 +375,9 @@ export default function OverhakenMap({
   const forecast = lv.at > level.obsEnd;
   const status = bldg.map((b) => {
     if (b.spill_m == null || b.spill_m * 100 > lv.max) return null;
-    const d = Math.max(lv.now, b.spill_m * 100) - b.base_m * 100;
+    const d = surface(b.spill_m * 100) - b.base_m * 100;
     return d >= 1 ? d : null;
   });
-  const nWet = status.filter((d) => d != null).length;
   const firstWet = bldg
     .map((b) => b.onset)
     .filter((t): t is number => t != null)
@@ -265,6 +396,20 @@ export default function OverhakenMap({
             {forecast ? "Vorhersage" : "Messung"}
           </p>
         </div>
+        <div className="map-styles" role="group" aria-label="Kartenstil">
+          {MAP_STYLES.map((m) => (
+            <button
+              type="button"
+              key={m.key}
+              className={`chart-btn${style === m.key ? " on" : ""}`}
+              aria-pressed={style === m.key}
+              title={m.title}
+              onClick={() => chooseStyle(m.key)}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
         <dl className="map-stats">
           <div>
             <dt>Over</dt>
@@ -273,19 +418,12 @@ export default function OverhakenMap({
               <span className="muted">({(lv.now / 100).toFixed(2).replace(".", ",")} m NHN)</span>
             </dd>
           </div>
-          <div>
-            <dt>Gebäude nass</dt>
-            <dd>
-              {nWet} von {bldg.length}
-            </dd>
-          </div>
-          <div>
-            <dt>Fläche nass</dt>
-            <dd>{((wetCells * a.cell_m * a.cell_m) / 1e4).toFixed(1).replace(".", ",")} ha</dd>
-          </div>
         </dl>
       </div>
       <div className="map-frame" style={{ aspectRatio: `${wm} / ${hm}` }}>
+        {style === "satellit" && a.photo && (
+          <img src={`${import.meta.env.BASE_URL}${a.photo.file}`} alt="" />
+        )}
         <canvas ref={canvas} width={a.width} height={a.height} />
         <svg viewBox={`0 0 ${wm} ${hm}`} preserveAspectRatio="none">
           {bldg.map((b, i) => {
@@ -328,8 +466,11 @@ export default function OverhakenMap({
           {firstWet == null
             ? "Im Datenzeitraum erreicht das Wasser kein Gebäude."
             : `Erstes Gebäude nass: ${fmtWeekday(firstWet)} ${fmtTime(firstWet)} Uhr.`}{" "}
-          Mit der Maus über das Diagramm fahren oder hineintippen. Modell:
-          Gelände DGM1 (LGV), ohne Fließzeit – Wasser erscheint frühestmöglich.
+          Mit der Maus über das Diagramm fahren oder hineintippen. Modell
+          ohne Fließzeit – Wasser erscheint frühestmöglich;
+          Stauwasser in Senken versickert mit {Math.round(drainCmH)} cm/h
+          (Sandboden, angenommen). Gelände DGM1 (c) LGV, dl-de/by-2.0
+          {style === "satellit" && a.photo ? ` · ${a.photo.credit}` : ""}.
         </span>
       </div>
     </section>

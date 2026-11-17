@@ -63,8 +63,8 @@ Fallstricke im DGM1:
    Überlaufhöhe (Spiegel = `max(h, Überlaufhöhe − Ablaufrate · Δt)`). Was über
    Priele mit dem Strom verbunden ist, läuft mit der Tide ab. Abflusslose
    Mulden behalten **Stauwasser** bis zu ihrer Schwelle (`residual_depth`).
-   `--drain-cm-h` lässt es mit fester Rate sinken (Siele/Versickerung,
-   Default 0). Unter den Außenwasserstand sinkt es nicht, weil das Siel dann
+   `--drain-cm-h` lässt es mit fester Rate sinken (Versickerung im
+   Sandboden, Default 10 cm/h, angenommen; 0 = bleibt stehen). Unter den Außenwasserstand sinkt es nicht, weil das Siel dann
    geschlossen ist. `depth_at` liefert die Tiefenkarte für einen beliebigen
    Zeitpunkt.
 4. **Auswertung** über `OVERHAKEN_BBOX` (Vorland: Überlaufhöhe < 7 m),

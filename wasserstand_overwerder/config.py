@@ -160,9 +160,17 @@ INUNDATION_PROFILE_LABELS = (
 )
 # Ablauf von Stauwasser aus Senken (Siele/Versickerung), m/h. 0 = Wasser bleibt
 # bis zur Ueberlaufhoehe stehen; unbekannt, per --drain-cm-h variierbar.
-INUNDATION_DRAIN_M_PER_H = 0.0
+# Default 10 cm/h: Versickerung im sandigen Vorland (untere Spanne fuer Sand, da
+# das Grundwasser im Vorland hoch steht); keine Messung, per --drain-cm-h aendern.
+INUNDATION_DRAIN_M_PER_H = 0.10
 # 3D-Gebaeudemodell LoD2-DE Hamburg 2026 (CityGML-Kacheln 1x1 km, 630 MB ZIP),
 # fuer Grundrisse, Bodenhoehen und (wo vorhanden) Hausnummern der Gebaeude.
+# Luftbild (DOP, belaubt) fuer den Satelliten-Stil der Web-Karte: LGV-WMS
+# Zeitreihe, Jahr per TIME. 2022 stammt von Pleiades (geschlossene Lizenz) ->
+# nur LGV-Befliegungen verwenden. Datenlizenz Deutschland - Namensnennung 2.0.
+DOP_WMS_URL = "https://geodienste.hamburg.de/wms_dop_zeitreihe_belaubt"
+DOP_WMS_LAYER = "dop_zeitreihe_belaubt"
+DOP_YEAR = 2024
 LOD2_URL = (
     "https://www.daten-hamburg.de/opendata/3d_stadtmodell_lod2/"
     "LoD2-DE_HH_2026-04-28.zip"
