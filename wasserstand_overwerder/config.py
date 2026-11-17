@@ -132,10 +132,59 @@ DGM1_URL = (
 # Modellausschnitt (EPSG:25832): Overwerder Vorland zwischen Hauptdeich und
 # Elbe samt Strom als Wasserquelle.
 INUNDATION_BBOX = (572400.0, 5919900.0, 574800.0, 5922200.0)
-# Auswerteflaeche: Huetten 101-141 des Freizeit-, Sport- und Gartenvereins
+# Auswerteflaeche: Huetten 100-141 des Freizeit-, Sport- und Gartenvereins
 # Overhaken e. V. (zwischen Priel und Overwerder Hauptdeich, um 53.4356 N /
 # 10.1067 E). Gebaeude der Web-Karte werden nur hier ausgewertet.
 OVERHAKEN_BBOX = (573390.0, 5921160.0, 573600.0, 5921420.0)
+# Parzellen-Nummern der Kolonie laut Lageplan-Schild am Vereinsgelaende
+# (Foto Nov. 2026), je LoD2-Gebaeude ueber die ALKIS-Kennung (die laufende
+# Nummer ``nr`` aendert sich, wenn Gebaeude hinzukommen). Zuordnung: rosa
+# Haeuser des Plans per Farbe erkannt, affin + Thin-Plate-Spline auf die
+# LoD2-Schwerpunkte gelegt (Median-Abstand ~2 m), am Luftbild geprueft. Nur
+# diese Gebaeude zeigt die Web-Karte. Ohne LoD2-Gebaeude (Rasen im DOP 2024 /
+# nur Schuppen): 103, 116, 130, 132, 133, 136 (Wohnwagen), Pumpenhaus und je
+# ein zweites Haus auf 119 und 126.
+OVERHAKEN_PARZELLEN = {
+    "DEHHALKAn0006IVU": "100",
+    "DEHHALKAn0006IAL": "101",
+    "DEHHALKAn0006JGI": "102",
+    "DEHHALKAn0006IjI": "104",
+    "DEHHALKAn0006I87": "105",
+    "DEHHALKAn0006HzK": "106",
+    "DEHHALKAn0006I9p": "107",
+    "DEHHALKAn0006HyW": "108",
+    "DEHHALKAn0006I5I": "109",
+    "DEHHALKAn0006Il7": "110",
+    "DEHHALKAn0006Isn": "111",
+    "DEHHALKAn0006JBq": "112",
+    "DEHHALKAn0006J0u": "113",
+    "DEHHALKAn0006I8G": "114",
+    "DEHHALKAn0006IxS": "114",
+    "DEHHALKAn0006IFR": "115",
+    "DEHHALKAn0006IuD": "117",
+    "DEHHALKAn0006JAw": "118",
+    "DEHHALKAn0006J2K": "119",
+    "DEHHALKAn0006Imp": "120",
+    "DEHHALKAn0006IlO": "121",
+    "DEHHALKAn0006JIP": "122",
+    "DEHHALKAn0006I5b": "123",
+    "DEHHALKAn0006JIM": "124",
+    "DEHHALKAn0006ItW": "124",
+    "DEHHALKAn0006JGG": "125",
+    "DEHHALKAn0006IvS": "126",
+    "DEHHALKAn0006IGC": "127",
+    "DEHHALKAn0006J7b": "128",
+    "DEHHALKAn0006JHu": "129",
+    "DEHHALKAn0006Igh": "131",
+    "DEHHALKAn0006J50": "134",
+    "DEHHALKAn0006I8U": "135",
+    "DEHHALKAn0006I22": "137",
+    "DEHHALKAn0006IyH": "138",
+    "DEHHALKAn0006Idn": "139",
+    "DEHHALKAn0006JBD": "140",
+    "DEHHALKAn0006Ip9": "141",
+    "DEHHALKAn0006Ir9": "Garage",
+}
 # Zellen mit Ueberlaufhoehe darunter liegen stromseitig des Overwerder
 # Hauptdeichs (Kronenhoehe im DGM1 >= 8 m NHN); dahinter gilt als geschuetzt.
 VORLAND_MAX_SPILL_M = 7.0

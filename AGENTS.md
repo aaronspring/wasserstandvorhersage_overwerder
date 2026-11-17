@@ -166,10 +166,15 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   in `config.INUNDATION_*`.
   Gebaeude: LoD2-DE (CityGML 1.0, `config.LOD2_URL`); im Vorland haben fast
   keine Gebaeude eine ALKIS-Hausnummer -> laufende Nummer `nr` (NW->SO) +
-  `alkis_id`; Nummern aendern sich, wenn Gebaeude hinzukommen.
+  `alkis_id`; Nummern aendern sich, wenn Gebaeude hinzukommen. Die Web-Karte
+  zeigt nur Gebaeude aus `config.OVERHAKEN_PARZELLEN` (ALKIS-Kennung ->
+  Parzellen-Nummer laut Lageplan-Schild der Kolonie, 39 Gebaeude); neue
+  Gebaeude dort per `alkis_id` eintragen.
 - **Overhaken-Karte (Web):** `web/src/OverhakenMap.tsx` zeigt die Kolonie zum
   Zeitpunkt der per Klick fixierten Ablese-Linie (sonst Hover im Chart, sonst
   jetzt); Hover auf der Karte zeigt Wassertiefe/Gelaende an der Stelle;
+  Zoom/Verschieben ueber `web/src/useZoom.ts` (CSS-Transform auf `.map-layers`;
+  +/-, Strg+Mausrad, Pinch), Parzellen-Nummern erst ab 1,4 px/m;
   Kopplung ueber `web/src/cursor.ts` (kein App-Re-Render pro Mausbewegung).
   Tiefe wird im Browser gerechnet (Badewanne mit Verbindung, Stauwasser
   versickert, Fliesszeit je Zelle) aus dem statischen, eingecheckten

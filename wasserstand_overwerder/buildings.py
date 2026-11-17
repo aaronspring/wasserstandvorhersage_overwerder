@@ -92,6 +92,16 @@ def number_buildings(df: pd.DataFrame, axis=(0.62, -0.78)) -> pd.DataFrame:
     return out
 
 
+def label_parzellen(df: pd.DataFrame, parzellen: dict[str, str]) -> pd.DataFrame:
+    """Nur Gebaeude mit Parzellen-Nummer behalten, Spalte ``parzelle`` setzen.
+
+    ``parzellen`` bildet die ALKIS-Kennung auf die Nummer laut Lageplan ab
+    (``config.OVERHAKEN_PARZELLEN``); eine Parzelle kann mehrere Gebaeude haben.
+    """
+    out = df[df["alkis_id"].isin(parzellen)].reset_index(drop=True)
+    return out.assign(parzelle=out["alkis_id"].map(parzellen))
+
+
 def select(df: pd.DataFrame, bbox) -> pd.DataFrame:
     """Gebaeude, deren Schwerpunkt in ``bbox`` liegt."""
     xmin, ymin, xmax, ymax = bbox

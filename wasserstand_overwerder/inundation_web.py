@@ -121,6 +121,7 @@ def build_asset(
                 {
                     "nr": int(r.nr),
                     "alkis_id": r.alkis_id,
+                    "parzelle": str(getattr(r, "parzelle", "") or ""),
                     "address": r.address or "",
                     "base_m": round(float(r.base_m), 2),
                     "spill_m": (

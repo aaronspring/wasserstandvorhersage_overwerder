@@ -346,21 +346,62 @@ body {
   overflow: hidden;
 }
 
-.map-frame canvas,
-.map-frame img,
-.map-frame svg {
+.map-layers {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+}
+
+.map-layers canvas,
+.map-layers img,
+.map-layers svg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
 
-.map-frame canvas {
+.map-layers canvas {
   image-rendering: auto;
 }
 
-.map-frame img {
+.map-layers img {
   object-fit: fill;
+  user-select: none;
+}
+
+.map-frame.zoomed {
+  cursor: grab;
+}
+
+.map-frame.zoomed:active {
+  cursor: grabbing;
+}
+
+.map-zoom {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.map-zoom .chart-btn {
+  min-width: 32px;
+  min-height: 32px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.map-parzelle {
+  font-weight: 700;
+  fill: #1b1b1b;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.85);
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
 }
 
 .bldg {

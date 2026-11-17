@@ -43,7 +43,11 @@ def main() -> None:
     bldg = buildings.number_buildings(
         bldg[bldg["spill_m"] < config.VORLAND_MAX_SPILL_M]
     )
-    print(f"  {len(bldg)} Gebaeude in der Kolonie")
+    bldg = buildings.label_parzellen(bldg, config.OVERHAKEN_PARZELLEN)
+    missing = set(config.OVERHAKEN_PARZELLEN) - set(bldg["alkis_id"])
+    if missing:
+        print(f"  Hinweis: {len(missing)} Parzellen-Gebaeude fehlen in LoD2: {missing}")
+    print(f"  {len(bldg)} Gebaeude auf Parzellen der Kolonie")
 
     print("Fliessweg + Asset ...")
     asset = inundation_web.build_asset(
