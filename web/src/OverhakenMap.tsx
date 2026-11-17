@@ -383,10 +383,6 @@ export default function OverhakenMap({
     const d = surface(b.spill_m * 100) - b.base_m * 100;
     return d >= 1 ? d : null;
   });
-  const firstWet = bldg
-    .map((b) => b.onset)
-    .filter((t): t is number => t != null)
-    .sort((x, y) => x - y)[0];
   const label =
     source === "hover" ? "Mauszeiger" : source === "pinned" ? "fixiert" : "jetzt";
 
@@ -511,9 +507,6 @@ export default function OverhakenMap({
         </span>
         <span>Wassertiefe 0 – 2,5 m</span>
         <span className="muted">
-          {firstWet == null
-            ? "Im Datenzeitraum erreicht das Wasser kein Gebäude."
-            : `Erstes Gebäude nass: ${fmtWeekday(firstWet)} ${fmtTime(firstWet)} Uhr.`}{" "}
           Mit der Maus über das Diagramm fahren; ein Klick fixiert den
           Zeitpunkt (erneut klicken löst ihn), dann zeigt die Maus auf der Karte die
           Wassertiefe. Modell
