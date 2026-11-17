@@ -68,6 +68,7 @@ body {
 
 .alert-link {
   font-size: 0.85rem;
+  font-weight: 650;
   color: var(--secondary);
   text-decoration: none;
   text-align: right;
