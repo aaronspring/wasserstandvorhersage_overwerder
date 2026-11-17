@@ -44,9 +44,6 @@ tests/test_webexport.py  Struktur-Tests fuer data.json (netzwerkfrei)
 tests/test_history.py    Parsing/Parquet-Tests fuers Archiv (netzwerkfrei)
 tests/test_hfhub.py      Dataset-Card/Upload-Pattern-Tests (netzwerkfrei)
 tests/test_alerts.py     Event-Erkennung + Issue-Abgleich (plan), netzwerkfrei
-tests/test_inundation.py Ueberlaufhoehe/Zeitpunkte auf Synthetik-Gelaende, netzwerkfrei
-tests/test_buildings.py  Mini-CityGML + Gebaeude-Ueberflutung, netzwerkfrei
-tests/test_inundation_web.py Web-Karten-Asset (Ausschnitt/Kodierung), netzwerkfrei
 ```
 
 Die Web-App ist statisch: `export_web.py` schreibt `data.json`, das React-Frontend

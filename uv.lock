@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
@@ -1079,8 +1079,6 @@ dev = [
     { name = "huggingface-hub" },
     { name = "pytest" },
     { name = "ruff" },
-    { name = "scikit-image" },
-    { name = "scipy" },
 ]
 
 [package.metadata]
@@ -1103,6 +1101,4 @@ dev = [
     { name = "huggingface-hub", specifier = ">=0.24" },
     { name = "pytest", specifier = ">=8.0" },
     { name = "ruff", specifier = ">=0.6" },
-    { name = "scikit-image", specifier = ">=0.22" },
-    { name = "scipy", specifier = ">=1.11" },
 ]

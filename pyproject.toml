@@ -29,8 +29,6 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.6",
     "huggingface-hub>=0.24",
-    "scikit-image>=0.22",
-    "scipy>=1.11",
 ]
 
 [build-system]

@@ -5,15 +5,7 @@ sie bei einer Tide nass wird, wie lange sie nass bleibt und wie tief das Wasser
 steht. Damit lässt sich direkt ablesen, wie die Geländehöhe einer Parzelle
 den Zeitpunkt bestimmt.
 
-![Sturmflut 26.10.2026](inundation_overhaken_2026-10-26.png)
-
-![Gelände](inundation_gelaende.png)
-
-![Querprofil A–B](inundation_profil_2026-10-26.png)
-
-![Verlauf stündlich](inundation_verlauf_2026-10-26.png)
-
-![Gebäude mit Nummern](inundation_gebaeude_2026-10-26.png)
+Die Grafiken erzeugt `inundation.py` in `out/inundation/` (siehe Aufruf).
 
 ## Daten
 
