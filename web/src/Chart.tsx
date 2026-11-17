@@ -415,8 +415,9 @@ export default function Chart({
         // spuerbar gezogen -> zoomen
         setZoom([a, b]);
       } else {
-        // getippt (oder minimal verrutscht) -> Ablese-Linie setzen/entfernen
-        setPinned((prev) => (prev === a ? null : a));
+        // getippt (oder minimal verrutscht) -> Ablese-Linie setzen; ist schon
+        // eine gesetzt, loest jeder weitere Klick sie wieder (Zeitpunkt offen).
+        setPinned((prev) => (prev != null ? null : a));
       }
     }
     setSelLeft(null);

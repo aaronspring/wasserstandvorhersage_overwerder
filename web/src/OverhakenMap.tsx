@@ -508,7 +508,7 @@ export default function OverhakenMap({
         <span>Wassertiefe 0 – 2,5 m</span>
         <span className="muted">
           Mit der Maus über das Diagramm fahren; ein Klick fixiert den
-          Zeitpunkt (erneut klicken löst ihn), dann zeigt die Maus auf der Karte die
+          Zeitpunkt (nächster Klick löst ihn), dann zeigt die Maus auf der Karte die
           Wassertiefe. Modell
           ohne Fließzeit – Wasser erscheint frühestmöglich;
           Stauwasser in Senken versickert mit {Math.round(drainCmH)} cm/h
