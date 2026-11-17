@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useCursor } from "./cursor";
+import { MAX_ZOOM, useZoom } from "./useZoom";
 import { fmtDateShort, fmtTime, fmtWeekday } from "./format";
 import type { Payload, Point } from "./types";
 
@@ -20,6 +21,8 @@ const MAX_DEPTH_CM = 250;
 interface Building {
   nr: number;
   alkis_id: string;
+  /** Parzellen-Nummer laut Lageplan der Kolonie (z. B. "101", "Garage"). */
+  parzelle?: string;
   address: string;
   base_m: number;
   spill_m: number | null;
@@ -338,6 +341,7 @@ export default function OverhakenMap({
   const [grid, setGrid] = useState<Grid | null>(null);
   const [missing, setMissing] = useState(false);
   const canvas = useRef<HTMLCanvasElement>(null);
+  const frame = useRef<HTMLDivElement>(null);
   const cursor = useCursor();
   const [chosenStyle, setStyle] = useState<MapStyle>(() => {
     try {
@@ -384,8 +388,11 @@ export default function OverhakenMap({
     cursor.pinned != null ? "pinned" : cursor.hover != null ? "hover" : "now";
   const when = cursor.pinned ?? cursor.hover ?? clock;
 
-  // Mauszeiger ueber der Karte: Position in % des Rahmens + Rasterzelle.
-  const [probe, setProbe] = useState<{ fx: number; fy: number } | null>(null);
+  // Mauszeiger ueber der Karte: Position in % des Rahmens (fuer die Anzeige)
+  // und in % der (gezoomten) Karte (ax/ay, fuer die Rasterzelle).
+  const [probe, setProbe] = useState<{ fx: number; fy: number; ax: number; ay: number } | null>(
+    null,
+  );
   const lv = level ? levelAt(level, when) : null;
   const drainCmH = (grid?.a.drain_m_per_h ?? 0) * 100;
   const water = useMemo(
@@ -393,6 +400,8 @@ export default function OverhakenMap({
     // lv ist aus level/when abgeleitet; at (ms) reicht als Abhaengigkeit.
     [level, lv?.at, drainCmH],
   );
+
+  const zoom = useZoom(frame, !!(grid && level && lv && water));
 
   // Ohne Luftbild im Asset (WMS beim Erzeugen nicht erreichbar) waere der
   // Satellit-Stil leer -> dann Hoehen zeigen.
@@ -412,6 +421,11 @@ export default function OverhakenMap({
     return grid.a.buildings.map((b) => ({
       ...b,
       points: b.ring.map(([x, y]) => `${x},${grid.a.height * grid.a.cell_m - y}`).join(" "),
+      // Schwerpunkt (Eckenmittel ohne Schlusspunkt) fuer die Parzellen-Nummer.
+      cx: b.ring.slice(0, -1).reduce((s, [x]) => s + x, 0) / Math.max(b.ring.length - 1, 1),
+      cy:
+        grid.a.height * grid.a.cell_m -
+        b.ring.slice(0, -1).reduce((s, [, y]) => s + y, 0) / Math.max(b.ring.length - 1, 1),
       lag: buildingLag(grid, b.ring),
       onset:
         b.spill_m == null
@@ -443,11 +457,19 @@ export default function OverhakenMap({
   const label =
     source === "hover" ? "Mauszeiger" : source === "pinned" ? "fixiert" : "jetzt";
 
+  // Zoom: Beschriftungen behalten ihre Bildschirmgroesse. Parzellen-Nummern
+  // erst, wenn sie sich nicht mehr ueberdecken (>= 1,4 Pixel je Meter).
+  const v = zoom.view;
+  const zoomed = v.k > 1.001;
+  const pxPerM = (zoom.size.w / wm) * v.k;
+  const showParz = pxPerM >= 1.4;
+  const parzFont = 11 / Math.max(pxPerM, 1e-6);
+
   // Wert an der Mausposition auf der Karte.
   let probeText: string[] | null = null;
   if (probe) {
-    const col = Math.min(a.width - 1, Math.floor(probe.fx * a.width));
-    const row = Math.min(a.height - 1, Math.floor(probe.fy * a.height));
+    const col = Math.min(a.width - 1, Math.floor(probe.ax * a.width));
+    const row = Math.min(a.height - 1, Math.floor(probe.ay * a.height));
     const i = row * a.width + col;
     const m = (cm: number) => (cm / 100).toFixed(2).replace(".", ",");
     if (grid.cls[i] === RIVER) probeText = ["Elbe / Priel"];
@@ -505,50 +527,114 @@ export default function OverhakenMap({
         </dl>
       </div>
       <div
-        className="map-frame"
-        style={{ aspectRatio: `${wm} / ${hm}` }}
+        ref={frame}
+        className={`map-frame${zoomed ? " zoomed" : ""}`}
+        style={{ aspectRatio: `${wm} / ${hm}`, touchAction: zoomed ? "none" : "pan-y" }}
+        {...zoom.handlers}
         onMouseMove={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
+          const px = e.clientX - r.left;
+          const py = e.clientY - r.top;
+          const c = (v: number) => Math.min(Math.max(v, 0), 0.9999);
           setProbe({
-            fx: Math.min(Math.max((e.clientX - r.left) / r.width, 0), 0.9999),
-            fy: Math.min(Math.max((e.clientY - r.top) / r.height, 0), 0.9999),
+            fx: c(px / r.width),
+            fy: c(py / r.height),
+            ax: c((px - v.x) / (r.width * v.k)),
+            ay: c((py - v.y) / (r.height * v.k)),
           });
         }}
         onMouseLeave={() => setProbe(null)}
       >
-        {style === "satellit" && a.photo && (
-          <img src={`${import.meta.env.BASE_URL}${a.photo.file}`} alt="" />
-        )}
-        <canvas ref={canvas} width={a.width} height={a.height} />
-        <svg viewBox={`0 0 ${wm} ${hm}`} preserveAspectRatio="none">
-          {bldg.map((b, i) => {
-            const d = status[i];
-            return (
-              <polygon
-                key={b.alkis_id}
-                points={b.points}
-                className={d == null ? "bldg dry" : "bldg wet"}
-                style={d == null ? undefined : { fill: css(depthRgb(d + 60)) }}
+        <div
+          className="map-layers"
+          style={{ transform: `translate(${v.x}px, ${v.y}px) scale(${v.k})` }}
+        >
+          {style === "satellit" && a.photo && (
+            <img src={`${import.meta.env.BASE_URL}${a.photo.file}`} alt="" draggable={false} />
+          )}
+          <canvas ref={canvas} width={a.width} height={a.height} />
+          <svg viewBox={`0 0 ${wm} ${hm}`} preserveAspectRatio="none">
+            {bldg.map((b, i) => {
+              const d = status[i];
+              return (
+                <polygon
+                  key={b.alkis_id}
+                  points={b.points}
+                  className={d == null ? "bldg dry" : "bldg wet"}
+                  style={d == null ? undefined : { fill: css(depthRgb(d + 60)) }}
+                >
+                  <title>
+                    {`${b.parzelle ? `Parzelle ${b.parzelle}` : `Gebäude ${b.nr}`}` +
+                      `${b.address ? ` (${b.address})` : ""}\n` +
+                      `Boden ${b.base_m.toFixed(2)} m NHN\n` +
+                      (d == null
+                        ? "trocken"
+                        : `Wasser ${Math.round(d)} cm über Boden`) +
+                      (b.onset == null
+                        ? "\nim Datenzeitraum nicht erreicht"
+                        : `\nnass ab ${fmtDateShort(b.onset)} ${fmtTime(b.onset)} Uhr`)}
+                  </title>
+                </polygon>
+              );
+            })}
+            {showParz &&
+              bldg.map((b) =>
+                b.parzelle ? (
+                  <text
+                    key={`p-${b.alkis_id}`}
+                    x={b.cx}
+                    y={b.cy}
+                    className="map-parzelle"
+                    style={{ fontSize: parzFont, strokeWidth: parzFont * 0.3 }}
+                  >
+                    {b.parzelle}
+                  </text>
+                ) : null,
+              )}
+            {a.labels.map(([txt, x, y]) => (
+              <text
+                key={txt}
+                x={x}
+                y={hm - y}
+                className="map-label"
+                style={{ fontSize: 13 / v.k, strokeWidth: 3 / v.k }}
               >
-                <title>
-                  {`Gebäude ${b.nr}${b.address ? ` (${b.address})` : ""}\n` +
-                    `Boden ${b.base_m.toFixed(2)} m NHN\n` +
-                    (d == null
-                      ? "trocken"
-                      : `Wasser ${Math.round(d)} cm über Boden`) +
-                    (b.onset == null
-                      ? "\nim Datenzeitraum nicht erreicht"
-                      : `\nnass ab ${fmtDateShort(b.onset)} ${fmtTime(b.onset)} Uhr`)}
-                </title>
-              </polygon>
-            );
-          })}
-          {a.labels.map(([txt, x, y]) => (
-            <text key={txt} x={x} y={hm - y} className="map-label">
-              {txt}
-            </text>
-          ))}
-        </svg>
+                {txt}
+              </text>
+            ))}
+          </svg>
+        </div>
+        <div className="map-zoom" onPointerDown={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className="chart-btn"
+            aria-label="Hineinzoomen"
+            disabled={v.k >= MAX_ZOOM}
+            onClick={() => zoom.zoomBy(1.6)}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            className="chart-btn"
+            aria-label="Herauszoomen"
+            disabled={!zoomed}
+            onClick={() => zoom.zoomBy(1 / 1.6)}
+          >
+            −
+          </button>
+          {zoomed && (
+            <button
+              type="button"
+              className="chart-btn"
+              aria-label="Ganze Karte"
+              title="Ganze Karte"
+              onClick={zoom.reset}
+            >
+              ⤢
+            </button>
+          )}
+        </div>
         {style === "satellit" && a.photo && (
           <span className="map-badge">
             Satellitenbild {a.photo.credit.match(/\d{4}/)?.[0] ?? ""}
@@ -577,7 +663,9 @@ export default function OverhakenMap({
         <span className="muted">
           Mit der Maus über das Diagramm fahren; ein Klick fixiert den
           Zeitpunkt (nächster Klick löst ihn), dann zeigt die Maus auf der Karte die
-          Wassertiefe. Wasser
+          Wassertiefe. Zoomen mit +/−, Strg + Mausrad oder zwei Fingern; gezoomt
+          lässt sich die Karte ziehen. Nummern: Parzellen laut Lageplan der
+          Kolonie. Wasser
           fließt mit {String(a.flow_m_s ?? 0).replace(".", ",")} m/s vom Strom über schon
           nasse Flächen;
           Stauwasser in Senken versickert mit {Math.round(drainCmH)} cm/h
