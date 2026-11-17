@@ -128,6 +128,35 @@ def footprint_cells(terrain: Terrain, footprint: np.ndarray) -> tuple:
     return rr.ravel()[inside], cc.ravel()[inside]
 
 
+def manual_buildings(footprints: dict, terrain: Terrain) -> pd.DataFrame:
+    """Gebaeude ohne LoD2-Grundriss (``config.OVERHAKEN_MANUELLE_GEBAEUDE``)
+    in derselben Form wie :func:`parse_lod2`; Bodenhoehe = tiefste
+    Gelaendezelle im Grundriss."""
+    rows = []
+    for key, corners in footprints.items():
+        fp = np.asarray(corners, dtype=float)
+        if not np.array_equal(fp[0], fp[-1]):
+            fp = np.vstack([fp, fp[:1]])
+        r, c = footprint_cells(terrain, fp)
+        z = terrain.z[r, c]
+        rows.append(
+            {
+                "alkis_id": key,
+                "function": "",
+                "street": "",
+                "number": "",
+                "base_m": float(np.nanmin(z)) if np.isfinite(z).any() else np.nan,
+                "height_m": np.nan,
+                "footprint": fp,
+                "x": float(fp[:-1, 0].mean()),
+                "y": float(fp[:-1, 1].mean()),
+                "kind": "sonstiges",
+                "address": "",
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def add_spill(df: pd.DataFrame, terrain: Terrain, spill: np.ndarray) -> pd.DataFrame:
     """Je Gebaeude ``spill_m``: niedrigste Ueberlaufhoehe im Grundriss (ab
     diesem Elbe-Wasserstand erreicht Wasser das Gebaeude)."""
