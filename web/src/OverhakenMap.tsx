@@ -824,11 +824,15 @@ export default function OverhakenMap({
         <span className="muted">
           Mit der Maus über das Diagramm fahren; ein Klick fixiert den
           Zeitpunkt (nächster Klick löst ihn), dann zeigt die Maus auf der Karte die
-          Wassertiefe. Annahme: Wasser
+          Wassertiefe.
+          <br />
+          Annahme: Wasser
           fließt mit {String(a.flow_m_s ?? 0).replace(".", ",")} m/s vom Strom über schon
           nasse Flächen;
           Stauwasser in Senken versickert mit {Math.round(drainCmH)} cm/h
-          (Sandboden, angenommen). Geodaten: DGM1 2022, LoD2-DE 2026, DOP 2024
+          (Sandboden, angenommen).
+          <br />
+          Geodaten: DGM1 2022, LoD2-DE 2026, DOP 2024
           © Freie und Hansestadt Hamburg, LGV,{" "}
           <a href="https://www.govdata.de/dl-de/by-2-0" target="_blank" rel="noreferrer">
             dl-de/by-2.0

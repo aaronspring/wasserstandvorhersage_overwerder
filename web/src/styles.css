@@ -47,13 +47,36 @@ body {
 
 .head {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
 
 .head-text {
+  flex: 1 1 18rem;
   min-width: 0;
+}
+
+.header-links {
+  flex: none;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alert-link {
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--secondary);
+  text-decoration: none;
+  text-align: right;
+}
+
+.alert-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
 }
 
 .repo-link {
