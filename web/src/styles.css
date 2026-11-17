@@ -458,6 +458,13 @@ body {
   height: 10px;
 }
 
+.map-swatch {
+  display: inline-block;
+  width: 18px;
+  height: 10px;
+  vertical-align: middle;
+}
+
 /* Chart und Karte nebeneinander, damit die Karte beim Hovern sichtbar bleibt */
 .chart-map {
   display: grid;

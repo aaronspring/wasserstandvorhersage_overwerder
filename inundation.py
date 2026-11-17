@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Gelaende-Asset fuer die Overhaken-Karte der Web-App erzeugen.
 
-Laedt (einmalig, gecacht) die DGM1-Kacheln und LoD2-Gebaeude des LGV Hamburg,
+Laedt (einmalig, gecacht) die DGM1-Kacheln und LoD2-Gebaeude des LGV Hamburg
+sowie das Flussbett aus dem DGM-W 2022 der WSV,
 berechnet je Rasterzelle Ueberlaufhoehe und Fliessweg vom Strom und schreibt
 das statische Asset ``web/public/overhaken.json`` plus das Luftbild
 ``web/public/overhaken_dop.jpg``. Die Web-App rechnet daraus die Wassertiefe
@@ -15,6 +16,8 @@ Ausschnitt oder Parameter in ``config.py`` aendern.
 import argparse
 from pathlib import Path
 
+import numpy as np
+
 from wasserstand_overwerder import buildings, config, inundation, inundation_web
 
 
@@ -23,6 +26,10 @@ def main() -> None:
     ap.add_argument("--out", default="web/public", help="Zielverzeichnis")
     ap.add_argument("--tiles", default="out/dgm1", help="Cache DGM1-Kacheln")
     ap.add_argument("--lod2", default="out/lod2", help="Cache LoD2-Kacheln")
+    ap.add_argument("--dgmw", default="out/dgmw", help="Cache DGM-W-Ausschnitt")
+    ap.add_argument(
+        "--no-riverbed", action="store_true", help="ohne DGM-W (Strom = DGM1-Luecke)"
+    )
     ap.add_argument("--no-photo", action="store_true", help="kein Luftbild laden (WMS)")
     args = ap.parse_args()
     out = Path(args.out)
@@ -33,7 +40,15 @@ def main() -> None:
         config.INUNDATION_BBOX,
     )
     river = inundation.river_mask(terrain.z)
-    spill = inundation.spill_elevation(terrain.z, river)
+    if not args.no_riverbed:
+        print("DGM-W Flussbett ...")
+        bed = inundation.load_riverbed(terrain, args.dgmw)
+        terrain.z = inundation.fill_riverbed(terrain.z, river, bed)
+        source = inundation.channel_mask(terrain.z, river, config.ELBE_RINNE_MAX_M_NHN)
+        print(f"  {np.isfinite(terrain.z[river]).mean():.0%} des Stroms mit Sohle")
+    else:
+        source = river
+    spill = inundation.spill_elevation(terrain.z, source)
 
     print("LoD2-Gebaeude ...")
     bldg = buildings.parse_lod2(buildings.fetch_lod2(config.INUNDATION_VIEW, args.lod2))

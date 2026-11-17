@@ -44,6 +44,7 @@ tests/test_history.py    Parsing/Parquet-Tests fuers Archiv (netzwerkfrei)
 tests/test_hfhub.py      Dataset-Card/Upload-Pattern-Tests (netzwerkfrei)
 tests/test_surge_events.py Ereignis-Kurven fuer die Karte (netzwerkfrei)
 tests/test_alerts.py     Event-Erkennung + Issue-Abgleich (plan), netzwerkfrei
+tests/test_inundation.py Flussbett (DGM-W): Auffuellen, Rinne, Ueberlaufhoehe (netzfrei)
 ```
 
 Die Web-App ist statisch: `export_web.py` schreibt `data.json`, das React-Frontend
@@ -166,6 +167,10 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   Extra `gelaende` ist optional und wird lazy importiert. Ausschnitt,
   Beschriftungen, Versickerung (10 cm/h) und Fliessgeschwindigkeit (0,3 m/s)
   in `config.INUNDATION_*`.
+  Flussbett: DGM-W 2022 der WSV (`config.DGMW_URL`, dl-de/zero-2.0) fuellt die
+  Elbe-Luecke des DGM1 (`fill_riverbed`), Quelle ist nur die Rinne unter
+  `config.ELBE_RINNE_MAX_M_NHN` (`channel_mask`); die Karte zeigt
+  trockenfallenden Elbstrand als Sand. Gelesen per `/vsicurl/`, Cache `out/dgmw/`.
   Gebaeude: LoD2-DE (CityGML 1.0, `config.LOD2_URL`); im Vorland haben fast
   keine Gebaeude eine ALKIS-Hausnummer -> laufende Nummer `nr` (NW->SO) +
   `alkis_id`; Nummern aendern sich, wenn Gebaeude hinzukommen. Die Web-Karte

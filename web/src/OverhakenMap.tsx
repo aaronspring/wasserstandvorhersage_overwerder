@@ -66,6 +66,7 @@ interface Grid {
   cls: Uint8Array;
   shade: Uint8Array;
   lag: Uint8Array | null; // Fliesszeit vom Strom je Zelle, Minuten
+  hasBed: boolean; // Strom mit Sohlhoehen (DGM-W) -> Elbstrand faellt trocken
 }
 
 function bytes(b64: string): ArrayBuffer {
@@ -76,13 +77,16 @@ function bytes(b64: string): ArrayBuffer {
 }
 
 function decode(a: Asset): Grid {
+  const z = new Int16Array(bytes(a.z_cm));
+  const cls = new Uint8Array(bytes(a.cls));
   return {
     a,
-    z: new Int16Array(bytes(a.z_cm)),
+    z,
     spill: new Int16Array(bytes(a.spill_cm)),
-    cls: new Uint8Array(bytes(a.cls)),
+    cls,
     shade: new Uint8Array(bytes(a.shade)),
     lag: a.lag_min ? new Uint8Array(bytes(a.lag_min)) : null,
+    hasBed: cls.some((c, i) => c === RIVER && z[i] !== a.nodata),
   };
 }
 
@@ -207,6 +211,16 @@ function waterFn(L: Level, when: number, drainCmH: number) {
   };
 }
 
+// Wassertiefe (cm) ueber der Sohle einer Strom-Zelle; <= 0 = trockengefallener
+// Elbstrand. null ohne Sohlhoehe (alte Assets). Rinnen-Zellen (Wasserquelle,
+// ohne Ueberlaufhoehe) sind mit dem Strom verbunden: Spiegel = Wasserstand.
+function bedDepth(g: Grid, i: number, wa: Water): number | null {
+  const z = g.z[i];
+  if (z === g.a.nodata) return null;
+  const sp = g.spill[i] === g.a.nodata ? z : g.spill[i];
+  return sp <= wa.max ? wa.surface(sp) - z : 0;
+}
+
 // Erster Zeitpunkt, an dem der Wasserstand `cm` erreicht (oder null).
 function firstReach(L: Level, cm: number): number | null {
   const i = L.runMax.findIndex((x) => x >= cm);
@@ -278,6 +292,7 @@ const HYPSO: [number, Rgb][] = [
   [850, [150, 112, 84]],
 ];
 const CONTOUR_CM = 100;
+const SAND: Rgb = [226, 204, 150];
 
 function landRgb(style: MapStyle, z: number, s: number, edge: boolean): Rgb {
   const light = s / 255;
@@ -306,13 +321,25 @@ function paint(
   const photo = style === "satellit";
   const river: number[] = atlas ? [170, 211, 223] : [120, 172, 214];
   const other: number[] = atlas ? [190, 222, 232] : [150, 190, 220];
+  const sand: number[] = atlas ? [240, 226, 190] : SAND;
   const dim = dark ? 0.62 : 1;
   const band = (v: number) => Math.floor(v / CONTOUR_CM);
   for (let i = 0; i < w * h; i++) {
     const o = i * 4;
     let rgb: number[];
     let alpha = 255;
-    if (photo) {
+    const bed =
+      g.cls[i] === RIVER ? bedDepth(g, i, water(g.lag ? g.lag[i] : 0)) : null;
+    if (bed != null) {
+      // Strom mit Sohle: nass -> Elbe, trocken -> Strand (auch auf dem Luftbild,
+      // das einen anderen Tidestand zeigt).
+      rgb = bed >= 1 ? river : sand;
+      if (photo) alpha = bed >= 1 ? 150 : 210;
+      else if (!atlas) {
+        const k = 0.75 + 0.35 * (g.shade[i] / 255);
+        rgb = rgb.map((c) => Math.min(255, c * k));
+      }
+    } else if (photo) {
       alpha = 0;
       rgb = [0, 0, 0];
       const sp = g.spill[i];
@@ -579,7 +606,13 @@ export default function OverhakenMap({
     const row = Math.min(a.height - 1, Math.floor(probe.ay * a.height));
     const i = row * a.width + col;
     const m = (cm: number) => (cm / 100).toFixed(2).replace(".", ",");
-    if (grid.cls[i] === RIVER) probeText = ["Elbe / Priel"];
+    const bed = grid.cls[i] === RIVER ? bedDepth(grid, i, water(grid.lag ? grid.lag[i] : 0)) : null;
+    if (bed != null)
+      probeText = [
+        bed >= 1 ? `Elbe / Priel, Wassertiefe ${m(bed)} m` : "Elbstrand trockengefallen",
+        `Sohle ${m(grid.z[i])} m NHN`,
+      ];
+    else if (grid.cls[i] === RIVER) probeText = ["Elbe / Priel"];
     else if (grid.cls[i] !== LAND) probeText = ["Gewässer"];
     else {
       const z = grid.z[i];
@@ -782,6 +815,12 @@ export default function OverhakenMap({
           ))}
         </span>
         <span>Wassertiefe 0 – 2,5 m</span>
+        {grid.hasBed && (
+          <span>
+            <i className="map-swatch" style={{ background: css(SAND) }} /> Elbstrand
+            trocken
+          </span>
+        )}
         <span className="muted">
           Mit der Maus über das Diagramm fahren; ein Klick fixiert den
           Zeitpunkt (nächster Klick löst ihn), dann zeigt die Maus auf der Karte die
@@ -798,7 +837,16 @@ export default function OverhakenMap({
           <a href="https://www.govdata.de/dl-de/by-2-0" target="_blank" rel="noreferrer">
             dl-de/by-2.0
           </a>
-          , verändert.
+          , verändert
+          {grid.hasBed && (
+            <>
+              ; Flussbett DGM-W 2022 © WSV,{" "}
+              <a href="https://www.govdata.de/dl-de/zero-2-0" target="_blank" rel="noreferrer">
+                dl-de/zero-2.0
+              </a>
+            </>
+          )}
+          .
         </span>
       </div>
     </section>

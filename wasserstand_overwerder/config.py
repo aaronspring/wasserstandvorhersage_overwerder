@@ -142,6 +142,21 @@ DGM1_URL = (
     "https://archiv.transparenz.hamburg.de/hmbtgarchive/HMDK/"
     "dgm1_hh_2022-04-30_258334_snap_1.zip"
 )
+# Flussbett: DGM-W 2022 Unter- und Aussenelbe (WSV/WSA Elbe-Nordsee, Laserscan
+# + Faecherecholot, 1-m-Raster, EPSG:25832, m NHN/DHHN2016), eine 2,4-GB-GeoTIFF
+# (128er-Bloecke) auf kuestendaten.de; gelesen wird per HTTP-Range nur der
+# Ausschnitt. Fuellt die Elbe-Luecke des DGM1 (dort Wasserlinie der Befliegung,
+# etwa halbe Tide), damit die Karte bei Niedrigwasser den trockenfallenden
+# Elbstrand zeigt. Lizenz: Datenlizenz Deutschland - Zero 2.0.
+DGMW_URL = (
+    "https://www.kuestendaten.de/media/zdm/portaltideelbe/Allgemeine_Informationen/"
+    "Archiv/GIS/DGM-W_Unterelbe_2022_1x1m/Geotiff/"
+    "DGM-W_2022_Unter-_und_Aussenelbe_GeoTiff_1x1m.tif"
+)
+# Wasserquelle der Ueberlaufhoehe: Fahrrinne/Strom = Flussbett unter dieser
+# Hoehe (m NHN). Liegt unter NTnw an Over (-1,88 m NHN), fuehrt also bei jeder
+# Tide Wasser; alles darueber faellt je nach Wasserstand trocken.
+ELBE_RINNE_MAX_M_NHN = -2.5
 # Modellausschnitt (EPSG:25832): Overwerder Vorland zwischen Hauptdeich und
 # Elbe samt Strom als Wasserquelle.
 INUNDATION_BBOX = (572400.0, 5919900.0, 574800.0, 5922200.0)

@@ -14,6 +14,7 @@ statischen Gelände-Asset, das `inundation.py` einmal erzeugt.
 | Bezug | Transparenzportal „Geländemodelle Hamburg – DGM“; ZIP (1,3 GB) auf `archiv.transparenz.hamburg.de`, die alten `daten-hamburg.de`-Links liefern 404 |
 | Download | per HTTP-Range nur die 1-km-Kacheln des Ausschnitts (`remotezip`), Cache `out/dgm1/`; im ZIP fehlende Kacheln stehen in `out/dgm1/absent.txt` |
 | Gebäude | **LoD2-DE 2026**, LGV Hamburg (CityGML-Kacheln, Grundriss aus ALKIS, Bodenhöhe, Hausnummer falls vergeben), Cache `out/lod2/` |
+| Flussbett | **DGM-W 2022 Unter- und Außenelbe**, WSV/WSA Elbe-Nordsee (Laserscan + Fächerecholot, 1 m, EPSG:25832, m NHN/DHHN2016); eine 2,4-GB-GeoTIFF auf kuestendaten.de, per HTTP-Range (`/vsicurl/`) nur der Ausschnitt, Cache `out/dgmw/`; dl-de/zero-2.0 |
 | Luftbild | **DOP 2024** (belaubt), LGV-WMS `wms_dop_zeitreihe_belaubt`; 2022 ist Pléiades mit geschlossener Lizenz und wird nicht genutzt |
 | Lizenz | Datenlizenz Deutschland – Namensnennung 2.0, © LGV Hamburg |
 | Wasserstand | Pegel Over (Messung) und Overwerder-Vorhersage aus `data.json`, cm über PNP → m NHN mit **PNP = −5,098 m NHN** (PEGELONLINE `gaugeZero`, nicht −5,00) |
@@ -39,8 +40,28 @@ Fallstricke im DGM1:
 * Das niedersächsische Ufer fehlt (NaN). Die größte NaN-Fläche ist der Strom
   und damit die Wasserquelle.
 * Das Flussbett und der Elbstrand unterhalb der Wasserlinie bei der Befliegung
-  fehlen. Wie viel Strand bei Niedrigwasser trockenfällt, lässt sich daraus
-  nicht ablesen (dafür bräuchte es ein DGM-W der WSV).
+  fehlen. Die Lücke endet am Ufer im Median bei +1,3 m NHN (etwa halbe Tide;
+  MThw Over +2,36, MTnw −0,81, NTnw −1,88 m NHN). Gefüllt wird sie aus dem
+  **DGM-W 2022** (`inundation.fill_riverbed`, nur im Strom, Seen bleiben NaN).
+  Im Überlappungsbereich weicht es im Median um −2 cm vom DGM1 ab
+  (5–95 %: −15…+5 cm).
+
+## Elbstrand bei Niedrigwasser
+
+Mit Sohle ist der Strom nicht mehr die Wasserquelle, sondern nur die
+**Rinne**: die größte zusammenhängende Fläche des Flussbetts unter
+`config.ELBE_RINNE_MAX_M_NHN` (−2,5 m NHN, unter NTnw; `inundation.channel_mask`).
+Alle übrigen Zellen des Flussbetts bekommen eine Überlaufhöhe wie das Land.
+Die Karte zeigt sie als Elbe, solange Wasser darüber steht, sonst als
+**trockenen Elbstrand** (Sand; auch über dem Luftbild, das einen anderen
+Tidestand zeigt). Abgeschnittene Kolke und der Priel behalten Stauwasser wie
+Senken an Land. Trockenfallende Fläche des Flussbetts im Kartenausschnitt:
+etwa 3.000 m² bei +1 m, 8.600 m² bei 0 m, 13.400 m² bei MTnw, 28.300 m² bei
+NTnw (NHN). Die Fließzeit über das Flussbett zählt nicht (wie bisher die
+Lücke), daher bleiben Überlaufhöhen, Fließzeiten und Gebäude an Land
+unverändert; nur 41 Uferzellen unter 1,2 m NHN laufen jetzt bis zu 28 cm
+später voll. Grenzen: Peilung 2022, Sandbänke und Priel verlagern sich;
+`--no-riverbed` erzeugt das Asset ohne DGM-W.
 
 ## Methode
 
