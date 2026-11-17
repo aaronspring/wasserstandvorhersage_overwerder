@@ -404,7 +404,15 @@ export default function Chart({
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
   };
-  const onDown = (e: { activeLabel?: string | number } | null) => {
+  // Nach einem Tippen schickt der Browser zusaetzlich emulierte mousedown/
+  // mouseup; Recharts reicht beides (Touch und Maus) an onMouseDown/-Up weiter.
+  // Ohne diesen Filter fixiert das Tippen die Linie und loest sie sofort wieder.
+  const emulatedMouse = (ev: unknown): boolean =>
+    pointerType.current === "touch" &&
+    typeof (ev as { type?: unknown } | null)?.type === "string" &&
+    (ev as { type: string }).type.startsWith("mouse");
+  const onDown = (e: { activeLabel?: string | number } | null, ev?: unknown) => {
+    if (emulatedMouse(ev)) return;
     const t = labelAt(e);
     if (t == null) return;
     setSelLeft(t);
@@ -415,7 +423,8 @@ export default function Chart({
     if (pointerType.current === "mouse") setCursor({ hover: t });
     if (selLeft != null && t != null) setSelRight(t);
   };
-  const onUp = () => {
+  const onUp = (_e?: unknown, ev?: unknown) => {
+    if (emulatedMouse(ev)) return;
     if (selLeft != null && selRight != null) {
       const a = Math.min(selLeft, selRight);
       const b = Math.max(selLeft, selRight);
