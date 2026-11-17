@@ -824,11 +824,7 @@ export default function OverhakenMap({
         <span className="muted">
           Mit der Maus über das Diagramm fahren; ein Klick fixiert den
           Zeitpunkt (nächster Klick löst ihn), dann zeigt die Maus auf der Karte die
-          Wassertiefe. Zoomen mit +/−, Strg + Mausrad oder zwei Fingern; gezoomt
-          lässt sich die Karte ziehen. Klick auf eine Top-10- oder
-          Sturmflut-Stufen-Linie zeigt die Karte zum Scheitel (Stufe: Szenario mit
-          dem Verlauf der nächstgelegenen Top-Sturmflut). Nummern: Parzellen laut Lageplan der
-          Kolonie. Wasser
+          Wassertiefe. Annahme: Wasser
           fließt mit {String(a.flow_m_s ?? 0).replace(".", ",")} m/s vom Strom über schon
           nasse Flächen;
           Stauwasser in Senken versickert mit {Math.round(drainCmH)} cm/h

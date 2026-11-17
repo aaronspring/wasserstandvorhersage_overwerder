@@ -17,6 +17,7 @@ import argparse
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 from wasserstand_overwerder import buildings, config, inundation, inundation_web
 
@@ -52,6 +53,13 @@ def main() -> None:
 
     print("LoD2-Gebaeude ...")
     bldg = buildings.parse_lod2(buildings.fetch_lod2(config.INUNDATION_VIEW, args.lod2))
+    bldg = pd.concat(
+        [
+            bldg,
+            buildings.manual_buildings(config.OVERHAKEN_MANUELLE_GEBAEUDE, terrain),
+        ],
+        ignore_index=True,
+    )
     bldg = buildings.add_spill(
         buildings.select(bldg, config.OVERHAKEN_BBOX), terrain, spill
     )

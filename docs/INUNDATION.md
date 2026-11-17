@@ -122,7 +122,11 @@ und per Thin-Plate-Spline auf die LoD2-Schwerpunkte gelegt (Median-Abstand
 (Schuppen samt zweitem Gebäude auf 114 und Garage, Overwerder Bogen 78 und
 Häuser außerhalb der Kolonie entfallen), darunter das Pumpenhaus; je ein
 Gebäude trägt die Parzellen 102/103 und 130–132. Im Plan eingezeichnete Häuser
-ohne LoD2-Gebäude (133, je ein zweites auf 119 und 126) fehlen. Je Gebäude stehen Bodenhöhe `base_m` und
+ohne LoD2-Gebäude (133, je ein zweites auf 119 und 126) fehlen; das östliche
+der beiden LoD2-Gebäude auf 124 ist ein Nebengebäude und entfällt. Der
+Wohnwagen auf **136** fehlt in LoD2 und ist aus dem Luftbild 2024 als Grundriss
+nachgezeichnet (`config.OVERHAKEN_MANUELLE_GEBAEUDE`, Bodenhöhe = tiefste
+DGM1-Zelle darunter). Je Gebäude stehen Bodenhöhe `base_m` und
 Überlaufhöhe `spill_m` (niedrigste im Grundriss) im Asset. Die Karte färbt es
 nach der Wassertiefe über der Bodenhöhe ein.
 
