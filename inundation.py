@@ -190,7 +190,7 @@ def main() -> None:
             buildings.fetch_lod2(config.INUNDATION_VIEW, args.lod2)
         )
         bldg = buildings.flood_table(
-            buildings.select(bldg, config.INUNDATION_VIEW),
+            buildings.select(bldg, args.area_bbox),
             terrain,
             spill,
             timing,

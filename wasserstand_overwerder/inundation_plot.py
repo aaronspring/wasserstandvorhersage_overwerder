@@ -101,6 +101,8 @@ def summary(terrain, timing, level, tide, table, peak, area_bbox, out: Path) -> 
     fig.colorbar(im, ax=ax, shrink=0.8, label="Beginn relativ zum Scheitel [min]")
     xmin, ymin, xmax, ymax = area_bbox
     ax.plot([xmin, xmax, xmax, xmin, xmin], [ymin, ymin, ymax, ymax, ymin], "r--", lw=1)
+    ax.set_xlim(config.INUNDATION_VIEW[0], config.INUNDATION_VIEW[2])
+    ax.set_ylim(config.INUNDATION_VIEW[1], config.INUNDATION_VIEW[3])
     ax.set_title("Ueberflutungsbeginn in der Sturmtide (DGM1 2022)")
     ax.ticklabel_format(useOffset=False, style="plain")
     ax.tick_params(labelsize=7)
@@ -181,6 +183,8 @@ def terrain_map(
             ha="center",
             bbox={"fc": "w", "alpha": 0.6, "lw": 0},
         )
+    ax.set_xlim(config.INUNDATION_VIEW[0], config.INUNDATION_VIEW[2])
+    ax.set_ylim(config.INUNDATION_VIEW[1], config.INUNDATION_VIEW[3])
     fig.colorbar(im, ax=ax, shrink=0.6, label="Gelaende [m NHN]")
     ax.set_title(
         "DGM1 2022 Overwerder - rot: Marke Wasser auf dem Gelaende "
@@ -356,7 +360,8 @@ def snapshots(
         rel = round((when - peak) / pd.Timedelta(hours=1))
         tag = "Scheitel" if rel == 0 else f"{rel:+d} h"
         ax.set_title(
-            f"{_local(when)} ({tag}) - Over {float(tide.asof(when)):.2f} m NHN"
+            f"{_local(when)} ({tag})\nOver {float(tide.asof(when)):.2f} m NHN",
+            fontsize=10,
         )
     fig.colorbar(im, ax=axes, shrink=0.7, label="Wassertiefe [m]")
     fig.suptitle("Ueberflutungsverlauf Overwerder Vorland (oben Auflauf, unten Ablauf)")

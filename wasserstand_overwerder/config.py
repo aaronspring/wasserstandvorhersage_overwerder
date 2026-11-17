@@ -132,30 +132,31 @@ DGM1_URL = (
 # Modellausschnitt (EPSG:25832): Overwerder Vorland zwischen Hauptdeich und
 # Elbe samt Strom als Wasserquelle.
 INUNDATION_BBOX = (572400.0, 5919900.0, 574800.0, 5922200.0)
-# Auswerteflaeche Kleingarten Overhaken / Siedlung Overwerder (Vorland
-# stromseitig des Overwerder Hauptdeichs; grob, per --area-bbox anpassbar).
-OVERHAKEN_BBOX = (572900.0, 5920400.0, 574300.0, 5921800.0)
+# Auswerteflaeche: Huetten 101-141 des Freizeit-, Sport- und Gartenvereins
+# Overhaken e. V. (zwischen Priel und Overwerder Hauptdeich, um 53.4356 N /
+# 10.1067 E); per --area-bbox anpassbar. Gebaeude werden nur hier ausgewertet.
+OVERHAKEN_BBOX = (573390.0, 5921160.0, 573600.0, 5921420.0)
 # Zellen mit Ueberlaufhoehe darunter liegen stromseitig des Overwerder
 # Hauptdeichs (Kronenhoehe im DGM1 >= 8 m NHN); dahinter gilt als geschuetzt.
 VORLAND_MAX_SPILL_M = 7.0
-# Kartenausschnitt der Grafiken (EPSG:25832) und Querprofil A -> B senkrecht zum
-# Hauptdeich durch Overhaken (Elbe -> Parzellen -> Hauptdeich -> Hohendeicher See).
-INUNDATION_VIEW = (572700.0, 5920200.0, 574500.0, 5922000.0)
-INUNDATION_PROFILE = ((573224.4, 5920979.6), (573879.6, 5921500.4))
+# Kartenausschnitt der Grafiken (EPSG:25832): Kolonie plus Elbe im Westen. Der
+# Modellausschnitt (INUNDATION_BBOX) bleibt gross, damit die Wasserwege stimmen.
+# Querprofil A -> B: Elbe -> Priel -> Parzellen -> Hauptdeich -> Hohendeicher See.
+INUNDATION_VIEW = (573180.0, 5921080.0, 573720.0, 5921500.0)
+INUNDATION_PROFILE = ((573250.0, 5921180.0), (573720.0, 5921460.0))
 # Beschriftungen: Karte (Text, x, y) und Profil (Text, Distanz ab A in m).
 INUNDATION_MAP_LABELS = (
-    ("Elbe", 572900.0, 5920250.0),
-    ("Overhaken", 573250.0, 5921150.0),
-    ("Hauptdeich", 573790.0, 5921450.0),
-    ("Hohendeicher See", 573900.0, 5921850.0),
+    ("Elbe", 573215.0, 5921300.0),
+    ("Priel", 573400.0, 5921140.0),
+    ("Overhaken", 573420.0, 5921440.0),
+    ("Hauptdeich", 573660.0, 5921330.0),
 )
 INUNDATION_PROFILE_LABELS = (
-    ("Elbe", 80),
-    ("Sommer-\ndeich", 180),
-    ("Senke", 255),
-    ("Parzellen\nOverhaken", 420),
-    ("Hauptdeich", 555),
-    ("Hohendeicher\nSee", 720),
+    ("Elbe", 40),
+    ("Priel", 135),
+    ("Parzellen\nOverhaken", 330),
+    ("Hauptdeich", 385),
+    ("Hohendeicher\nSee", 495),
 )
 # Ablauf von Stauwasser aus Senken (Siele/Versickerung), m/h. 0 = Wasser bleibt
 # bis zur Ueberlaufhoehe stehen; unbekannt, per --drain-cm-h variierbar.
