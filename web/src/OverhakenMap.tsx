@@ -793,8 +793,12 @@ export default function OverhakenMap({
           fließt mit {String(a.flow_m_s ?? 0).replace(".", ",")} m/s vom Strom über schon
           nasse Flächen;
           Stauwasser in Senken versickert mit {Math.round(drainCmH)} cm/h
-          (Sandboden, angenommen). Gelände DGM1 (c) LGV, dl-de/by-2.0
-          {style === "satellit" && a.photo ? ` · ${a.photo.credit}` : ""}.
+          (Sandboden, angenommen). Geodaten: DGM1 2022, LoD2-DE 2026, DOP 2024
+          © Freie und Hansestadt Hamburg, LGV,{" "}
+          <a href="https://www.govdata.de/dl-de/by-2-0" target="_blank" rel="noreferrer">
+            dl-de/by-2.0
+          </a>
+          , verändert.
         </span>
       </div>
     </section>
