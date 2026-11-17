@@ -88,7 +88,7 @@ export default function App() {
             rel="noopener noreferrer"
             title="Bei Wasser auf dem Gelände legt die App ein GitHub-Issue an. Abonnieren: auf GitHub oben „Watch“ → „Custom“ → „Issues“ wählen (GitHub-Konto nötig)."
           >
-            Sturmflut-Warnungen auf GitHub abonnieren →
+            Sturmflut-Warnungen auf GitHub abonnieren
           </a>
           <a
             className="repo-link"
