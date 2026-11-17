@@ -116,3 +116,56 @@ STURMFLUT_SCHEITEL_CM = {
 
 HTTP_TIMEOUT = 30  # Sekunden
 USER_AGENT = "wasserstandvorhersage-overwerder/0.1 (github.com/aaronspring)"
+
+# --- Gelaende / Ueberflutungs-Zeitpunkte (inundation.py) --------------------
+# PNP des Pegels Over in m ueber NHN (PEGELONLINE gaugeZero, gueltig ab
+# 2019-11-01). Nicht -5,00 wie die generische Tideelbe-Konvention: die 9,8 cm
+# Unterschied verschieben den Ueberflutungsbeginn um mehrere Minuten.
+OVER_PNP_NHN_M = -5.098
+# DGM1 2022 (LGV Hamburg, 1-m-Raster, GeoTIFF-Kacheln 1x1 km im ZIP, 1,3 GB).
+# Die alten daten-hamburg.de-Links liefern 404; das Transparenzportal verweist
+# auf diese Archiv-Kopie. Datenlizenz Deutschland - Namensnennung 2.0.
+DGM1_URL = (
+    "https://archiv.transparenz.hamburg.de/hmbtgarchive/HMDK/"
+    "dgm1_hh_2022-04-30_258334_snap_1.zip"
+)
+# Modellausschnitt (EPSG:25832): Overwerder Vorland zwischen Hauptdeich und
+# Elbe samt Strom als Wasserquelle.
+INUNDATION_BBOX = (572400.0, 5919900.0, 574800.0, 5922200.0)
+# Auswerteflaeche: Huetten 101-141 des Freizeit-, Sport- und Gartenvereins
+# Overhaken e. V. (zwischen Priel und Overwerder Hauptdeich, um 53.4356 N /
+# 10.1067 E). Gebaeude der Web-Karte werden nur hier ausgewertet.
+OVERHAKEN_BBOX = (573390.0, 5921160.0, 573600.0, 5921420.0)
+# Zellen mit Ueberlaufhoehe darunter liegen stromseitig des Overwerder
+# Hauptdeichs (Kronenhoehe im DGM1 >= 8 m NHN); dahinter gilt als geschuetzt.
+VORLAND_MAX_SPILL_M = 7.0
+# Ausschnitt der Web-Karte (EPSG:25832): Kolonie plus Elbe im Westen. Der
+# Modellausschnitt (INUNDATION_BBOX) bleibt gross, damit die Wasserwege stimmen.
+INUNDATION_VIEW = (573180.0, 5921080.0, 573720.0, 5921500.0)
+# Beschriftungen der Web-Karte (Text, x, y).
+INUNDATION_MAP_LABELS = (
+    ("Elbe", 573215.0, 5921300.0),
+    ("Priel", 573400.0, 5921140.0),
+    ("Overhaken", 573420.0, 5921440.0),
+    ("Hauptdeich", 573660.0, 5921330.0),
+)
+# Versickerung von Stauwasser aus Senken, m/h (0 = bleibt bis zur
+# Ueberlaufhoehe stehen). 10 cm/h: sandiges Vorland, untere Spanne fuer Sand,
+# da das Grundwasser hoch steht; angenommen, keine Messung.
+INUNDATION_DRAIN_M_PER_H = 0.10
+# Fliessgeschwindigkeit beim flachen Ueberstroemen von Wiese/Parzellen (Manning:
+# h 0,3 m, n 0,05, Gefaelle 1 promille -> ~0,3 m/s). Verzoegerung je Zelle =
+# Fliessweg vom Strom / v (inundation.travel_distance).
+INUNDATION_FLOW_M_S = 0.3
+# Luftbild (DOP, belaubt) fuer den Satelliten-Stil der Web-Karte: LGV-WMS
+# Zeitreihe, Jahr per TIME. 2022 stammt von Pleiades (geschlossene Lizenz) ->
+# nur LGV-Befliegungen verwenden. Datenlizenz Deutschland - Namensnennung 2.0.
+DOP_WMS_URL = "https://geodienste.hamburg.de/wms_dop_zeitreihe_belaubt"
+DOP_WMS_LAYER = "dop_zeitreihe_belaubt"
+DOP_YEAR = 2024
+# 3D-Gebaeudemodell LoD2-DE Hamburg 2026 (CityGML-Kacheln 1x1 km, 630 MB ZIP),
+# fuer Grundrisse, Bodenhoehen und (wo vorhanden) Hausnummern der Gebaeude.
+LOD2_URL = (
+    "https://www.daten-hamburg.de/opendata/3d_stadtmodell_lod2/"
+    "LoD2-DE_HH_2026-04-28.zip"
+)

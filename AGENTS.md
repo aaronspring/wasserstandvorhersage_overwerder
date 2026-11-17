@@ -25,11 +25,15 @@ wasserstand_overwerder/
   ghissues.py     schlanker GitHub-Issues-Client (REST) fuer die Alarm-Issues
   plot.py         matplotlib-Plot
   webexport.py    baut data.json fuer die Web-App (netzfrei, build_payload)
+  inundation.py   DGM1 (LGV) laden, Ueberlaufhoehe + Fliessweg je Rasterzelle
+  buildings.py    LoD2-Gebaeude (LGV): Grundriss, Bodenhoehe, Hausnr., Ueberlaufhoehe
+  inundation_web.py Gelaende-Asset (web/public/overhaken.json) fuer die Web-Karte
 calibrate.py      CLI: fittet tau/Gewichte/Offset gegen Pegel Over -> params.json
 forecast.py       CLI: erzeugt out/overwerder_forecast.{csv,png}; --explore
 analyse_sturmfluten.py CLI: Sturmflut-EDA (Haeufigkeit/Saison/Trend) -> docs/sturmflut_*.png
 export_web.py     CLI: erzeugt web/public/data.json (BSH + PEGELONLINE) fuers Frontend
 alert_issues.py   CLI: liest data.json, legt/aktualisiert Ueberflutungs-Issues (GitHub)
+inundation.py     CLI: Gelaende-Asset der Overhaken-Karte -> web/public/overhaken.json
 build_history.py  CLI: voller Backfill des jaehrl. Parquet-Archivs (einmalig)
 update_history.py CLI: inkrementelles Monatsupdate (nur juengste year=YYYY -> HF)
 web/              React+Vite+TS Single-Page-App (Recharts), Deploy nach GitHub Pages
@@ -78,6 +82,9 @@ uv sync --extra hf                        # huggingface_hub fuer den HF-Upload
 HF_TOKEN=... uv run python build_history.py --start 2000-01-01 --end 2026-07-01 \
     --stations over zollenspieker --hf-repo   # einmaliger Backfill -> Hugging Face
 HF_TOKEN=... uv run python update_history.py  # inkrementelles Monatsupdate -> HF
+uv sync --extra gelaende                  # rasterio/remotezip/scikit-image fuers DGM1
+uv run python inundation.py               # Karten-Asset + Luftbild (eingecheckt; Netz: LGV)
+uv run python export_web.py --demo --demo-surge-cm 220 --out web/public  # Demo mit Sturmflut fuer die Karte
 cd web && npm ci && npm run build        # Frontend bauen (Typecheck + Vite)
 cd web && npm run dev                    # Frontend lokal (data.json vorher erzeugen)
 ```
@@ -146,6 +153,29 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   - Workflow `.github/workflows/history.yml`: monatlich inkrementell (Cron),
     `workflow_dispatch` mit `mode=full` fuer den Backfill; Repo-Secret
     `HF_TOKEN`. Nicht ins Git-Repo committen (zu gross).
+- **Gelaende (DGM1, `inundation.py`):** Methodik in `docs/INUNDATION.md`.
+  Python erzeugt nur das statische Asset der Web-Karte; Zeitpunkte und
+  Tiefen rechnet der Browser. Over-PNP ist **-5,098 m NHN** (`config.OVER_PNP_NHN_M`),
+  nicht -5,00. Das DGM1 fuellt Wasserflaechen mit Platzhaltern (Elbe 2,00 m,
+  See 1,00 m) -> `water_fill_mask`, sonst wirkt die Elbe als 2-m-Schwelle.
+  Download-ZIP liegt auf `archiv.transparenz.hamburg.de` (alte
+  daten-hamburg.de-Links 404); Kacheln per HTTP-Range, Cache `out/dgm1/`.
+  Im ZIP fehlende Kacheln (Niedersachsen) stehen in `out/dgm1/absent.txt`.
+  Extra `gelaende` ist optional und wird lazy importiert. Ausschnitt,
+  Beschriftungen, Versickerung (10 cm/h) und Fliessgeschwindigkeit (0,3 m/s)
+  in `config.INUNDATION_*`.
+  Gebaeude: LoD2-DE (CityGML 1.0, `config.LOD2_URL`); im Vorland haben fast
+  keine Gebaeude eine ALKIS-Hausnummer -> laufende Nummer `nr` (NW->SO) +
+  `alkis_id`; Nummern aendern sich, wenn Gebaeude hinzukommen.
+- **Overhaken-Karte (Web):** `web/src/OverhakenMap.tsx` zeigt die Kolonie zum
+  Zeitpunkt der per Klick fixierten Ablese-Linie (sonst Hover im Chart, sonst
+  jetzt); Hover auf der Karte zeigt Wassertiefe/Gelaende an der Stelle;
+  Kopplung ueber `web/src/cursor.ts` (kein App-Re-Render pro Mausbewegung).
+  Tiefe wird im Browser gerechnet (Badewanne mit Verbindung, Stauwasser
+  versickert, Fliesszeit je Zelle) aus dem statischen, eingecheckten
+  `web/public/overhaken.json` (2-m-Raster, Over-PNP -5,098 m) und
+  `overhaken_dop.jpg`. Nach Aenderung von `config.INUNDATION_*`,
+  `OVERHAKEN_BBOX` oder `DOP_*` mit `inundation.py` neu erzeugen.
 - Sprache: Doku/CLI-Ausgaben auf Deutsch, Bezeichner im Code auf Englisch.
 
 ## Tests vor dem Commit

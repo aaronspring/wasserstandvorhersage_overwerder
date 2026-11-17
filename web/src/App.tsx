@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Chart, { SERIES } from "./Chart";
 import { fmtDateTime } from "./format";
 import { moonPhase } from "./moon";
+import OverhakenMap from "./OverhakenMap";
 import { useTheme } from "./theme";
 import type { Payload, SeriesKey } from "./types";
 
@@ -14,7 +15,7 @@ const DATA_URL = `${import.meta.env.BASE_URL}data.json`;
 const STALE_MS = 6 * 3600 * 1000;
 
 export default function App() {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Über die Legende aus-/eingeblendete Serien.
@@ -111,25 +112,29 @@ export default function App() {
         </div>
       )}
 
-      <main className="chart-card">
-        {error && (
-          <div className="status">
-            Daten konnten nicht geladen werden ({error}).
-          </div>
-        )}
-        {!error && !data && <div className="status">Lade Daten …</div>}
-        {data && (
-          <div className="chart-box">
-            <Chart
-              data={data}
-              colors={colors}
-              hidden={hidden}
-              showSurges={showSurges}
-              showSturmflut={showSturmflut}
-            />
-          </div>
-        )}
-      </main>
+      <div className="chart-map">
+        <main className="chart-card">
+          {error && (
+            <div className="status">
+              Daten konnten nicht geladen werden ({error}).
+            </div>
+          )}
+          {!error && !data && <div className="status">Lade Daten …</div>}
+          {data && (
+            <div className="chart-box">
+              <Chart
+                data={data}
+                colors={colors}
+                hidden={hidden}
+                showSurges={showSurges}
+                showSturmflut={showSturmflut}
+              />
+            </div>
+          )}
+        </main>
+
+        {data && <OverhakenMap data={data} dark={mode === "dark"} />}
+      </div>
 
       {data && (
         <div className="legend">
