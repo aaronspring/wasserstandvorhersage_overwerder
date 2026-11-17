@@ -465,3 +465,16 @@ body {
 .map-probe.left {
   transform: translate(calc(-100% - 12px), -50%);
 }
+
+.map-badge {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  pointer-events: none;
+}

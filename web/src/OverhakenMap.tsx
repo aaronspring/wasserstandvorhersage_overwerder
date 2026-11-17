@@ -533,6 +533,11 @@ export default function OverhakenMap({
             </text>
           ))}
         </svg>
+        {style === "satellit" && a.photo && (
+          <span className="map-badge">
+            Satellitenbild {a.photo.credit.match(/\d{4}/)?.[0] ?? ""}
+          </span>
+        )}
         {probe && probeText && (
           <div
             className={`map-probe${probe.fx > 0.6 ? " left" : ""}`}
