@@ -429,3 +429,26 @@ body {
   border-color: #2a78d6;
   color: #2a78d6;
 }
+
+.map-frame {
+  cursor: crosshair;
+}
+
+.map-probe {
+  position: absolute;
+  transform: translate(12px, -50%);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.map-probe.left {
+  transform: translate(calc(-100% - 12px), -50%);
+}

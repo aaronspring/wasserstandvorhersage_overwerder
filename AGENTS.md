@@ -172,7 +172,8 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   keine Gebaeude eine ALKIS-Hausnummer -> laufende Nummer `nr` (NW->SO) +
   `alkis_id`; Nummern aendern sich, wenn Gebaeude hinzukommen.
 - **Overhaken-Karte (Web):** `web/src/OverhakenMap.tsx` zeigt die Kolonie zum
-  Zeitpunkt unter dem Mauszeiger im Chart (sonst Ablese-Linie, sonst jetzt);
+  Zeitpunkt der per Klick fixierten Ablese-Linie (sonst Hover im Chart, sonst
+  jetzt); Hover auf der Karte zeigt Wassertiefe/Gelaende an der Stelle;
   Kopplung ueber `web/src/cursor.ts` (kein App-Re-Render pro Mausbewegung).
   Tiefe wird im Browser gerechnet wie `inundation.depth_at` (Versickerung aus
   `config.INUNDATION_DRAIN_M_PER_H`, 10 cm/h Sand) aus dem

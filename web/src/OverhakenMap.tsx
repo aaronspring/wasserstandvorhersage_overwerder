@@ -336,9 +336,14 @@ export default function OverhakenMap({
     return () => clearInterval(id);
   }, []);
 
+  // Ein Klick ins Diagramm fixiert den Zeitpunkt; Hover im Diagramm aendert ihn
+  // dann nicht mehr, damit man auf der Karte in Ruhe die Tiefen abfahren kann.
   const source: "hover" | "pinned" | "now" =
-    cursor.hover != null ? "hover" : cursor.pinned != null ? "pinned" : "now";
-  const when = cursor.hover ?? cursor.pinned ?? clock;
+    cursor.pinned != null ? "pinned" : cursor.hover != null ? "hover" : "now";
+  const when = cursor.pinned ?? cursor.hover ?? clock;
+
+  // Mauszeiger ueber der Karte: Position in % des Rahmens + Rasterzelle.
+  const [probe, setProbe] = useState<{ fx: number; fy: number } | null>(null);
   const lv = level ? levelAt(level, when) : null;
   const drainCmH = (grid?.a.drain_m_per_h ?? 0) * 100;
   const surface = useMemo(
@@ -383,7 +388,27 @@ export default function OverhakenMap({
     .filter((t): t is number => t != null)
     .sort((x, y) => x - y)[0];
   const label =
-    source === "hover" ? "Mauszeiger" : source === "pinned" ? "Ablese-Linie" : "jetzt";
+    source === "hover" ? "Mauszeiger" : source === "pinned" ? "fixiert" : "jetzt";
+
+  // Wert an der Mausposition auf der Karte.
+  let probeText: string[] | null = null;
+  if (probe) {
+    const col = Math.min(a.width - 1, Math.floor(probe.fx * a.width));
+    const row = Math.min(a.height - 1, Math.floor(probe.fy * a.height));
+    const i = row * a.width + col;
+    const m = (cm: number) => (cm / 100).toFixed(2).replace(".", ",");
+    if (grid.cls[i] === RIVER) probeText = ["Elbe / Priel"];
+    else if (grid.cls[i] !== LAND) probeText = ["Gewässer"];
+    else {
+      const z = grid.z[i];
+      const sp = grid.spill[i];
+      const d = sp !== a.nodata && sp <= lv.max ? surface(sp) - z : 0;
+      probeText = [
+        d >= 1 ? `Wassertiefe ${m(d)} m` : "trocken",
+        `Gelände ${m(z)} m NHN`,
+      ];
+    }
+  }
 
   return (
     <section className="map-card">
@@ -420,7 +445,18 @@ export default function OverhakenMap({
           </div>
         </dl>
       </div>
-      <div className="map-frame" style={{ aspectRatio: `${wm} / ${hm}` }}>
+      <div
+        className="map-frame"
+        style={{ aspectRatio: `${wm} / ${hm}` }}
+        onMouseMove={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setProbe({
+            fx: Math.min(Math.max((e.clientX - r.left) / r.width, 0), 0.9999),
+            fy: Math.min(Math.max((e.clientY - r.top) / r.height, 0), 0.9999),
+          });
+        }}
+        onMouseLeave={() => setProbe(null)}
+      >
         {style === "satellit" && a.photo && (
           <img src={`${import.meta.env.BASE_URL}${a.photo.file}`} alt="" />
         )}
@@ -454,6 +490,18 @@ export default function OverhakenMap({
             </text>
           ))}
         </svg>
+        {probe && probeText && (
+          <div
+            className={`map-probe${probe.fx > 0.6 ? " left" : ""}`}
+            style={{ left: `${probe.fx * 100}%`, top: `${probe.fy * 100}%` }}
+          >
+            {probeText.map((t, k) => (
+              <div key={k} className={k ? "muted" : undefined}>
+                {t}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       <div className="map-foot">
         <span className="map-ramp" aria-hidden="true">
@@ -466,7 +514,9 @@ export default function OverhakenMap({
           {firstWet == null
             ? "Im Datenzeitraum erreicht das Wasser kein Gebäude."
             : `Erstes Gebäude nass: ${fmtWeekday(firstWet)} ${fmtTime(firstWet)} Uhr.`}{" "}
-          Mit der Maus über das Diagramm fahren oder hineintippen. Modell
+          Mit der Maus über das Diagramm fahren; ein Klick fixiert den
+          Zeitpunkt (erneut klicken löst ihn), dann zeigt die Maus auf der Karte die
+          Wassertiefe. Modell
           ohne Fließzeit – Wasser erscheint frühestmöglich;
           Stauwasser in Senken versickert mit {Math.round(drainCmH)} cm/h
           (Sandboden, angenommen). Gelände DGM1 (c) LGV, dl-de/by-2.0
