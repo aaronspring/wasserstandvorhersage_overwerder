@@ -502,6 +502,23 @@ body {
     align-items: stretch;
   }
 
+  /* Desktop: Chart links, Karte rechts, Legende darunter ueber volle Breite.
+     Mobil bleibt die DOM-Reihenfolge: Chart, Legende, Karte. */
+  .chart-map > .chart-card {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .chart-map > .map-card {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .chart-map > .legend {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
   /* Chart-Karte auf die Hoehe der Overhaken-Karte strecken (oben + unten buendig). */
   .chart-map > .chart-card {
     display: flex;
