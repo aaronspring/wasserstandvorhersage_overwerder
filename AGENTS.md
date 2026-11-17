@@ -28,6 +28,7 @@ wasserstand_overwerder/
   inundation.py   DGM1 (LGV) laden + Ueberlauf-/Ueberflutungs-Zeitpunkte je 1-m-Zelle
   inundation_plot.py Grafiken dazu (Uebersicht, Gelaende, Querprofil, Verlauf, Gebaeude, GIF)
   buildings.py    LoD2-Gebaeude (LGV): Grundriss, Bodenhoehe, Hausnr., Ueberflutung je Gebaeude
+  inundation_web.py Gelaende-Asset (web/public/overhaken.json) fuer die Web-Karte
 calibrate.py      CLI: fittet tau/Gewichte/Offset gegen Pegel Over -> params.json
 forecast.py       CLI: erzeugt out/overwerder_forecast.{csv,png}; --explore
 analyse_sturmfluten.py CLI: Sturmflut-EDA (Haeufigkeit/Saison/Trend) -> docs/sturmflut_*.png
@@ -45,6 +46,7 @@ tests/test_hfhub.py      Dataset-Card/Upload-Pattern-Tests (netzwerkfrei)
 tests/test_alerts.py     Event-Erkennung + Issue-Abgleich (plan), netzwerkfrei
 tests/test_inundation.py Ueberlaufhoehe/Zeitpunkte auf Synthetik-Gelaende, netzwerkfrei
 tests/test_buildings.py  Mini-CityGML + Gebaeude-Ueberflutung, netzwerkfrei
+tests/test_inundation_web.py Web-Karten-Asset (Ausschnitt/Kodierung), netzwerkfrei
 ```
 
 Die Web-App ist statisch: `export_web.py` schreibt `data.json`, das React-Frontend
@@ -86,6 +88,8 @@ HF_TOKEN=... uv run python build_history.py --start 2000-01-01 --end 2026-07-01 
 HF_TOKEN=... uv run python update_history.py  # inkrementelles Monatsupdate -> HF
 uv sync --extra gelaende                  # rasterio/remotezip/scikit-image fuers DGM1
 uv run python inundation.py --recent --animate  # Ueberflutungs-Zeitpunkte + Grafiken (Netz: LGV + PEGELONLINE)
+uv run python inundation.py --recent --web-asset web/public/overhaken.json  # Karten-Asset (eingecheckt)
+uv run python export_web.py --demo --demo-surge-cm 220 --out web/public  # Demo mit Sturmflut fuer die Karte
 cd web && npm ci && npm run build        # Frontend bauen (Typecheck + Vite)
 cd web && npm run dev                    # Frontend lokal (data.json vorher erzeugen)
 ```
@@ -166,6 +170,13 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   Gebaeude: LoD2-DE (CityGML 1.0, `config.LOD2_URL`); im Vorland haben fast
   keine Gebaeude eine ALKIS-Hausnummer -> laufende Nummer `nr` (NW->SO) +
   `alkis_id`; Nummern aendern sich, wenn Gebaeude hinzukommen.
+- **Overhaken-Karte (Web):** `web/src/OverhakenMap.tsx` zeigt die Kolonie zum
+  Zeitpunkt unter dem Mauszeiger im Chart (sonst Ablese-Linie, sonst jetzt);
+  Kopplung ueber `web/src/cursor.ts` (kein App-Re-Render pro Mausbewegung).
+  Tiefe wird im Browser gerechnet wie `inundation.depth_at` (Ablauf 0) aus dem
+  statischen, eingecheckten `web/public/overhaken.json` (2-m-Raster, Over-PNP
+  -5,098 m). Nach Aenderung von `config.INUNDATION_VIEW`/`OVERHAKEN_BBOX` das
+  Asset neu erzeugen.
 - Sprache: Doku/CLI-Ausgaben auf Deutsch, Bezeichner im Code auf Englisch.
 
 ## Tests vor dem Commit
