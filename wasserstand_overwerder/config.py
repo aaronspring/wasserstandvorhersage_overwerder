@@ -163,6 +163,10 @@ INUNDATION_PROFILE_LABELS = (
 # Default 10 cm/h: Versickerung im sandigen Vorland (untere Spanne fuer Sand, da
 # das Grundwasser im Vorland hoch steht); keine Messung, per --drain-cm-h aendern.
 INUNDATION_DRAIN_M_PER_H = 0.10
+# Fliessgeschwindigkeit beim flachen Ueberstroemen von Wiese/Parzellen (Manning:
+# h 0,3 m, n 0,05, Gefaelle 1 promille -> ~0,3 m/s). Verzoegerung je Zelle =
+# Fliessweg vom Strom / v (inundation.travel_distance); genutzt von der Web-Karte.
+INUNDATION_FLOW_M_S = 0.3
 # 3D-Gebaeudemodell LoD2-DE Hamburg 2026 (CityGML-Kacheln 1x1 km, 630 MB ZIP),
 # fuer Grundrisse, Bodenhoehen und (wo vorhanden) Hausnummern der Gebaeude.
 # Luftbild (DOP, belaubt) fuer den Satelliten-Stil der Web-Karte: LGV-WMS

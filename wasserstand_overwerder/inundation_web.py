@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .inundation import Terrain
+from .inundation import Terrain, travel_distance
 
 NODATA = -32768
 LAND, RIVER, OTHER_WATER = 0, 1, 2
@@ -58,6 +58,8 @@ def build_asset(
     step: int = 2,
     gauge_zero_m_nhn: float,
     drain_m_per_h: float = 0.0,
+    flow_m_s: float | None = None,
+    margin_m: float = 300.0,
     area_bbox: tuple[float, float, float, float] | None = None,
     bldg: pd.DataFrame | None = None,
     labels: tuple = (),
@@ -69,6 +71,18 @@ def build_asset(
     r0, r1 = int((ymax - t.f) / t.e), int((ymin - t.f) / t.e)
     sl = (slice(r0, r1, step), slice(c0, c1, step))
     z, rv, sp = terrain.z[sl], river[sl], spill[sl]
+    lag_min = None
+    if flow_m_s:
+        # Fliessweg auf einem um margin_m erweiterten Ausschnitt, damit Wege
+        # von ausserhalb des Kartenausschnitts mitzaehlen; dann zuschneiden.
+        m = int(margin_m / abs(t.a)) // step * step
+        R0, C0 = max(r0 - m, 0), max(c0 - m, 0)
+        big = (slice(R0, r1 + m, step), slice(C0, c1 + m, step))
+        dist = travel_distance(spill[big], river[big], abs(t.a) * step)
+        i0, j0 = (r0 - R0) // step, (c0 - C0) // step
+        dist = dist[i0 : i0 + z.shape[0], j0 : j0 + z.shape[1]]
+        lag = np.nan_to_num(dist / flow_m_s / 60.0, nan=0.0)
+        lag_min = np.clip(np.round(lag), 0, 255).astype("u1")
     cls = np.where(rv, RIVER, np.where(np.isfinite(z), LAND, OTHER_WATER)).astype("u1")
     cell = abs(t.a) * step
     h, w = z.shape
@@ -83,6 +97,8 @@ def build_asset(
         "height": h,
         "gauge_zero_m_nhn": gauge_zero_m_nhn,
         "drain_m_per_h": drain_m_per_h,
+        "flow_m_s": flow_m_s,
+        "lag_min": _b64(lag_min) if lag_min is not None else None,
         "nodata": NODATA,
         "z_cm": _b64(_cm(z)),
         "spill_cm": _b64(_cm(sp)),
@@ -157,6 +173,6 @@ def write_asset(path: str | Path, asset: dict) -> Path:
 
 def decode(asset: dict, key: str) -> np.ndarray:
     """Raster aus dem Asset zurueck (fuer Tests/Pruefung)."""
-    dtype = "u1" if key in ("cls", "shade") else "<i2"
+    dtype = "u1" if key in ("cls", "shade", "lag_min") else "<i2"
     a = np.frombuffer(base64.b64decode(asset[key]), dtype=dtype)
     return a.reshape(asset["height"], asset["width"])

@@ -64,14 +64,37 @@ Fallstricke im DGM1:
    Priele mit dem Strom verbunden ist, läuft mit der Tide ab. Abflusslose
    Mulden behalten **Stauwasser** bis zu ihrer Schwelle (`residual_depth`).
    `--drain-cm-h` lässt es mit fester Rate sinken (Versickerung im
-   Sandboden, Default 10 cm/h, angenommen; 0 = bleibt stehen). Unter den Außenwasserstand sinkt es nicht, weil das Siel dann
-   geschlossen ist. `depth_at` liefert die Tiefenkarte für einen beliebigen
+   Sandboden, Default 10 cm/h, angenommen; 0 = bleibt stehen). Unter den
+   Außenwasserstand sinkt es nicht, weil das Siel dann geschlossen ist. `depth_at` liefert die Tiefenkarte für einen beliebigen
    Zeitpunkt.
 4. **Auswertung** über `OVERHAKEN_BBOX` (Vorland: Überlaufhöhe < 7 m),
    gruppiert in 0,1-m-Höhenklassen → `hoehe_zeitpunkt.csv`.
+5. **Fließzeit** (nur Web-Karte): Das Wasser braucht vom Strom bis zu einer
+   Zelle die Zeit *Fließweg / v* mit v = 0,3 m/s
+   (`config.INUNDATION_FLOW_M_S`). Der Fließweg (`inundation.travel_distance`)
+   ist der kürzeste Weg vom Strom über Zellen, die zu dem Zeitpunkt schon nass
+   sind: Eine Zelle mit Überlaufhöhe *s* wird nur über Zellen mit
+   Überlaufhöhe ≤ *s* erreicht (0,1-m-Stufen, 8er-Nachbarschaft, Weg im Strom
+   zählt nicht). Eine Zelle mit *t* Minuten Fließzeit sieht den Wasserstand von
+   vor *t* Minuten; Beginn, Spiegel und Versickerung verschieben sich also
+   um *t*.
 
-Grenzen: Es ist ein Badewannenmodell ohne Fließwiderstand und Einströmzeit, der
-Beginn ist also der **früheste** mögliche Zeitpunkt. Der Ablauf über Priele
+   **Warum 0,3 m/s:** Flaches Überströmen von Wiese und Parzellen, nach
+   Manning *v = h^(2/3) · S^(1/2) / n* mit Wassertiefe h ≈ 0,3 m, Gefälle
+   S ≈ 1 ‰ und Rauheit n ≈ 0,05 (Gras, Büsche, Zäune) → v ≈ 0,28 m/s. Die
+   übliche Spanne ist 0,1–0,5 m/s, in Prielen bis ~1 m/s. Die Tidewelle in der
+   Elbe selbst (~5–7 m/s) steckt schon im Pegel Over.
+
+   **Größenordnung Overhaken:** Median 6 min, 90 % unter 20 min, maximal
+   32 min im Kartenausschnitt. Da die Tide vor dem Scheitel um 30–70 cm/h
+   steigt, verschiebt das den Beginn nur leicht; größer wird es nur hinter
+   langen Umwegen über Sommerdeich-Kronen.
+
+Grenzen: Es ist ein Badewannenmodell mit Verbindung. Ohne Fließzeit (CLI,
+Grafiken, CSV) ist der Beginn der **früheste** mögliche Zeitpunkt; die
+Web-Karte rechnet eine konstante Fließgeschwindigkeit dazu (Punkt 5), aber
+keine Durchflussmengen: Ein schmaler Durchlass füllt eine große Senke in
+Wirklichkeit langsamer. Dafür bräuchte es ein 2D-Modell (z. B. LISFLOOD-FP). Der Ablauf über Priele
 erfolgt ebenfalls sofort, und die Ablaufrate von Stauwasser ist unbekannt und
 deshalb nur ein Parameter. Die Wasserspiegellage
 von Over gilt für das ganze Vorland (Over liegt gegenüber, km 605,3). Zäune,
@@ -144,3 +167,30 @@ Ausgabe in `out/inundation/`: Grafiken `inundation.png` (Übersicht),
 `residual_depth_m.tif`, `gebaeude.csv`; `gebaeude.png` (nummerierte
 Gebäudekarte). `--no-buildings` lässt den LoD2-Teil weg
 (GeoTIFF, EPSG:25832, z. B. in QGIS über ein Luftbild legen).
+
+## Web-Karte (Overhaken zum gewählten Zeitpunkt)
+
+Neben dem Wasserstands-Chart der Web-App zeigt `web/src/OverhakenMap.tsx` die
+Kolonie (Hütten 101–141, Elbe im Westen) zum gewählten Zeitpunkt:
+
+- **Zeitpunkt:** Hover im Chart; ein Klick fixiert ihn („fixiert“), der nächste
+  Klick löst ihn wieder; ohne beides „jetzt“.
+- **Hover auf der Karte:** Wassertiefe, Geländehöhe und Fließzeit an der Stelle.
+- **Kartenstile:** Satellit (Default, Luftbild DOP 2024 des LGV per WMS
+  `config.DOP_WMS_URL`, dl-de/by-2.0; 2022 ist Pléiades mit geschlossener
+  Lizenz und wird nicht genutzt), Höhen (Höhenstufen mit Schummerung), Atlas
+  (hell, 1-m-Höhenlinien). Die Wahl merkt sich der Browser.
+- **Rechnung im Browser** aus dem statischen Asset `web/public/overhaken.json`
+  (2-m-Raster: Gelände, Überlaufhöhe, Klassen, Schummerung, Fließzeit in
+  Minuten, Gebäude) wie `depth_at`: Wasserstand = Over-Messung, danach
+  Overwerder-Vorhersage (cm über PNP → m NHN mit −5,098 m); Versickerung 10 cm/h;
+  Fließzeit je Zelle wie oben.
+- **Erzeugen** (eingecheckt, nur nach Änderung von Ausschnitt/Parametern nötig):
+
+  ```bash
+  uv run python inundation.py --recent --web-asset web/public/overhaken.json
+  ```
+
+  schreibt auch `web/public/overhaken_dop.jpg`. Zum lokalen Testen mit
+  Sturmflut: `uv run python export_web.py --demo --demo-surge-cm 220 --out web/public`.
+

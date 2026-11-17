@@ -39,6 +39,8 @@ interface Asset {
   spill_cm: string;
   cls: string;
   shade: string;
+  flow_m_s?: number | null;
+  lag_min?: string | null;
   photo?: { file: string; credit: string } | null;
   labels: [string, number, number][];
   buildings: Building[];
@@ -50,6 +52,7 @@ interface Grid {
   spill: Int16Array;
   cls: Uint8Array;
   shade: Uint8Array;
+  lag: Uint8Array | null; // Fliesszeit vom Strom je Zelle, Minuten
 }
 
 function bytes(b64: string): ArrayBuffer {
@@ -66,6 +69,7 @@ function decode(a: Asset): Grid {
     spill: new Int16Array(bytes(a.spill_cm)),
     cls: new Uint8Array(bytes(a.cls)),
     shade: new Uint8Array(bytes(a.shade)),
+    lag: a.lag_min ? new Uint8Array(bytes(a.lag_min)) : null,
   };
 }
 
@@ -148,10 +152,41 @@ function surfaceFn(L: Level, lv: LevelAt, drainCmH: number) {
   };
 }
 
+// Wasser je Fliesszeit: Eine Zelle, die `lag` Minuten Fliessweg vom Strom
+// entfernt liegt, sieht den Wasserstand von vor `lag` Minuten (laufendes
+// Maximum, Spiegel, Versickerung). Je Fliesszeit gecacht (ganze Minuten).
+interface Water {
+  max: number;
+  surface: (spill: number) => number;
+}
+
+function waterFn(L: Level, when: number, drainCmH: number) {
+  const cache = new Map<number, Water>();
+  return (lag: number): Water => {
+    let w = cache.get(lag);
+    if (!w) {
+      const lv = levelAt(L, when - lag * 60_000);
+      w = { max: lv.max, surface: surfaceFn(L, lv, drainCmH) };
+      cache.set(lag, w);
+    }
+    return w;
+  };
+}
+
 // Erster Zeitpunkt, an dem der Wasserstand `cm` erreicht (oder null).
 function firstReach(L: Level, cm: number): number | null {
   const i = L.runMax.findIndex((x) => x >= cm);
   return i < 0 ? null : L.t[i];
+}
+
+// Fliesszeit (min) am Gebaeude: Zelle unter dem Grundriss-Schwerpunkt.
+function buildingLag(g: Grid, ring: [number, number][]): number {
+  if (!g.lag || !ring.length) return 0;
+  const cx = ring.reduce((s, p) => s + p[0], 0) / ring.length;
+  const cy = ring.reduce((s, p) => s + p[1], 0) / ring.length;
+  const col = Math.min(g.a.width - 1, Math.max(0, Math.floor(cx / g.a.cell_m)));
+  const row = Math.min(g.a.height - 1, Math.max(0, g.a.height - 1 - Math.floor(cy / g.a.cell_m)));
+  return g.lag[row * g.a.width + col];
 }
 
 // Blaustufen fuer 0..MAX_DEPTH_CM (hell -> dunkel).
@@ -225,8 +260,7 @@ function landRgb(style: MapStyle, z: number, s: number, edge: boolean): Rgb {
 function paint(
   ctx: CanvasRenderingContext2D,
   g: Grid,
-  maxCm: number,
-  surface: (spill: number) => number,
+  water: (lag: number) => Water,
   dark: boolean,
   style: MapStyle,
 ): void {
@@ -248,8 +282,9 @@ function paint(
       alpha = 0;
       rgb = [0, 0, 0];
       const sp = g.spill[i];
-      if (g.cls[i] === LAND && sp !== nodata && sp <= maxCm) {
-        const d = surface(sp) - g.z[i];
+      const wa = water(g.lag ? g.lag[i] : 0);
+      if (g.cls[i] === LAND && sp !== nodata && sp <= wa.max) {
+        const d = wa.surface(sp) - g.z[i];
         if (d >= 1) {
           rgb = depthRgb(d);
           alpha = 200;
@@ -269,8 +304,9 @@ function paint(
       }
       rgb = landRgb(style, z, s, edge);
       const sp = g.spill[i];
-      if (sp !== nodata && sp <= maxCm) {
-        const d = surface(sp) - g.z[i];
+      const wa = water(g.lag ? g.lag[i] : 0);
+      if (sp !== nodata && sp <= wa.max) {
+        const d = wa.surface(sp) - g.z[i];
         if (d >= 1) {
           const c = depthRgb(d);
           const k = 0.8;
@@ -304,7 +340,7 @@ export default function OverhakenMap({
     } catch {
       // ohne Speicher: Standardstil
     }
-    return "hoehe";
+    return "satellit";
   });
   const chooseStyle = (v: MapStyle) => {
     setStyle(v);
@@ -346,29 +382,36 @@ export default function OverhakenMap({
   const [probe, setProbe] = useState<{ fx: number; fy: number } | null>(null);
   const lv = level ? levelAt(level, when) : null;
   const drainCmH = (grid?.a.drain_m_per_h ?? 0) * 100;
-  const surface = useMemo(
-    () => (level && lv ? surfaceFn(level, lv, drainCmH) : null),
+  const water = useMemo(
+    () => (level && lv ? waterFn(level, lv.at, drainCmH) : null),
     // lv ist aus level/when abgeleitet; at (ms) reicht als Abhaengigkeit.
     [level, lv?.at, drainCmH],
   );
 
   useEffect(() => {
     const ctx = canvas.current?.getContext("2d");
-    if (!ctx || !grid || !lv || !surface) return;
-    paint(ctx, grid, lv.max, surface, dark, style);
-  }, [grid, surface, dark, style]);
+    if (!ctx || !grid || !water) return;
+    paint(ctx, grid, water, dark, style);
+  }, [grid, water, dark, style]);
 
   const bldg = useMemo(() => {
     if (!grid || !level) return [];
     return grid.a.buildings.map((b) => ({
       ...b,
       points: b.ring.map(([x, y]) => `${x},${grid.a.height * grid.a.cell_m - y}`).join(" "),
-      onset: b.spill_m == null ? null : firstReach(level, b.spill_m * 100),
+      lag: buildingLag(grid, b.ring),
+      onset:
+        b.spill_m == null
+          ? null
+          : (() => {
+              const t = firstReach(level, b.spill_m * 100);
+              return t == null ? null : t + buildingLag(grid, b.ring) * 60_000;
+            })(),
     }));
   }, [grid, level]);
 
   if (missing) return null;
-  if (!grid || !level || !lv || !surface) {
+  if (!grid || !level || !lv || !water) {
     return <section className="map-card status">Lade Overhaken-Karte …</section>;
   }
 
@@ -379,8 +422,9 @@ export default function OverhakenMap({
   const overCm = lv.now - gz * 100;
   const forecast = lv.at > level.obsEnd;
   const status = bldg.map((b) => {
-    if (b.spill_m == null || b.spill_m * 100 > lv.max) return null;
-    const d = surface(b.spill_m * 100) - b.base_m * 100;
+    const wa = water(b.lag);
+    if (b.spill_m == null || b.spill_m * 100 > wa.max) return null;
+    const d = wa.surface(b.spill_m * 100) - b.base_m * 100;
     return d >= 1 ? d : null;
   });
   const label =
@@ -398,11 +442,14 @@ export default function OverhakenMap({
     else {
       const z = grid.z[i];
       const sp = grid.spill[i];
-      const d = sp !== a.nodata && sp <= lv.max ? surface(sp) - z : 0;
+      const lag = grid.lag ? grid.lag[i] : 0;
+      const wa = water(lag);
+      const d = sp !== a.nodata && sp <= wa.max ? wa.surface(sp) - z : 0;
       probeText = [
         d >= 1 ? `Wassertiefe ${m(d)} m` : "trocken",
         `Gelände ${m(z)} m NHN`,
       ];
+      if (grid.lag && sp !== a.nodata) probeText.push(`Fließzeit vom Strom ${lag} min`);
     }
   }
 
@@ -509,8 +556,9 @@ export default function OverhakenMap({
         <span className="muted">
           Mit der Maus über das Diagramm fahren; ein Klick fixiert den
           Zeitpunkt (nächster Klick löst ihn), dann zeigt die Maus auf der Karte die
-          Wassertiefe. Modell
-          ohne Fließzeit – Wasser erscheint frühestmöglich;
+          Wassertiefe. Wasser
+          fließt mit {String(a.flow_m_s ?? 0).replace(".", ",")} m/s vom Strom über schon
+          nasse Flächen;
           Stauwasser in Senken versickert mit {Math.round(drainCmH)} cm/h
           (Sandboden, angenommen). Gelände DGM1 (c) LGV, dl-de/by-2.0
           {style === "satellit" && a.photo ? ` · ${a.photo.credit}` : ""}.

@@ -230,6 +230,7 @@ def main() -> None:
             config.INUNDATION_VIEW,
             gauge_zero_m_nhn=config.OVER_PNP_NHN_M,
             drain_m_per_h=drain,
+            flow_m_s=config.INUNDATION_FLOW_M_S,
             area_bbox=args.area_bbox,
             bldg=bldg,
             labels=config.INUNDATION_MAP_LABELS,

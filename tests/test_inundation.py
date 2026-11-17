@@ -114,3 +114,17 @@ def test_water_fill_mask_and_tile_names():
 def test_cm_pnp_to_m_nhn():
     s = pd.Series([834.0])
     np.testing.assert_allclose(inundation.cm_pnp_to_m_nhn(s, -5.098), 3.242)
+
+
+def test_travel_distance_goes_over_dike_crest():
+    z = terrain()
+    river = inundation.river_mask(z)
+    spill = inundation.spill_elevation(z, river)
+    dist = inundation.travel_distance(spill, river)
+    assert np.isnan(dist[:, :10]).all()  # Strom selbst
+    # Mittelpunkt zu Mittelpunkt; die Uferkante zaehlt halb (Stromzelle ~0)
+    np.testing.assert_allclose(dist[10, 10], 0.5, atol=0.01)
+    np.testing.assert_allclose(dist[10, 15], 5.5, atol=0.01)
+    # Senke hinter dem Sommerdeich: Weg ueber die Krone (Spalte 20)
+    np.testing.assert_allclose(dist[10, 25], 15.5, atol=0.01)
+    assert (np.diff(dist[10, 10:30]) > 0).all()

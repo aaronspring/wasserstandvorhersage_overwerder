@@ -173,6 +173,36 @@ def spill_elevation(z: np.ndarray, river: np.ndarray) -> np.ndarray:
     return spill
 
 
+def travel_distance(
+    spill: np.ndarray, river: np.ndarray, cell_m: float = 1.0, step_m: float = 0.1
+) -> np.ndarray:
+    """Fliessweg (m) vom Strom bis zu jeder Zelle, nur ueber Zellen, die zu dem
+    Zeitpunkt schon nass sind: Eine Zelle mit Ueberlaufhoehe ``s`` wird ueber
+    Zellen mit Ueberlaufhoehe <= ``s`` erreicht (auf ``step_m`` gerundet). Der
+    Weg im Strom selbst zaehlt (fast) nicht. NaN = nie erreichbar.
+
+    Teilt man den Weg durch eine Fliessgeschwindigkeit, ergibt sich die
+    Verzoegerung gegenueber dem Badewannen-Modell (Wasser sofort ueberall).
+    """
+    from skimage.graph import MCP_Geometric
+
+    dist = np.full(spill.shape, np.nan)
+    land = np.isfinite(spill)
+    if not land.any() or not river.any():
+        return dist
+    k = np.full(spill.shape, -1, dtype=int)
+    k[land] = np.ceil(np.round(spill[land] / step_m, 6)).astype(int)
+    starts = np.argwhere(river)
+    for kk in np.unique(k[land]):
+        h = kk * step_m + 1e-9
+        cost = np.where(river, 1e-3, np.where(land & (spill <= h), 1.0, np.inf))
+        cum, _ = MCP_Geometric(cost).find_costs(starts)
+        sel = k == kk
+        dist[sel] = cum[sel] * cell_m
+    dist[~np.isfinite(dist)] = np.nan
+    return dist
+
+
 def flood_timing(
     spill: np.ndarray,
     z: np.ndarray,
