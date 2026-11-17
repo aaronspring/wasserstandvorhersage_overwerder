@@ -155,10 +155,14 @@ OVERHAKEN_BBOX = (573390.0, 5921160.0, 573600.0, 5921420.0)
 # Haeuser des Plans per Farbe erkannt, affin + Thin-Plate-Spline auf die
 # LoD2-Schwerpunkte gelegt (Median-Abstand ~2 m), am Luftbild geprueft. Nur
 # diese Gebaeude zeigt die Web-Karte. Ohne LoD2-Gebaeude (Rasen im DOP 2024 /
-# nur Schuppen): 116, 133, 136 (Wohnwagen) und je ein zweites Haus auf
+# nur Schuppen): 116, 133 und je ein zweites Haus auf
 # 119 und 126. Ein Gebaeude kann mehrere Parzellen tragen (102/103, 130-132);
 # Schuppen (zweites Gebaeude auf 114, Garage) sind bewusst nicht eingetragen.
+# 136 (Wohnwagen) fehlt in LoD2 und ist als Grundriss aus dem DOP 2024
+# nachgezeichnet (OVERHAKEN_MANUELLE_GEBAEUDE). Das oestliche der beiden
+# LoD2-Gebaeude auf 124 (DEHHALKAn0006JIM) ist ein Nebengebaeude -> entfaellt.
 OVERHAKEN_PARZELLEN = {
+    "manuell-136": "136",
     "DEHHALKAn0006IVU": "Pumpenhaus",
     "DEHHALKAn0006IAL": "101",
     "DEHHALKAn0006JGI": "102/103",
@@ -181,7 +185,6 @@ OVERHAKEN_PARZELLEN = {
     "DEHHALKAn0006IlO": "121",
     "DEHHALKAn0006JIP": "122",
     "DEHHALKAn0006I5b": "123",
-    "DEHHALKAn0006JIM": "124",
     "DEHHALKAn0006ItW": "124",
     "DEHHALKAn0006JGG": "125",
     "DEHHALKAn0006IvS": "126",
@@ -196,6 +199,16 @@ OVERHAKEN_PARZELLEN = {
     "DEHHALKAn0006Idn": "139",
     "DEHHALKAn0006JBD": "140",
     "DEHHALKAn0006Ip9": "141",
+}
+# Gebaeude ohne LoD2-Grundriss, aus dem Luftbild (DOP 2024) nachgezeichnet:
+# Kennung -> Ecken (EPSG:25832). Bodenhoehe = tiefste DGM1-Zelle im Grundriss.
+OVERHAKEN_MANUELLE_GEBAEUDE = {
+    "manuell-136": (  # Wohnwagen suedlich von 137
+        (573428.6, 5921319.6),
+        (573431.8, 5921320.6),
+        (573433.0, 5921317.4),
+        (573429.8, 5921316.4),
+    ),
 }
 # Zellen mit Ueberlaufhoehe darunter liegen stromseitig des Overwerder
 # Hauptdeichs (Kronenhoehe im DGM1 >= 8 m NHN); dahinter gilt als geschuetzt.

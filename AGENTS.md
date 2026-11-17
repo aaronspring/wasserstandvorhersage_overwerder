@@ -171,7 +171,9 @@ cd web && npm run dev                    # Frontend lokal (data.json vorher erze
   `alkis_id`; Nummern aendern sich, wenn Gebaeude hinzukommen. Die Web-Karte
   zeigt nur Gebaeude aus `config.OVERHAKEN_PARZELLEN` (ALKIS-Kennung ->
   Parzellen-Nummer laut Lageplan-Schild der Kolonie, 37 Gebaeude); neue
-  Gebaeude dort per `alkis_id` eintragen.
+  Gebaeude dort per `alkis_id` eintragen. Gebaeude ohne LoD2-Grundriss
+  (Wohnwagen 136) stehen als Ecken in `config.OVERHAKEN_MANUELLE_GEBAEUDE`
+  (Kennung `manuell-*`, ebenfalls in `OVERHAKEN_PARZELLEN` eintragen).
 - **Overhaken-Karte (Web):** `web/src/OverhakenMap.tsx` zeigt die Kolonie zum
   Zeitpunkt der per Klick fixierten Ablese-Linie (sonst Hover im Chart, sonst
   jetzt); Hover auf der Karte zeigt Wassertiefe/Gelaende an der Stelle;
