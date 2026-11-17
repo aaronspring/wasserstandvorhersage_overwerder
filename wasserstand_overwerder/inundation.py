@@ -24,7 +24,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .config import DGM1_URL
+from .config import DGM1_URL, DGMW_URL
 
 # --- Gelaende laden ----------------------------------------------------------
 
@@ -113,7 +113,58 @@ def load_terrain(paths: list[Path], bbox: tuple[float, float, float, float]) -> 
     return Terrain(z=z, transform=transform)
 
 
+def load_riverbed(
+    terrain: Terrain, cache_dir: str | Path, url: str = DGMW_URL
+) -> np.ndarray:
+    """Flussbett-Hoehen (m NHN, NaN = keine Daten) aus dem DGM-W auf dem Raster
+    von ``terrain``. Liest per GDAL ``/vsicurl/`` (HTTP-Range) nur den
+    Ausschnitt; Cache ``cache_dir/dgmw_<xmin>_<ymax>_<w>x<h>.npy``."""
+    t = terrain.transform
+    h, w = terrain.z.shape
+    cache = Path(cache_dir) / f"dgmw_{t.c:.0f}_{t.f:.0f}_{w}x{h}.npy"
+    if cache.exists():
+        return np.load(cache)
+    import rasterio
+    from rasterio.windows import from_bounds
+
+    xmin, xmax, ymin, ymax = terrain.extent
+    env = {"GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR"}
+    with rasterio.Env(**env), rasterio.open(f"/vsicurl/{url}") as src:
+        if abs(src.transform.a - t.a) > 1e-9 or abs(src.transform.e - t.e) > 1e-9:
+            raise ValueError("DGM-W-Raster passt nicht zur Zellgroesse des DGM1")
+        win = from_bounds(xmin, ymin, xmax, ymax, src.transform).round_offsets()
+        bed = src.read(1, window=win, boundless=True, fill_value=np.nan)
+    bed = bed.astype("float32")[:h, :w]
+    bed[~(bed > -100)] = np.nan
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    np.save(cache, bed)
+    return bed
+
+
 # --- Rasterlogik (netzfrei) --------------------------------------------------
+
+
+def fill_riverbed(z: np.ndarray, river: np.ndarray, bed: np.ndarray) -> np.ndarray:
+    """``z`` mit dem Flussbett aufgefuellt, nur im Strom (``river``, die
+    DGM1-Luecke). Seen und andere Fehlwert-Inseln bleiben NaN."""
+    out = z.copy()
+    fill = river & np.isfinite(bed)
+    out[fill] = bed[fill]
+    return out
+
+
+def channel_mask(z: np.ndarray, river: np.ndarray, max_m: float) -> np.ndarray:
+    """Strom als Wasserquelle: groesste zusammenhaengende Flaeche des Flussbetts
+    (``river``) unter ``max_m`` m NHN. Dort steht bei jeder Tide Wasser."""
+    from scipy import ndimage
+
+    deep = river & (z <= max_m)
+    labels, n = ndimage.label(deep, structure=np.ones((3, 3)))
+    if n == 0:
+        raise ValueError(f"kein Flussbett unter {max_m} m NHN im Strom")
+    sizes = np.bincount(labels.ravel())
+    sizes[0] = 0
+    return labels == int(np.argmax(sizes))
 
 
 def water_fill_mask(z: np.ndarray, min_cells: int = 10_000) -> np.ndarray:
