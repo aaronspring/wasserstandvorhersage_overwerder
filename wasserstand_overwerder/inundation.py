@@ -70,20 +70,26 @@ def fetch_tiles(
 ) -> list[Path]:
     """Laedt die Kacheln fuer ``bbox`` aus dem Hamburg-ZIP (nur diese Bytes) nach
     ``out_dir``. Bereits vorhandene Kacheln werden nicht erneut geladen.
-    Kacheln ausserhalb Hamburgs (z. B. Niedersachsen-Ufer) fehlen im ZIP."""
-    from remotezip import RemoteZip
-
+    Kacheln ausserhalb Hamburgs (z. B. Niedersachsen-Ufer) fehlen im ZIP; sie
+    werden in ``out_dir/absent.txt`` vermerkt, damit ein voller Cache ohne Netz
+    auskommt (Datei loeschen, um neu zu pruefen)."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
+    absent_file = out / "absent.txt"
+    absent = set(absent_file.read_text().split()) if absent_file.exists() else set()
     want = set(tile_names(bbox, pattern))
     have = {p.name: p for p in out.iterdir() if p.name in want}
-    if missing := want - have.keys():
+    if missing := want - have.keys() - absent:
+        from remotezip import RemoteZip
+
         with RemoteZip(url) as z:
             for info in z.infolist():
                 name = info.filename.rsplit("/", 1)[-1]
                 if name in missing:
                     (out / name).write_bytes(z.read(info))
                     have[name] = out / name
+        absent |= missing - have.keys()
+        absent_file.write_text("\n".join(sorted(absent)) + "\n")
     return sorted(have.values())
 
 
@@ -280,6 +286,8 @@ def depth_at(
     stehen auf Stromniveau, Senken behalten ihr Stauwasser (sinkend mit
     ``drain_m_per_h``)."""
     past = level_m_nhn.sort_index().dropna()[:when]
+    if past.empty:  # vor der ersten Messung: noch alles trocken
+        return np.full(z.shape, np.nan)
     tm = flood_timing(spill, z, past, drain_m_per_h, pond_min_m)
     now = past.index[-1].tz_convert("UTC").tz_localize(None).to_datetime64()
     hrs = np.maximum((now - tm["inflow_end"]) / np.timedelta64(1, "h"), 0.0)

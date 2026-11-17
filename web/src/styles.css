@@ -478,3 +478,8 @@ body {
   font-weight: 600;
   pointer-events: none;
 }
+
+.chart-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

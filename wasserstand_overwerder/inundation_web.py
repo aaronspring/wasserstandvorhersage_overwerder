@@ -75,11 +75,14 @@ def build_asset(
     if flow_m_s:
         # Fliessweg auf einem um margin_m erweiterten Ausschnitt, damit Wege
         # von ausserhalb des Kartenausschnitts mitzaehlen; dann zuschneiden.
-        m = int(margin_m / abs(t.a)) // step * step
-        R0, C0 = max(r0 - m, 0), max(c0 - m, 0)
+        # Rand je Seite als Vielfaches von step, damit das grobe Raster
+        # phasengleich zu z bleibt (auch wenn der Rand am Modellrand endet).
+        m = int(margin_m / abs(t.a))
+        mr, mc = min(m, r0) // step * step, min(m, c0) // step * step
+        R0, C0 = r0 - mr, c0 - mc
         big = (slice(R0, r1 + m, step), slice(C0, c1 + m, step))
         dist = travel_distance(spill[big], river[big], abs(t.a) * step)
-        i0, j0 = (r0 - R0) // step, (c0 - C0) // step
+        i0, j0 = mr // step, mc // step
         dist = dist[i0 : i0 + z.shape[0], j0 : j0 + z.shape[1]]
         lag = np.nan_to_num(dist / flow_m_s / 60.0, nan=0.0)
         lag_min = np.clip(np.round(lag), 0, 255).astype("u1")

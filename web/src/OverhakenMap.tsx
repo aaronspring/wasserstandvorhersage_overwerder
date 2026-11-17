@@ -144,7 +144,14 @@ function surfaceFn(L: Level, lv: LevelAt, drainCmH: number) {
       if (back[mid] >= spill) hi = mid;
       else lo = mid + 1;
     }
-    const tLast = L.t[lv.lo - lo];
+    // Letzter Stuetzpunkt mit Wasserstand >= Schwelle; danach faellt er
+    // darunter -> Kreuzungszeit linear zwischen ihm und dem Folgewert (bzw.
+    // dem aktuellen Wert) interpolieren.
+    const j = lv.lo - lo;
+    const t2 = j < lv.lo ? L.t[j + 1] : lv.at;
+    const v2 = j < lv.lo ? L.v[j + 1] : lv.now;
+    const v1 = L.v[j];
+    const tLast = v1 > v2 ? L.t[j] + ((v1 - spill) / (v1 - v2)) * (t2 - L.t[j]) : L.t[j];
     const hrs = Math.max(0, (lv.at - tLast) / 3.6e6);
     const s = Math.max(lv.now, spill - drainCmH * hrs);
     cache.set(spill, s);
@@ -333,7 +340,7 @@ export default function OverhakenMap({
   const [missing, setMissing] = useState(false);
   const canvas = useRef<HTMLCanvasElement>(null);
   const cursor = useCursor();
-  const [style, setStyle] = useState<MapStyle>(() => {
+  const [chosenStyle, setStyle] = useState<MapStyle>(() => {
     try {
       const v = localStorage.getItem("overhaken-style");
       if (isStyle(v)) return v;
@@ -388,10 +395,17 @@ export default function OverhakenMap({
     [level, lv?.at, drainCmH],
   );
 
+  // Ohne Luftbild im Asset (WMS beim Erzeugen nicht erreichbar) waere der
+  // Satellit-Stil leer -> dann Hoehen zeigen.
+  const hasPhoto = !!grid?.a.photo;
+  const style: MapStyle = chosenStyle === "satellit" && grid && !hasPhoto ? "hoehe" : chosenStyle;
+
+  // Hoechstens einmal pro Bildschirmbild neu zeichnen (Hover feuert oefter).
   useEffect(() => {
     const ctx = canvas.current?.getContext("2d");
     if (!ctx || !grid || !water) return;
-    paint(ctx, grid, water, dark, style);
+    const id = requestAnimationFrame(() => paint(ctx, grid, water, dark, style));
+    return () => cancelAnimationFrame(id);
   }, [grid, water, dark, style]);
 
   const bldg = useMemo(() => {
@@ -471,7 +485,10 @@ export default function OverhakenMap({
               key={m.key}
               className={`chart-btn${style === m.key ? " on" : ""}`}
               aria-pressed={style === m.key}
-              title={m.title}
+              title={
+                m.key === "satellit" && !hasPhoto ? "Luftbild nicht verfügbar" : m.title
+              }
+              disabled={m.key === "satellit" && !hasPhoto}
               onClick={() => chooseStyle(m.key)}
             >
               {m.label}

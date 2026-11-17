@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Brush,
   CartesianGrid,
@@ -210,6 +210,14 @@ export default function Chart({
   const [selRight, setSelRight] = useState<number | null>(null);
   // Angeklickter Zeitpunkt: fixiert eine Ablese-Linie mit Werten je Serie.
   const [pinned, setPinned] = useState<number | null>(null);
+  // Zeigertyp der letzten Eingabe: Nur echte Maus-Bewegungen setzen den
+  // Hover-Zeitpunkt der Karte. Auf Touch fehlt ein mouseleave, ein Tippen
+  // wuerde den Hover sonst dauerhaft festhalten (Tippen fixiert per pinned).
+  const pointerType = useRef<string>("mouse");
+  const notePointer = (e: { pointerType: string }) => {
+    pointerType.current = e.pointerType;
+    if (e.pointerType !== "mouse") setCursor({ hover: null });
+  };
   // Fixierte Ablese-Linie auch fuer die Overhaken-Karte bereitstellen.
   useEffect(() => setCursor({ pinned }), [pinned]);
 
@@ -404,7 +412,7 @@ export default function Chart({
   };
   const onMove = (e: { activeLabel?: string | number } | null) => {
     const t = labelAt(e);
-    setCursor({ hover: t });
+    if (pointerType.current === "mouse") setCursor({ hover: t });
     if (selLeft != null && t != null) setSelRight(t);
   };
   const onUp = () => {
@@ -445,7 +453,11 @@ export default function Chart({
           .filter((e): e is { m: SeriesMeta; v: number } => typeof e.v === "number");
 
   return (
-    <div className="chart-wrap">
+    <div
+      className="chart-wrap"
+      onPointerDown={notePointer}
+      onPointerMove={notePointer}
+    >
       <div className="chart-controls">
         {!atFull && (
           <button

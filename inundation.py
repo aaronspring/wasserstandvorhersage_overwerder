@@ -44,7 +44,10 @@ def level_from_data_json(path: str) -> tuple[pd.Series, float]:
 
     obs, fc = series("over"), series("overwerder")
     w = pd.concat([obs, fc[fc.index > obs.index.max()] if len(obs) else fc])
-    return w, d.get("gauge_zero_m_nhn") or config.OVER_PNP_NHN_M
+    # Bewusst nicht d["gauge_zero_m_nhn"]: dort steht die Tideelbe-Konvention
+    # (-5,00 m, Demo) bzw. ein gerundeter Wert; die Reihen sind cm ueber dem
+    # PNP von Over (kalibriert dort) -> config.OVER_PNP_NHN_M.
+    return w, config.OVER_PNP_NHN_M
 
 
 def level_from_event(day: str) -> pd.Series:
@@ -228,7 +231,7 @@ def main() -> None:
             river,
             spill,
             config.INUNDATION_VIEW,
-            gauge_zero_m_nhn=config.OVER_PNP_NHN_M,
+            gauge_zero_m_nhn=gauge_zero,
             drain_m_per_h=drain,
             flow_m_s=config.INUNDATION_FLOW_M_S,
             area_bbox=args.area_bbox,

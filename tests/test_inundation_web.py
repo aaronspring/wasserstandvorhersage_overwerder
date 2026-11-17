@@ -64,3 +64,32 @@ def test_dop_url_matches_view():
     url = inundation_web.dop_url((0, 0, 540, 420), 2024)
     assert "BBOX=0%2C0%2C540%2C420" in url
     assert "WIDTH=1080" in url and "HEIGHT=840" in url and "TIME=2024" in url
+
+
+def test_lag_aligned_when_margin_clipped_at_edge():
+    # Ausschnitt beginnt bei Zeile/Spalte 1 (ungerade) direkt am Modellrand:
+    # das grobe Raster fuer den Fliessweg muss phasengleich zu z bleiben.
+    # Ein Deich (8 m) hat nur in Zeile 5 eine Luecke; die Senke dahinter ist
+    # nur ueber diese Luecke erreichbar -> im falschen Raster (gerade Zeilen)
+    # waere sie unerreichbar und haette Fliesszeit 0.
+    z = np.full((20, 40), 2.5)
+    z[:, :10] = np.nan
+    z[:, 21] = 8.0  # ungerade Spalte -> im 2-m-Raster des Ausschnitts enthalten
+    z[5, 21] = 2.5
+    z[:, 22:] = 2.0
+    ter = Terrain(z=z, transform=SimpleNamespace(a=1.0, c=1000.0, e=-1.0, f=2020.0))
+    river = inundation.river_mask(z)
+    spill = inundation.spill_elevation(z, river)
+    a = inundation_web.build_asset(
+        ter,
+        river,
+        spill,
+        (1001, 2000, 1039, 2019),
+        step=2,
+        gauge_zero_m_nhn=-5.098,
+        flow_m_s=1 / 60,  # 1 min je m
+    )
+    lag = inundation_web.decode(a, "lag_min")
+    # Senke: Vollraster-Spalte 1 + 2 j >= 23 -> j >= 11; Zeile 5 -> i = 2
+    assert (lag[:, 11:] > 10).all()
+    assert lag[2, 11] < lag[8, 11]  # an der Luecke kuerzer als weit weg

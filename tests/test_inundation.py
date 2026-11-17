@@ -128,3 +128,48 @@ def test_travel_distance_goes_over_dike_crest():
     # Senke hinter dem Sommerdeich: Weg ueber die Krone (Spalte 20)
     np.testing.assert_allclose(dist[10, 25], 15.5, atol=0.01)
     assert (np.diff(dist[10, 10:30]) > 0).all()
+
+
+def test_depth_at_before_series_is_dry():
+    z = terrain()
+    spill = inundation.spill_elevation(z, inundation.river_mask(z))
+    idx = pd.date_range("2026-01-01", periods=10, freq="h", tz="UTC")
+    level = pd.Series(3.5, index=idx)
+    d = inundation.depth_at(spill, z, level, idx[0] - pd.Timedelta(hours=1))
+    assert np.isnan(d).all()
+
+
+def test_fetch_tiles_remembers_absent_tiles(tmp_path, monkeypatch):
+    import sys
+    import types
+
+    calls = []
+
+    class FakeZip:
+        def __init__(self, url):
+            calls.append(url)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def infolist(self):
+            return [types.SimpleNamespace(filename="x/a.tif")]
+
+        def read(self, info):
+            return b"tile"
+
+    monkeypatch.setitem(
+        sys.modules, "remotezip", types.SimpleNamespace(RemoteZip=FakeZip)
+    )
+    monkeypatch.setattr(
+        inundation, "tile_names", lambda bbox, pattern: ["a.tif", "b.tif"]
+    )
+    paths = inundation.fetch_tiles((0, 0, 1, 1), tmp_path, url="u")
+    assert [p.name for p in paths] == ["a.tif"]
+    assert (tmp_path / "absent.txt").read_text().split() == ["b.tif"]
+    # zweiter Aufruf: alles bekannt -> kein Netz
+    paths = inundation.fetch_tiles((0, 0, 1, 1), tmp_path, url="u")
+    assert [p.name for p in paths] == ["a.tif"] and len(calls) == 1
