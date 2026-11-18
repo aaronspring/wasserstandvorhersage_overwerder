@@ -331,13 +331,24 @@ function paint(
     const bed =
       g.cls[i] === RIVER ? bedDepth(g, i, water(g.lag ? g.lag[i] : 0)) : null;
     if (bed != null) {
-      // Strom mit Sohle: nass -> Elbe, trocken -> Strand (auch auf dem Luftbild,
-      // das einen anderen Tidestand zeigt).
-      rgb = bed >= 1 ? river : sand;
-      if (photo) alpha = bed >= 1 ? 150 : 210;
-      else if (!atlas) {
+      // Strom mit Sohle: nass -> Tiefe ueber der Sohle auf derselben Blauskala
+      // wie das Gelaende (sonst wirkt ein tiefer Priel flacher als die
+      // ueberflutete Wiese), trocken -> Strand (auch auf dem Luftbild, das
+      // einen anderen Tidestand zeigt).
+      let ground = sand;
+      if (!atlas && !photo) {
         const k = 0.75 + 0.35 * (g.shade[i] / 255);
-        rgb = rgb.map((c) => Math.min(255, c * k));
+        ground = sand.map((c) => Math.min(255, c * k));
+      }
+      if (bed < 1) {
+        rgb = ground;
+        if (photo) alpha = 210;
+      } else if (photo) {
+        rgb = depthRgb(bed);
+        alpha = 200;
+      } else {
+        const c = depthRgb(bed);
+        rgb = [0, 1, 2].map((j) => c[j] * 0.8 + ground[j] * 0.2);
       }
     } else if (photo) {
       alpha = 0;
