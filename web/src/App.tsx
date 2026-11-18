@@ -142,166 +142,161 @@ export default function App() {
               />
             </div>
           )}
+          {data && (
+            <div className="legend">
+              {SERIES.filter((m) => data.series[m.key]?.length).map((m) => {
+                const off = hidden.has(m.key);
+                return (
+                  <button
+                    type="button"
+                    className={`leg-item leg-toggle${off ? " off" : ""}`}
+                    key={m.key}
+                    onClick={() => toggle(m.key)}
+                    aria-pressed={!off}
+                    title={off ? "Linie einblenden" : "Linie ausblenden"}
+                  >
+                    <svg width="26" height="10" aria-hidden="true">
+                      <line
+                        x1="1"
+                        y1="5"
+                        x2="25"
+                        y2="5"
+                        stroke={m.color(colors)}
+                        strokeWidth={Math.max(2, m.width)}
+                        strokeDasharray={m.dash}
+                      />
+                    </svg>
+                    {m.label.split(" (")[0]}
+                  </button>
+                );
+              })}
+              <span className="leg-item">
+                <svg width="26" height="10" aria-hidden="true">
+                  <line x1="13" y1="0" x2="13" y2="10" stroke={colors.now} strokeWidth="2" />
+                </svg>
+                jetzt
+              </span>
+              <span className="leg-item">
+                <svg width="26" height="10" aria-hidden="true">
+                  <line
+                    x1="13"
+                    y1="0"
+                    x2="13"
+                    y2="10"
+                    stroke={colors.forecast}
+                    strokeWidth="1.5"
+                    strokeDasharray="3 3"
+                  />
+                </svg>
+                Vorhersagebeginn
+              </span>
+              {typeof data.gelaende_cm === "number" ? (
+                <span
+                  className="leg-item"
+                  title="Ab St. Pauli NN+3,0 m steht Wasser auf dem Overwerder-Gelände (auf Pegel Over übersetzt)"
+                >
+                  <svg width="26" height="10" aria-hidden="true">
+                    <line
+                      x1="1"
+                      y1="5"
+                      x2="25"
+                      y2="5"
+                      stroke={colors.gelaende}
+                      strokeWidth="1.5"
+                      strokeDasharray="6 3"
+                    />
+                  </svg>
+                  Wasser auf Gelände
+                </span>
+              ) : null}
+              {data.surge_lines?.length ? (
+                <button
+                  type="button"
+                  className={`leg-item leg-toggle${showSurges ? "" : " off"}`}
+                  onClick={() => setShowSurges((v) => !v)}
+                  aria-pressed={showSurges}
+                  title="Historische Top-10-Sturmfluten als Referenzlinien"
+                >
+                  <svg width="26" height="10" aria-hidden="true">
+                    <line
+                      x1="1"
+                      y1="5"
+                      x2="25"
+                      y2="5"
+                      stroke={colors.surge}
+                      strokeWidth="2"
+                    />
+                  </svg>
+                  Top-10 Sturmfluten
+                </button>
+              ) : null}
+              {data.sturmflut_lines?.length ? (
+                <button
+                  type="button"
+                  className={`leg-item leg-toggle${showSturmflut ? "" : " off"}`}
+                  onClick={() => setShowSturmflut((v) => !v)}
+                  aria-pressed={showSturmflut}
+                  title="BSH-Sturmflut-Klassen (Sturmflut, schwere, sehr schwere) als Referenzlinien, auf Pegel Over übersetzt"
+                >
+                  <svg width="26" height="10" aria-hidden="true">
+                    <line
+                      x1="1"
+                      y1="5"
+                      x2="25"
+                      y2="5"
+                      stroke={colors.sturmflut}
+                      strokeWidth="1.5"
+                      strokeDasharray="6 3"
+                    />
+                  </svg>
+                  Sturmflut-Stufen
+                </button>
+              ) : null}
+              {data.surge_doc_url && (
+                <a
+                  className="leg-item leg-link"
+                  href={data.surge_doc_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Methodik und vollständige Top-10-Tabelle"
+                >
+                  Top-10 ↗
+                </a>
+              )}
+              {data.eda_doc_url && (
+                <a
+                  className="leg-item leg-link"
+                  href={data.eda_doc_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Sturmflut-Analyse: Häufigkeit, Saisonalität, Trend und wie oft Wasser auf dem Gelände steht"
+                >
+                  Sturmflut-Analyse ↗
+                </a>
+              )}
+            </div>
+          )}
+          {data && (
+            <p className="chart-foot">
+              Legende antippen blendet Linien aus · „Top-10 Sturmfluten" zeigt die
+              historischen Scheitel, „Sturmflut-Stufen" die BSH-Klassen · ins Diagramm
+              tippen zeigt die Werte je Linie · ziehen zoomt hinein · Übersichtsleiste
+              unten verschieben/aufziehen oder „Ganzer Zeitraum" zeigt die volle
+              Vorhersage · Standardansicht: 12 h zurück und 36 h voraus
+              <br />
+              PNP = NHN − 5,00 m · Werte in cm über Pegelnullpunkt · gesetzliche Zeit
+              (Europe/Berlin)
+              <br />
+              Quellen: BSH-Kurvenvorhersage (CC BY 4.0), PEGELONLINE (WSV). Interpolation
+              Zollenspieker ↔ St. Pauli auf Overwerder, kalibriert am Pegel Over. Keine
+              amtliche Sturmflutwarnung.
+            </p>
+          )}
         </main>
 
         {data && <OverhakenMap data={data} dark={mode === "dark"} />}
       </div>
 
-      {data && (
-        <div className="legend">
-          {SERIES.filter((m) => data.series[m.key]?.length).map((m) => {
-            const off = hidden.has(m.key);
-            return (
-              <button
-                type="button"
-                className={`leg-item leg-toggle${off ? " off" : ""}`}
-                key={m.key}
-                onClick={() => toggle(m.key)}
-                aria-pressed={!off}
-                title={off ? "Linie einblenden" : "Linie ausblenden"}
-              >
-                <svg width="26" height="10" aria-hidden="true">
-                  <line
-                    x1="1"
-                    y1="5"
-                    x2="25"
-                    y2="5"
-                    stroke={m.color(colors)}
-                    strokeWidth={Math.max(2, m.width)}
-                    strokeDasharray={m.dash}
-                  />
-                </svg>
-                {m.label.split(" (")[0]}
-              </button>
-            );
-          })}
-          <span className="leg-item">
-            <svg width="26" height="10" aria-hidden="true">
-              <line x1="13" y1="0" x2="13" y2="10" stroke={colors.now} strokeWidth="2" />
-            </svg>
-            jetzt
-          </span>
-          <span className="leg-item">
-            <svg width="26" height="10" aria-hidden="true">
-              <line
-                x1="13"
-                y1="0"
-                x2="13"
-                y2="10"
-                stroke={colors.forecast}
-                strokeWidth="1.5"
-                strokeDasharray="3 3"
-              />
-            </svg>
-            Vorhersagebeginn
-          </span>
-          {typeof data.gelaende_cm === "number" ? (
-            <span
-              className="leg-item"
-              title="Ab St. Pauli NN+3,0 m steht Wasser auf dem Overwerder-Gelände (auf Pegel Over übersetzt)"
-            >
-              <svg width="26" height="10" aria-hidden="true">
-                <line
-                  x1="1"
-                  y1="5"
-                  x2="25"
-                  y2="5"
-                  stroke={colors.gelaende}
-                  strokeWidth="1.5"
-                  strokeDasharray="6 3"
-                />
-              </svg>
-              Wasser auf Gelände
-            </span>
-          ) : null}
-          {data.surge_lines?.length ? (
-            <button
-              type="button"
-              className={`leg-item leg-toggle${showSurges ? "" : " off"}`}
-              onClick={() => setShowSurges((v) => !v)}
-              aria-pressed={showSurges}
-              title="Historische Top-10-Sturmfluten als Referenzlinien"
-            >
-              <svg width="26" height="10" aria-hidden="true">
-                <line
-                  x1="1"
-                  y1="5"
-                  x2="25"
-                  y2="5"
-                  stroke={colors.surge}
-                  strokeWidth="2"
-                />
-              </svg>
-              Top-10 Sturmfluten
-            </button>
-          ) : null}
-          {data.sturmflut_lines?.length ? (
-            <button
-              type="button"
-              className={`leg-item leg-toggle${showSturmflut ? "" : " off"}`}
-              onClick={() => setShowSturmflut((v) => !v)}
-              aria-pressed={showSturmflut}
-              title="BSH-Sturmflut-Klassen (Sturmflut, schwere, sehr schwere) als Referenzlinien, auf Pegel Over übersetzt"
-            >
-              <svg width="26" height="10" aria-hidden="true">
-                <line
-                  x1="1"
-                  y1="5"
-                  x2="25"
-                  y2="5"
-                  stroke={colors.sturmflut}
-                  strokeWidth="1.5"
-                  strokeDasharray="6 3"
-                />
-              </svg>
-              Sturmflut-Stufen
-            </button>
-          ) : null}
-          {data.surge_doc_url && (
-            <a
-              className="leg-item leg-link"
-              href={data.surge_doc_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Methodik und vollständige Top-10-Tabelle"
-            >
-              Top-10 ↗
-            </a>
-          )}
-          {data.eda_doc_url && (
-            <a
-              className="leg-item leg-link"
-              href={data.eda_doc_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Sturmflut-Analyse: Häufigkeit, Saisonalität, Trend und wie oft Wasser auf dem Gelände steht"
-            >
-              Sturmflut-Analyse ↗
-            </a>
-          )}
-          <p className="leg-hint">
-            Legende antippen blendet Linien aus · „Top-10 Sturmfluten" zeigt die
-            historischen Scheitel, „Sturmflut-Stufen" die BSH-Klassen · ins
-            Diagramm tippen zeigt die
-            Werte je Linie · ziehen zoomt hinein · Übersichtsleiste unten
-            verschieben/aufziehen oder „Ganzer Zeitraum" zeigt die volle
-            Vorhersage · Standardansicht: 12 h zurück und 36 h voraus
-          </p>
-        </div>
-      )}
-
-      <footer className="foot">
-        <p>
-          PNP = NHN − 5,00 m · Werte in cm über Pegelnullpunkt · gesetzliche Zeit
-          (Europe/Berlin)
-        </p>
-        <p>
-          Quellen: BSH-Kurvenvorhersage (CC BY 4.0), PEGELONLINE (WSV). Interpolation
-          Zollenspieker ↔ St. Pauli auf Overwerder, kalibriert am Pegel Over. Keine
-          amtliche Sturmflutwarnung.
-        </p>
-        <p>Letzter Build: {fmtDateTime(Date.parse(__BUILD_TIME__))} Uhr</p>
-      </footer>
     </div>
   );
 }
