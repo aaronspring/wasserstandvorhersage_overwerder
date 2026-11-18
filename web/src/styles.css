@@ -120,7 +120,10 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 12px 8px 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .chart-box {
@@ -222,8 +225,7 @@ body {
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 18px;
-  padding: 0 4px;
+  gap: 4px 14px;
 }
 
 .leg-item {
@@ -266,25 +268,24 @@ body {
   color: var(--ink);
 }
 
-.leg-hint {
-  flex-basis: 100%;
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-size: 0.74rem;
-  line-height: 1.5;
+/* Quellen-Links im Fliesstext: Textfarbe, nur unterstrichen */
+.chart-foot a,
+.map-foot a {
+  color: inherit;
+  text-decoration: underline;
 }
 
-.foot {
-  margin-top: auto;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 0.74rem;
-  line-height: 1.5;
+.chart-foot a:hover,
+.map-foot a:hover {
+  color: var(--ink);
 }
 
-.foot p {
-  margin: 4px 0;
+/* Hinweise/Quellen unter dem Chart, wie .map-foot der Karte */
+.chart-foot {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 /* Overhaken-Karte zum Chart-Zeitpunkt */
@@ -502,29 +503,7 @@ body {
     align-items: stretch;
   }
 
-  /* Desktop: Chart links, Karte rechts, Legende darunter ueber volle Breite.
-     Mobil bleibt die DOM-Reihenfolge: Chart, Legende, Karte. */
-  .chart-map > .chart-card {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .chart-map > .map-card {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .chart-map > .legend {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
   /* Chart-Karte auf die Hoehe der Overhaken-Karte strecken (oben + unten buendig). */
-  .chart-map > .chart-card {
-    display: flex;
-    flex-direction: column;
-  }
-
   .chart-map > .chart-card > .chart-box {
     flex: 1 1 auto;
     height: auto;

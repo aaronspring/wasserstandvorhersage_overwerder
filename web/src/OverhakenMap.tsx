@@ -331,13 +331,24 @@ function paint(
     const bed =
       g.cls[i] === RIVER ? bedDepth(g, i, water(g.lag ? g.lag[i] : 0)) : null;
     if (bed != null) {
-      // Strom mit Sohle: nass -> Elbe, trocken -> Strand (auch auf dem Luftbild,
-      // das einen anderen Tidestand zeigt).
-      rgb = bed >= 1 ? river : sand;
-      if (photo) alpha = bed >= 1 ? 150 : 210;
-      else if (!atlas) {
+      // Strom mit Sohle: nass -> Tiefe ueber der Sohle auf derselben Blauskala
+      // wie das Gelaende (sonst wirkt ein tiefer Priel flacher als die
+      // ueberflutete Wiese), trocken -> Strand (auch auf dem Luftbild, das
+      // einen anderen Tidestand zeigt).
+      let ground = sand;
+      if (!atlas && !photo) {
         const k = 0.75 + 0.35 * (g.shade[i] / 255);
-        rgb = rgb.map((c) => Math.min(255, c * k));
+        ground = sand.map((c) => Math.min(255, c * k));
+      }
+      if (bed < 1) {
+        rgb = ground;
+        if (photo) alpha = 210;
+      } else if (photo) {
+        rgb = depthRgb(bed);
+        alpha = 200;
+      } else {
+        const c = depthRgb(bed);
+        rgb = [0, 1, 2].map((j) => c[j] * 0.8 + ground[j] * 0.2);
       }
     } else if (photo) {
       alpha = 0;
@@ -829,7 +840,18 @@ export default function OverhakenMap({
           Stauwasser in Senken versickert mit {Math.round(drainCmH)} cm/h
           (Sandboden, angenommen).
           <br />
-          Geodaten: DGM1 2022, LoD2-DE 2026, DOP 2024
+          Geodaten:{" "}
+          <a href="https://suche.transparenz.hamburg.de/dataset/digitales-hoehenmodell-hamburg-dgm-16" target="_blank" rel="noreferrer">
+            DGM1 2022
+          </a>
+          ,{" "}
+          <a href="https://suche.transparenz.hamburg.de/dataset/3d-gebaeudemodell-lod2-de-hamburg2" target="_blank" rel="noreferrer">
+            LoD2-DE 2026
+          </a>
+          ,{" "}
+          <a href="https://suche.transparenz.hamburg.de/dataset/luftbilder-hamburg-dop-zeitreihe-belaubt3" target="_blank" rel="noreferrer">
+            DOP 2024
+          </a>{" "}
           © Freie und Hansestadt Hamburg, LGV,{" "}
           <a href="https://www.govdata.de/dl-de/by-2-0" target="_blank" rel="noreferrer">
             dl-de/by-2.0
@@ -837,7 +859,11 @@ export default function OverhakenMap({
           , verändert
           {grid.hasBed && (
             <>
-              ; Flussbett DGM-W 2022 © WSV,{" "}
+              ; Flussbett{" "}
+              <a href="https://www.portal-tideelbe.de/" target="_blank" rel="noreferrer">
+                DGM-W 2022
+              </a>{" "}
+              © WSV,{" "}
               <a href="https://www.govdata.de/dl-de/zero-2-0" target="_blank" rel="noreferrer">
                 dl-de/zero-2.0
               </a>
