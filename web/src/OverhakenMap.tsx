@@ -829,7 +829,18 @@ export default function OverhakenMap({
           Stauwasser in Senken versickert mit {Math.round(drainCmH)} cm/h
           (Sandboden, angenommen).
           <br />
-          Geodaten: DGM1 2022, LoD2-DE 2026, DOP 2024
+          Geodaten:{" "}
+          <a href="https://suche.transparenz.hamburg.de/dataset/digitales-hoehenmodell-hamburg-dgm-16" target="_blank" rel="noreferrer">
+            DGM1 2022
+          </a>
+          ,{" "}
+          <a href="https://suche.transparenz.hamburg.de/dataset/3d-gebaeudemodell-lod2-de-hamburg2" target="_blank" rel="noreferrer">
+            LoD2-DE 2026
+          </a>
+          ,{" "}
+          <a href="https://suche.transparenz.hamburg.de/dataset/luftbilder-hamburg-dop-zeitreihe-belaubt3" target="_blank" rel="noreferrer">
+            DOP 2024
+          </a>{" "}
           © Freie und Hansestadt Hamburg, LGV,{" "}
           <a href="https://www.govdata.de/dl-de/by-2-0" target="_blank" rel="noreferrer">
             dl-de/by-2.0
@@ -837,7 +848,11 @@ export default function OverhakenMap({
           , verändert
           {grid.hasBed && (
             <>
-              ; Flussbett DGM-W 2022 © WSV,{" "}
+              ; Flussbett{" "}
+              <a href="https://www.portal-tideelbe.de/" target="_blank" rel="noreferrer">
+                DGM-W 2022
+              </a>{" "}
+              © WSV,{" "}
               <a href="https://www.govdata.de/dl-de/zero-2-0" target="_blank" rel="noreferrer">
                 dl-de/zero-2.0
               </a>

@@ -234,7 +234,7 @@ INUNDATION_VIEW = (573180.0, 5921080.0, 573720.0, 5921500.0)
 # Beschriftungen der Web-Karte (Text, x, y).
 INUNDATION_MAP_LABELS = (
     ("Elbe", 573215.0, 5921300.0),
-    ("Priel", 573400.0, 5921140.0),
+    ("Priel", 573400.0, 5921190.0),
     ("Overhaken", 573420.0, 5921440.0),
     ("Hauptdeich", 573660.0, 5921330.0),
 )
