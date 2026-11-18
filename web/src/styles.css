@@ -268,6 +268,18 @@ body {
   color: var(--ink);
 }
 
+/* Quellen-Links im Fliesstext: Textfarbe, nur unterstrichen */
+.chart-foot a,
+.map-foot a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.chart-foot a:hover,
+.map-foot a:hover {
+  color: var(--ink);
+}
+
 /* Hinweise/Quellen unter dem Chart, wie .map-foot der Karte */
 .chart-foot {
   margin: 0;

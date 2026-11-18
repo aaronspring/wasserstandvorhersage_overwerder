@@ -287,7 +287,23 @@ export default function App() {
               PNP = NHN − 5,00 m · Werte in cm über Pegelnullpunkt · gesetzliche Zeit
               (Europe/Berlin)
               <br />
-              Quellen: BSH-Kurvenvorhersage (CC BY 4.0), PEGELONLINE (WSV). Interpolation
+              Quellen:{" "}
+          <a
+            href="https://www.bsh.de/DE/DATEN/Vorhersagen/Wasserstand_Nordsee/wasserstand_nordsee_node.html"
+            target="_blank"
+            rel="noreferrer"
+          >
+            BSH-Kurvenvorhersage
+          </a>{" "}
+          (
+          <a href="https://creativecommons.org/licenses/by/4.0/deed.de" target="_blank" rel="noreferrer">
+            CC BY 4.0
+          </a>
+          ),{" "}
+          <a href="https://www.pegelonline.wsv.de/" target="_blank" rel="noreferrer">
+            PEGELONLINE
+          </a>{" "}
+          (WSV). Interpolation
               Zollenspieker ↔ St. Pauli auf Overwerder, kalibriert am Pegel Over. Keine
               amtliche Sturmflutwarnung.
             </p>
